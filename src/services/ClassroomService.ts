@@ -41,8 +41,8 @@ export const getClassrooms = async (): Promise<Classroom[]> => {
     }
 };
 
-export const joinClassroom = (classroomCode: string) => {
-    return apiClient.post('/classrooms/join', { classroomCode });
+export const joinClassroom = (code: string) => {
+    return apiClient.post('/classrooms/join', { code });
 };
 
 export const assignAssignmentToClassroom = (data: { classroomId: number; assignmentId: number; due_date: string | null }) => {

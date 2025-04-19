@@ -1,6 +1,6 @@
 import { useState } from "react";
-import ClassroomsSection from "@/components/instructor/ClassroomSection";
-import ProblemsSection from "@/components/instructor/ProblemsSection";
+import ClassroomsSection from "@/components/instructor/dashboard/ClassroomSection";
+import ProblemsSection from "@/components/instructor/dashboard/ProblemsSection";
 
 const InstructorDashboard = () => {
   const [activeTab, setActiveTab] = useState("active");

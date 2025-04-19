@@ -3,7 +3,6 @@ import apiClient from './APIclient';
 interface LoginCredentials {
   email: string;
   password: string;
-  role: "instructor" | "student";
 }
 
 interface SignupData {
@@ -30,18 +29,15 @@ interface AuthResponse {
 export const loginUser = async ({
   email,
   password,
-  role,
 }: LoginCredentials): Promise<AuthResponse> => {
   try {
     const response = await apiClient.post('/auth/login', {
       email,
       password,
-      role,
     });
 
     const data = response.data;
 
-    // Store token if present
     if (data.token) {
       localStorage.setItem("token", data.token);
     }

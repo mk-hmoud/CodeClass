@@ -58,13 +58,11 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      //TODO: change this.
-      const role = email.includes("instructor") ? "instructor" : "student";
-      const result = await loginUser({ email, password, role });
+      const result = await loginUser({ email, password });
 
       if (result.success) {
         toast.success("Login successful");
-        if (role === "instructor") {
+        if (result.user.role === "instructor") {
           navigate("/instructor/dashboard");
         } else {
           navigate("/student/dashboard");

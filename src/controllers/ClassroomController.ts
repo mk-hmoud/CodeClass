@@ -6,7 +6,8 @@ import {
   getInstructorClassrooms, 
   getStudentClassrooms, 
   assignAssignment, 
-  deleteClassroom 
+  deleteClassroom,
+  joinClassroom
 } from '../models/ClassroomModel';
 import { getInstructorByUserId, getInstructorIdByClassroom, Instructor } from '../models/InstructorModel';
 import { getStudentByUserId, Student } from '../models/StudentModel'; 
@@ -190,5 +191,47 @@ export const deleteClassroomController = async (req: Request, res: Response): Pr
   } catch (error) {
     logMessage(functionName, `Error deleting classroom: ${error}`);
     res.status(500).json({ success: false, message: 'Failed to delete classroom' });
+  }
+};
+
+export const joinClassroomController = async (req: Request, res: Response): Promise<void> => {
+  const functionName = 'joinClassroomController';
+  try {
+    logMessage(functionName, 'Received request to join classroom.');
+
+    if (!req.user) {
+      logMessage(functionName, 'No user in request.');
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    const student: Student | null = await getStudentByUserId(req.user.id);
+    if (!student) {
+      logMessage(functionName, `User ${req.user.id} is not a student.`);
+      res.status(401).json({ success: false, message: 'Unauthorized: Not a student' });
+      return;
+    }
+
+    const { code }  = req.body;
+    logMessage(functionName, `Classroom code received is ${code}`);
+    if (typeof code !== 'string' || !code.trim()) {
+      res.status(400).json({ success: false, message: 'Classroom code is required' });
+      return;
+    }
+
+    await joinClassroom(req.user.role_id, code.trim().toUpperCase());
+
+    logMessage(functionName, `Student ${student.student_id} joined classroom with code ${code}.`);
+    res.status(201).json({ success: true, message: 'Enrolled successfully' });
+  } catch (error: any) {
+    logMessage(functionName, `Error in joinClassroom: ${error.message}`);
+    if (error.message === 'INVALID_CODE') {
+      res.status(400).json({ success: false, message: 'Invalid classroom code' });
+    } else if (error.message === 'ALREADY_ENROLLED') {
+      res.status(409).json({ success: false, message: 'Already enrolled in this classroom' });
+    } else {
+      res.status(500).json({ success: false, message: 'Failed to join classroom' });
+    }
+    return;
   }
 };

@@ -228,3 +228,40 @@ export const getStudentClassrooms = async (
     return [];
   }
 };
+
+
+export const joinClassroom = async (studentId: number, code: string): Promise<void> => {
+  const functionName = 'joinClassroom';
+  try {
+    logMessage(functionName, `Student ${studentId} attempting to join with code ${code}.`);
+
+    const classQuery = await pool.query(
+      `SELECT classroom_id FROM classrooms WHERE classroom_code = $1`,
+      [code]
+    );
+    if (classQuery.rowCount === 0) {
+      throw new Error('INVALID_CODE');
+    }
+    const classroomId: number = classQuery.rows[0].classroom_id;
+
+    const enrollQuery = await pool.query(
+      `SELECT enrollment_id 
+         FROM classroom_enrollments 
+         WHERE classroom_id = $1 AND student_id = $2`,
+      [classroomId, studentId]
+    );
+    if (enrollQuery.rowCount && enrollQuery.rowCount > 0) {
+      throw new Error('ALREADY_ENROLLED');
+    }
+
+    await pool.query(
+      `INSERT INTO classroom_enrollments (classroom_id, student_id) 
+       VALUES ($1, $2)`,
+      [classroomId, studentId]
+    );
+    logMessage(functionName, `Student ${studentId} enrolled in classroom ${classroomId}.`);
+  } catch (error) {
+    logMessage(functionName, `Error in joinClassroom: ${error}`);
+    throw error;
+  }
+};

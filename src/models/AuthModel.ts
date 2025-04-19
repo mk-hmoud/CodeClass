@@ -1,6 +1,11 @@
 import pool from '../config/db';
 import bcrypt from 'bcrypt';
 
+const logMessage = (functionName: string, message: string): void => {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] [AuthModel.ts] [${functionName}] ${message}`);
+};
+
 export interface User {
   user_id: number;
   username: string;
@@ -23,41 +28,35 @@ export async function createUser(userData: {
   password: string;
   role: 'instructor' | 'student';
 }): Promise<User> {
-  console.log('Creating user in database:', { email: userData.email, role: userData.role });
+  const functionName = 'createUser';
+  const { first_name, last_name, username, email, password, role } = userData;
+  logMessage(functionName, `Creating user in database: email=${email}, role=${role}`);
   const client = await pool.connect();
   try {
-    const { first_name, last_name, username, email, password, role } = userData;
-    console.log('Hashing password for:', { email });
+    logMessage(functionName, `Hashing password for: ${email}`);
     const password_hash = await bcrypt.hash(password, 10);
-    await client.query('BEGIN');
 
+    await client.query('BEGIN');
     const userQuery = `
-      INSERT INTO users (first_name, last_name, username, email, password_hash) 
-      VALUES ($1, $2, $3, $4, $5) 
+      INSERT INTO users (first_name, last_name, username, email, password_hash)
+      VALUES ($1, $2, $3, $4, $5)
       RETURNING user_id, username, email, first_name, last_name
     `;
-    console.log('Executing user insert query for:', { email });
-    const userResult = await client.query(userQuery, [
-      first_name,
-      last_name || null,
-      username,
-      email,
-      password_hash,
-    ]);
+    logMessage(functionName, `Executing user insert query for: ${email}`);
+    const userResult = await client.query(userQuery, [first_name, last_name || null, username, email, password_hash]);
     const newUser = userResult.rows[0];
-    console.log('User inserted:', { user_id: newUser.user_id, email: newUser.email });
+    logMessage(functionName, `User inserted: user_id=${newUser.user_id}, email=${newUser.email}`);
 
-    // Insert into the corresponding role table and retrieve the role-specific ID
     let role_id: number;
     if (role === 'instructor') {
-      console.log('Inserting instructor record for user_id:', newUser.user_id);
+      logMessage(functionName, `Inserting instructor record for user_id: ${newUser.user_id}`);
       const instructorResult = await client.query(
         `INSERT INTO instructors (user_id) VALUES ($1) RETURNING instructor_id as role_id`,
         [newUser.user_id]
       );
       role_id = instructorResult.rows[0].role_id;
     } else {
-      console.log('Inserting student record for user_id:', newUser.user_id);
+      logMessage(functionName, `Inserting student record for user_id: ${newUser.user_id}`);
       const studentResult = await client.query(
         `INSERT INTO students (user_id) VALUES ($1) RETURNING student_id as role_id`,
         [newUser.user_id]
@@ -66,37 +65,39 @@ export async function createUser(userData: {
     }
 
     await client.query('COMMIT');
-    console.log('Transaction committed for user:', { email });
+    logMessage(functionName, `Transaction committed for user: ${email}`);
+
     return {
       user_id: newUser.user_id,
       username: newUser.username,
       email: newUser.email,
       first_name: newUser.first_name,
       last_name: newUser.last_name,
-      role: role,
-      role_id: role_id
+      role,
+      role_id,
     };
-  } catch (error) {
+  } catch (error: any) {
     await client.query('ROLLBACK');
-    console.error('Error creating user:', error);
+    logMessage(functionName, `Error creating user: ${error.message}`);
+    console.error(error);
     throw error;
   } finally {
     client.release();
-    console.log('Database client released for user creation.');
+    logMessage(functionName, `Database client released for user creation.`);
   }
 }
 
 export async function findUserByEmail(email: string): Promise<UserWithPassword | null> {
-  console.log('Searching for user by email:', { email });
+  const functionName = 'findUserByEmail';
+  logMessage(functionName, `Searching for user by email: ${email}`);
   try {
     const userQuery = `SELECT * FROM users WHERE email = $1`;
     const userResult = await pool.query(userQuery, [email]);
-    
     if (userResult.rows.length === 0) {
-      console.log('No user found for email:', { email });
+      logMessage(functionName, `No user found for email: ${email}`);
       return null;
     }
-    
+
     const query = `
       SELECT 
         u.user_id, 
@@ -119,24 +120,24 @@ export async function findUserByEmail(email: string): Promise<UserWithPassword |
         OR EXISTS (SELECT 1 FROM students WHERE user_id = u.user_id)
       )
     `;
-    
     const result = await pool.query(query, [email]);
-    
     if (result.rows.length === 0) {
-      console.log('User exists but has no role assigned:', { email });
+      logMessage(functionName, `User exists but has no role assigned: ${email}`);
       return null;
     }
-    
-    console.log('User found for email:', { email, user_id: result.rows[0].user_id });
+
+    logMessage(functionName, `User found for email: ${email}, user_id=${result.rows[0].user_id}`);
     return result.rows[0] as UserWithPassword;
-  } catch (error) {
-    console.error('Error finding user by email:', error);
+  } catch (error: any) {
+    logMessage(functionName, `Error finding user by email: ${error.message}`);
+    console.error(error);
     throw error;
   }
 }
 
 export async function findUserById(userId: number): Promise<User | null> {
-  console.log('Searching for user by ID:', { userId });
+  const functionName = 'findUserById';
+  logMessage(functionName, `Searching for user by ID: ${userId}`);
   try {
     const query = `
       SELECT 
@@ -159,33 +160,32 @@ export async function findUserById(userId: number): Promise<User | null> {
         OR EXISTS (SELECT 1 FROM students WHERE user_id = u.user_id)
       )
     `;
-    
     const result = await pool.query(query, [userId]);
-    
     if (result.rows.length === 0) {
-      console.log('No user found with ID or user has no role:', { userId });
+      logMessage(functionName, `No user found with ID or user has no role: ${userId}`);
       return null;
     }
-    
-    console.log('User found with ID:', { userId });
+
+    logMessage(functionName, `User found with ID: ${userId}`);
     return result.rows[0] as User;
-  } catch (error) {
-    console.error('Error finding user by ID:', error);
+  } catch (error: any) {
+    logMessage(functionName, `Error finding user by ID: ${error.message}`);
+    console.error(error);
     throw error;
   }
 }
 
 export async function findUserByUsername(username: string): Promise<UserWithPassword | null> {
-  console.log('Searching for user by username:', { username });
+  const functionName = 'findUserByUsername';
+  logMessage(functionName, `Searching for user by username: ${username}`);
   try {
     const userQuery = `SELECT * FROM users WHERE username = $1`;
     const userResult = await pool.query(userQuery, [username]);
-    
     if (userResult.rows.length === 0) {
-      console.log('No user found for username:', { username });
+      logMessage(functionName, `No user found for username: ${username}`);
       return null;
     }
-    
+
     const query = `
       SELECT 
         u.user_id, 
@@ -208,30 +208,31 @@ export async function findUserByUsername(username: string): Promise<UserWithPass
         OR EXISTS (SELECT 1 FROM students WHERE user_id = u.user_id)
       )
     `;
-    
     const result = await pool.query(query, [username]);
-    
     if (result.rows.length === 0) {
-      console.log('User exists but has no role assigned:', { username });
+      logMessage(functionName, `User exists but has no role assigned: ${username}`);
       return null;
     }
-    
-    console.log('User found for username:', { username, user_id: result.rows[0].user_id });
+
+    logMessage(functionName, `User found for username: ${username}, user_id=${result.rows[0].user_id}`);
     return result.rows[0] as UserWithPassword;
-  } catch (error) {
-    console.error('Error finding user by username:', error);
+  } catch (error: any) {
+    logMessage(functionName, `Error finding user by username: ${error.message}`);
+    console.error(error);
     throw error;
   }
 }
 
 export async function validateUserPassword(user: UserWithPassword, password: string): Promise<boolean> {
-  console.log('Validating password for user:', { email: user.email });
+  const functionName = 'validateUserPassword';
+  logMessage(functionName, `Validating password for user: ${user.email}`);
   try {
     const isValid = await bcrypt.compare(password, user.password_hash);
-    console.log('Password validation result for user:', { email: user.email, isValid });
+    logMessage(functionName, `Password validation result for user: ${user.email}, isValid=${isValid}`);
     return isValid;
-  } catch (error) {
-    console.error('Error validating password for user:', { email: user.email, error });
+  } catch (error: any) {
+    logMessage(functionName, `Error validating password for user: ${user.email}, error=${error.message}`);
+    console.error(error);
     throw error;
   }
 }

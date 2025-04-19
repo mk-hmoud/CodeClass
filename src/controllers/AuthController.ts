@@ -76,12 +76,12 @@ export const login: RequestHandler = async (req, res, next) => {
   const functionName = "login";
   logMessage(functionName, `Login request received: ${JSON.stringify({ email: req.body.email, role: req.body.role })}`);
   try {
-    const { email, password, role } = req.body;
-    if (!email || !password || !role) {
-      logMessage(functionName, `Login validation failed: Missing credentials: email=${email}, role=${role}`);
+    const { email, password} = req.body;
+    if (!email || !password) {
+      logMessage(functionName, `Login validation failed: Missing credentials: email=${email} or password`);
       res.status(400).json({
         success: false,
-        message: 'Email, password, and user type are required'
+        message: 'Email and password are required'
       });
       return;
     }
@@ -104,14 +104,7 @@ export const login: RequestHandler = async (req, res, next) => {
       });
       return;
     }
-    if (user.role !== role) {
-      logMessage(functionName, `Login failed: User role mismatch for email: ${email}. Expected=${role}, Actual=${user.role}`);
-      res.status(403).json({
-        success: false,
-        message: `You are not registered as a ${role}`
-      });
-      return;
-    }
+    logMessage(functionName, `Resolved user role: ${user.role} (role_id=${user.role_id})`);
     logMessage(functionName, `Generating JWT token for user: ${email} with role_id: ${user.role_id}`);
     const token = jwt.sign(
       {

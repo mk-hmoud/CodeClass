@@ -31,6 +31,7 @@ const passwordRequirements = [
 
 const Signup = () => {
   const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -75,6 +76,16 @@ const Signup = () => {
       console.warn("[Signup] Validation failed: Email is missing");
       return false;
     }
+    if (!username) {
+      setError("Username is required");
+      console.warn("[Signup] Validation failed: Username is missing");
+      return false;
+    }
+    if (username.includes(' ')) {
+      setError("Username cannot contain spaces");
+      console.warn("[Signup] Validation failed: Username contains spaces");
+      return false;
+    }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       setError("Please enter a valid email address");
@@ -117,7 +128,7 @@ const Signup = () => {
     setIsLoading(true);
     try {
       console.info("[Signup] Calling signupUser service");
-      const result = await signupUser({ name, email, password, role });
+      const result = await signupUser({ name, username, email, password, role });
       console.debug(`[Signup] signupUser response: ${JSON.stringify(result)}`);
 
       if (result.success) {
@@ -182,6 +193,22 @@ const Signup = () => {
                   className={cn(
                     error &&
                       error.includes("name") &&
+                      "border-destructive focus-visible:ring-destructive"
+                  )}
+                  disabled={isLoading}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="username">Username</Label>
+                <Input
+                  id="username"
+                  placeholder="johndoe123"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className={cn(
+                    error &&
+                      error.includes("username") &&
                       "border-destructive focus-visible:ring-destructive"
                   )}
                   disabled={isLoading}

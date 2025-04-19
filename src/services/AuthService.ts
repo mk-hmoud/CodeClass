@@ -8,6 +8,7 @@ interface LoginCredentials {
 
 interface SignupData {
   name: string;
+  username: string;
   email: string;
   password: string;
   role: "instructor" | "student";
@@ -19,6 +20,7 @@ interface AuthResponse {
   token?: string;
   user?: {
     id: string;
+    username: string;
     email: string;
     role: "instructor" | "student";
     name?: string;
@@ -61,6 +63,7 @@ export const loginUser = async ({
 
 export const signupUser = async ({
   name,
+  username,
   email,
   password,
   role,
@@ -73,6 +76,7 @@ export const signupUser = async ({
     const response = await apiClient.post('/auth/signup', {
       first_name: firstName,
       last_name: lastName,
+      username,
       email,
       password,
       role,
@@ -93,11 +97,11 @@ export const signupUser = async ({
 };
 
 export const logout = (): void => {
-  localStorage.removeItem("authToken");
+  localStorage.removeItem("token");
 };
 
 export const getCurrentUser = (): { user: any; isAuthenticated: boolean } => {
-  const token = localStorage.getItem("authToken");
+  const token = localStorage.getItem("token");
   if (!token) {
     return { user: null, isAuthenticated: false };
   }
@@ -116,5 +120,5 @@ export const getCurrentUser = (): { user: any; isAuthenticated: boolean } => {
 };
 
 export const isAuthenticated = (): boolean => {
-  return localStorage.getItem("authToken") !== null;
+  return localStorage.getItem("token") !== null;
 };

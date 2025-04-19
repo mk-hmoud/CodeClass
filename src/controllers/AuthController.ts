@@ -1,6 +1,6 @@
 import { RequestHandler } from 'express';
 import jwt from 'jsonwebtoken';
-import { createUser, findUserByEmail, findUserById, validateUserPassword } from '../models/AuthModel';
+import { createUser, findUserByEmail, findUserById, findUserByUsername, validateUserPassword } from '../models/AuthModel';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
 const TOKEN_EXPIRY = '24h';
@@ -14,7 +14,7 @@ export const signup: RequestHandler = async (req, res) => {
   const functionName = "signup";
   logMessage(functionName, `Signup request received: ${JSON.stringify(req.body)}`);
   try {
-    const { first_name, last_name, email, password, role } = req.body;
+    const { first_name, last_name, username, email, password, role } = req.body;
     if (!first_name || !email || !password || !role) {
       logMessage(functionName, `Signup validation failed: Missing required fields: first_name=${first_name}, email=${email}, role=${role}`);
       res.status(400).json({
@@ -32,10 +32,20 @@ export const signup: RequestHandler = async (req, res) => {
       });
       return;
     }
+    const existingUsername = await findUserByUsername(username);
+    if (existingUsername) {
+      logMessage(functionName, `Signup conflict: Username already exists: ${username}`);
+      res.status(409).json({
+        success: false,
+        message: 'Another user with this username already exists'
+      });
+      return;
+    }
     logMessage(functionName, `Creating new user: email=${email}, role=${role}`);
     const newUser = await createUser({
       first_name,
       last_name,
+      username,
       email,
       password,
       role,
@@ -46,6 +56,7 @@ export const signup: RequestHandler = async (req, res) => {
       message: 'User registered successfully',
       user: {
         id: newUser.user_id,
+        username: newUser.username,
         email: newUser.email,
         name: `${newUser.first_name || ''} ${newUser.last_name || ''}`.trim(),
         role: newUser.role,
@@ -105,6 +116,7 @@ export const login: RequestHandler = async (req, res, next) => {
     const token = jwt.sign(
       {
         id: user.user_id,
+        username: user.username,
         email: user.email,
         role: user.role,
         role_id: user.role_id,
@@ -119,6 +131,7 @@ export const login: RequestHandler = async (req, res, next) => {
       token,
       user: {
         id: user.user_id,
+        username: user.username,
         email: user.email,
         name: `${user.first_name || ''} ${user.last_name || ''}`.trim(),
         role: user.role,
@@ -163,6 +176,7 @@ export const validateToken: RequestHandler = async (req, res, next) => {
       success: true,
       user: {
         id: user.user_id,
+        username: user.username,
         email: user.email,
         role: user.role,
         role_id: user.role_id,

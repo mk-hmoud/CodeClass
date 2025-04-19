@@ -28,7 +28,7 @@ export const createClassroomController = async (req: Request, res: Response): Pr
       return;
     }
 
-    const instructor: Instructor | null = await getInstructorByUserId(req.user.role_id);
+    const instructor: Instructor | null = await getInstructorByUserId(req.user.id);
     if (!instructor) {
       logMessage(functionName, "Unauthorized user, cannot create classroom.");
       res.status(401).json({ success: false, message: 'Unauthorized: Instructor not identified' });

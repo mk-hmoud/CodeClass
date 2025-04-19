@@ -24,57 +24,6 @@ CREATE TABLE languages (
   version VARCHAR(50)
 );
 
-CREATE TABLE problems (
-  problem_id SERIAL PRIMARY KEY,
-  instructor_id INT NOT NULL,
-  title VARCHAR(255) NOT NULL,
-  description TEXT NOT NULL,
-  category problem_category_enum,
-  prerequisites TEXT,
-  learning_outcomes TEXT,
-  tags TEXT,
-  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (instructor_id) REFERENCES instructors(instructor_id) ON DELETE CASCADE
-);
-
-CREATE TABLE assignments (
-  assignment_id SERIAL PRIMARY KEY,
-  classroom_id INT NOT NULL,
-  problem_id INT NOT NULL,
-  difficulty_level assignment_difficulty_enum,
-  points INT,
-  grading_method grading_method_enum NOT NULL,
-  submission_attempts INT,
-  plagiarism_detection BOOLEAN NOT NULL DEFAULT FALSE,
-  assigned_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-  publish_date TIMESTAMPTZ,
-  due_date TIMESTAMPTZ,
-  FOREIGN KEY (classroom_id) REFERENCES classrooms(classroom_id) ON DELETE CASCADE,
-  FOREIGN KEY (problem_id) REFERENCES problems(problem_id) ON DELETE CASCADE,
-  UNIQUE (classroom_id, problem_id),
-  CONSTRAINT submission_attempts_check CHECK (submission_attempts IS NULL OR submission_attempts >= 0)
-);
-
-CREATE TABLE problem_test_cases (
-  test_case_id SERIAL PRIMARY KEY,
-  problem_id INT NOT NULL,
-  input TEXT,
-  expected_output TEXT NOT NULL,
-  is_public BOOLEAN DEFAULT FALSE,
-  FOREIGN KEY (problem_id) REFERENCES problems(problem_id) ON DELETE CASCADE
-);
-
-CREATE TABLE assignment_languages_pairs (
-  pair_id SERIAL PRIMARY KEY,
-  assignment_id INT NOT NULL,
-  language_id INT NOT NULL,
-  initial_code TEXT,
-  FOREIGN KEY (assignment_id) REFERENCES assignments(assignment_id) ON DELETE CASCADE,
-  FOREIGN KEY (language_id) REFERENCES languages(language_id) ON DELETE CASCADE,
-  UNIQUE (assignment_id, language_id)
-);
-
-
 CREATE TABLE users (
   user_id SERIAL PRIMARY KEY,
   username VARCHAR(255) NOT NULL UNIQUE,
@@ -127,4 +76,54 @@ CREATE TABLE classroom_enrollments (
   FOREIGN KEY (classroom_id) REFERENCES classrooms(classroom_id) ON DELETE CASCADE,
   FOREIGN KEY (student_id) REFERENCES students(student_id) ON DELETE CASCADE,
   UNIQUE (classroom_id, student_id)
+);
+
+CREATE TABLE problems (
+  problem_id SERIAL PRIMARY KEY,
+  instructor_id INT NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  description TEXT NOT NULL,
+  category problem_category_enum,
+  prerequisites TEXT,
+  learning_outcomes TEXT,
+  tags TEXT,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (instructor_id) REFERENCES instructors(instructor_id) ON DELETE CASCADE
+);
+
+CREATE TABLE assignments (
+  assignment_id SERIAL PRIMARY KEY,
+  classroom_id INT NOT NULL,
+  problem_id INT NOT NULL,
+  difficulty_level assignment_difficulty_enum,
+  points INT,
+  grading_method grading_method_enum NOT NULL,
+  submission_attempts INT,
+  plagiarism_detection BOOLEAN NOT NULL DEFAULT FALSE,
+  assigned_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  publish_date TIMESTAMPTZ,
+  due_date TIMESTAMPTZ,
+  FOREIGN KEY (classroom_id) REFERENCES classrooms(classroom_id) ON DELETE CASCADE,
+  FOREIGN KEY (problem_id) REFERENCES problems(problem_id) ON DELETE CASCADE,
+  UNIQUE (classroom_id, problem_id),
+  CONSTRAINT submission_attempts_check CHECK (submission_attempts IS NULL OR submission_attempts >= 0)
+);
+
+CREATE TABLE problem_test_cases (
+  test_case_id SERIAL PRIMARY KEY,
+  problem_id INT NOT NULL,
+  input TEXT,
+  expected_output TEXT NOT NULL,
+  is_public BOOLEAN DEFAULT FALSE,
+  FOREIGN KEY (problem_id) REFERENCES problems(problem_id) ON DELETE CASCADE
+);
+
+CREATE TABLE assignment_languages_pairs (
+  pair_id SERIAL PRIMARY KEY,
+  assignment_id INT NOT NULL,
+  language_id INT NOT NULL,
+  initial_code TEXT,
+  FOREIGN KEY (assignment_id) REFERENCES assignments(assignment_id) ON DELETE CASCADE,
+  FOREIGN KEY (language_id) REFERENCES languages(language_id) ON DELETE CASCADE,
+  UNIQUE (assignment_id, language_id)
 );

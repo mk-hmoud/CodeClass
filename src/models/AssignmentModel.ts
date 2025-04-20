@@ -1,5 +1,5 @@
 import pool from "../config/db";
-import { Assignment } from "../types"
+import { Assignment, AssignmentCreationData } from "../types"
 
 // Deprecated mostly.
 const logMessage = (functionName: string, message: string): void => {
@@ -8,7 +8,7 @@ const logMessage = (functionName: string, message: string): void => {
 };
 
 export const createAssignment = async (
-  assignment: Assignment
+  assignment: AssignmentCreationData
 ): Promise<{ assignmentId: number }> => {
   const functionName = "createAssignment";
   try {
@@ -32,7 +32,7 @@ export const createAssignment = async (
     `;
     const assignmentResult = await pool.query(insertAssignmentQuery, [
       assignment.classroomId,
-      assignment.problem.problemId,
+      assignment.problemId,
       assignment.difficulty_level || null,
       assignment.points !== undefined ? assignment.points : null,
       assignment.grading_method,

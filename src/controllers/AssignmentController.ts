@@ -11,6 +11,13 @@ export const createAssignmentController = async (req: Request, res: Response): P
   const functionName = 'createAssignmentController';
   try {
     logMessage(functionName, 'Received request to create assignment.');
+
+    if (req.user?.role !== "instructor") {
+      logMessage(functionName, `User ${req.user?.id} is not an instructor`);
+      res.status(403).json({ success: false, message: 'Forbidden: instructor role required' });
+      return;
+    }
+
     const assignmentData = req.body;
     const result = await createAssignment(assignmentData);
     logMessage(functionName, `Assignment created with ID: ${result.assignmentId}`);

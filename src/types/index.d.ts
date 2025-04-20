@@ -77,3 +77,19 @@ export interface ClassroomStudent {
     avgScore?: number;
     completed?: boolean;
   }
+
+  export interface AssignmentCreationData{
+    classroomId: number;
+    problemId: number;
+    points?: number;
+    difficulty_level?: "Easy" | "Medium" | "Hard";
+    grading_method: "Manual" | "Automatic" | "Hybrid";
+    submission_attempts?: number;
+    plagiarism_detection: boolean;
+    publish_date?: Date;
+    due_date?: Date;
+    languages?: Array<{
+      languageId: number;
+      initial_code?: string;
+    }>;
+  }

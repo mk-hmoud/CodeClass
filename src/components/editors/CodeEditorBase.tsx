@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as monaco from "monaco-editor";
+import "../../../src/lib/monacoConfig";
 
 interface CodeEditorBaseProps {
   defaultLanguage: string;
@@ -12,14 +13,7 @@ const CodeEditorBase: React.FC<CodeEditorBaseProps> = ({
   defaultLanguage,
   defaultValue,
   onChange,
-  supportedLanguages = [
-    "javascript",
-    "typescript",
-    "python",
-    "java",
-    "cpp",
-    "csharp",
-  ],
+  supportedLanguages = ["JavaScript", "Python", "CPP"],
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const monacoInstance = useRef<monaco.editor.IStandaloneCodeEditor | null>(

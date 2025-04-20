@@ -11,8 +11,18 @@ export const createAssignment = async (assignmentData: any): Promise<Assignment>
   }
 };
 
-export const getAssignmentById = (assignmentId: number) => {
-  return apiClient.get(`/assignments/${assignmentId}`);
+export const getAssignmentById = async (
+  assignmentId: number
+): Promise<Assignment | null> => {
+  try {
+    const response = await apiClient.get(`/assignments/${assignmentId}`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+    });
+    const assignmentData = response.data.data as Assignment;
+    return assignmentData;
+  } catch (error: any) {
+    return null;
+  }
 };
 
 export const deleteAssignment = (assignmentId: number) => {

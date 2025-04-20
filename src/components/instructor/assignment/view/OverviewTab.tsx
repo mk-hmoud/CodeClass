@@ -11,16 +11,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Users, CheckCircle, BookOpen, Edit, Tag } from "lucide-react";
+import { Assignment } from "../../../../types/Assignment";
 
 interface OverviewTabProps {
-  assignment: {
-    description: string;
-    completionRate: number;
-    averageScore: number;
-    categories: string[];
-    tags: string[];
-    languagesAllowed: string[];
-  };
+  assignment: Assignment;
   studentSubmissions: {
     id: number;
     submitted: boolean;
@@ -60,9 +54,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">
-              {assignment.completionRate}%
-            </div>
+            <div className="text-3xl font-bold">{NaN}%</div>
             <p className="text-gray-400">students have completed</p>
           </CardContent>
         </Card>
@@ -75,7 +67,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{assignment.averageScore}%</div>
+            <div className="text-3xl font-bold">{NaN}%</div>
             <p className="text-gray-400">among completed submissions</p>
           </CardContent>
         </Card>
@@ -104,33 +96,38 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
                 Categories
               </h3>
               <div className="flex flex-wrap gap-2">
-                {assignment.categories.map((category, idx) => (
-                  <Badge
-                    key={idx}
-                    variant="outline"
-                    className="bg-blue-900/30 text-blue-400 border-blue-700"
-                  >
-                    {category}
-                  </Badge>
-                ))}
+                <Badge
+                  variant="outline"
+                  className="bg-blue-900/30 text-blue-400 border-blue-700"
+                >
+                  {assignment.problem.category}
+                </Badge>
               </div>
             </div>
 
-            <div>
-              <h3 className="text-sm font-semibold text-gray-400 mb-2">Tags</h3>
-              <div className="flex flex-wrap gap-2">
-                {assignment.tags.map((tag, idx) => (
-                  <Badge
-                    key={idx}
-                    variant="outline"
-                    className="bg-purple-900/30 text-purple-400 border-purple-700"
-                  >
-                    <Tag size={12} className="mr-1" />
-                    {tag}
-                  </Badge>
-                ))}
+            {assignment.problem.tags && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-gray-400 mb-2">
+                  Tags
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {assignment.problem.tags
+                    .split(",")
+                    .map((t) => t.trim())
+                    .filter(Boolean)
+                    .map((tag, idx) => (
+                      <Badge
+                        key={idx}
+                        variant="outline"
+                        className="bg-purple-900/30 text-purple-400 border-purple-700"
+                      >
+                        <Tag size={12} className="mr-1" />
+                        {tag}
+                      </Badge>
+                    ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           <Separator className="my-4 bg-gray-700" />
@@ -140,13 +137,13 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
               Languages Allowed
             </h3>
             <div className="flex flex-wrap gap-2">
-              {assignment.languagesAllowed.map((lang, idx) => (
+              {assignment.languages.map((lang, idx) => (
                 <Badge
                   key={idx}
                   variant="outline"
                   className="bg-green-900/30 text-green-400 border-green-700"
                 >
-                  {lang}
+                  {lang.name}
                 </Badge>
               ))}
             </div>

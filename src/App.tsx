@@ -12,6 +12,7 @@ import Profile from "./pages/shared/Profile";
 import InstructorLayout from "./layouts/InstructorLayout";
 import InstructorDashboard from "./pages/instructor/InstructorDashboard";
 import InstructorClassroom from "./pages/instructor/InstructorClassroom";
+import InstructorAssignment from "./pages/instructor/InstructorAssignment";
 import ProblemCreation from "./pages/instructor/ProblemCreation";
 import AssignmentCreation from "./pages/instructor/AssignmentCreation";
 
@@ -44,6 +45,10 @@ const App = () => (
               />
               <Route path=":classroomId/assignments">
                 <Route path="create" element={<AssignmentCreation />} />
+                <Route
+                  path=":assignmentId"
+                  element={<InstructorAssignment />}
+                />
               </Route>
             </Route>
             <Route path="problems">

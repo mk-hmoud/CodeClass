@@ -46,7 +46,9 @@ const AssignmentsTab: React.FC<AssignmentsTabProps> = ({
   };
 
   const handleViewAssignment = (assignmentId: number) => {
-    navigate(`/instructor/assignment/${assignmentId}`);
+    navigate(
+      `/instructor/classrooms/${classroom.id}/assignments/${assignmentId}`
+    );
   };
 
   const handleEditAssignment = (assignmentId: number) => {
@@ -119,7 +121,12 @@ const AssignmentsTab: React.FC<AssignmentsTabProps> = ({
                   }
 
                   return (
-                    <TableRow key={assignment.assignmentId}>
+                    <TableRow
+                      key={assignment.assignmentId}
+                      onClick={() =>
+                        handleViewAssignment(assignment.assignmentId)
+                      }
+                    >
                       <TableCell className="font-medium">
                         {assignment.title}
                       </TableCell>

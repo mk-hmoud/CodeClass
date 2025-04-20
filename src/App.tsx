@@ -19,6 +19,7 @@ import AssignmentCreation from "./pages/instructor/AssignmentCreation";
 import StudentLayout from "./layouts/StudentLayout";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import StudentClassroom from "./pages/student/StudentClassroom";
+import StudentAssignment from "./pages/student/StudentAssignment";
 
 const queryClient = new QueryClient();
 
@@ -38,12 +39,12 @@ const App = () => (
           {/* Instructor Routes */}
           <Route path="/instructor" element={<InstructorLayout />}>
             <Route path="dashboard" element={<InstructorDashboard />} />
-            <Route path="classrooms">
+            <Route path="classrooms/:classroomId">
               <Route
-                path="view/:classroomId"
+                path="view"
                 element={<InstructorClassroom />}
               />
-              <Route path=":classroomId/assignments">
+              <Route path="assignments">
                 <Route path="create" element={<AssignmentCreation />} />
                 <Route
                   path=":assignmentId"
@@ -59,8 +60,9 @@ const App = () => (
           {/* Student Routes */}
           <Route path="/student" element={<StudentLayout />}>
             <Route path="dashboard" element={<StudentDashboard />} />
-            <Route path="classrooms">
-              <Route path="view/:classroomId" element={<StudentClassroom />} />
+            <Route path="classrooms/:classroomId">
+              <Route path="view" element={<StudentClassroom />} />
+              <Route path="assignments/:assignmentId" element={<StudentAssignment />} />
             </Route>
           </Route>
 

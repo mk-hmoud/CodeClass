@@ -171,7 +171,7 @@ const CreateAssignmentPage: React.FC = () => {
       await createAssignment(payload);
       toast.success("Assignment created successfully");
       setShowConfirmDialog(false);
-      navigate(`/instructor/classrooms/view/${classroomId}`);
+      navigate(`/instructor/classrooms/${classroomId}/view`);
     } catch (err) {
       console.error(err);
       toast.error("Error creating assignment");
@@ -184,7 +184,7 @@ const CreateAssignmentPage: React.FC = () => {
         <Button
           variant="outline"
           className="flex items-center gap-2 mb-4"
-          onClick={() => navigate(`/instructor/classrooms/view/${classroomId}`)}
+          onClick={() => navigate(`/instructor/classrooms/${classroomId}/view`)}
         >
           <ArrowLeft size={16} />
           Back to Dashboard

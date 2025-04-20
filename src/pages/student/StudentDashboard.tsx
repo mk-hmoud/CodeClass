@@ -153,7 +153,7 @@ const StudentDashboard = () => {
   };
 
   const handleClassroomClick = (classroomId) => {
-    navigate(`/student/classrooms/view/${classroomId}`);
+    navigate(`/student/classrooms/${classroomId}/view`);
   };
 
   const handleViewStatistics = (classroomId) => {

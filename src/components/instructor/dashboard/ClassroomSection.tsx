@@ -234,7 +234,7 @@ const ClassroomsSection = () => {
               <CardHeader
                 className="cursor-pointer"
                 onClick={() =>
-                  navigate(`/instructor/classrooms/view/${classroom.id}`)
+                  navigate(`/instructor/classrooms/${classroom.id}/view`)
                 }
               >
                 <div className="flex justify-between items-start">
@@ -252,7 +252,7 @@ const ClassroomsSection = () => {
               <CardContent
                 className="cursor-pointer"
                 onClick={() =>
-                  navigate(`/instructor/classrooms/view/${classroom.id}`)
+                  navigate(`/instructor/classrooms/${classroom.id}/view`)
                 }
               >
                 <p className="text-gray-400 mb-4">
@@ -278,7 +278,7 @@ const ClassroomsSection = () => {
                   variant="outline"
                   className="flex-1 mr-2"
                   onClick={() =>
-                    navigate(`/instructor/classrooms/view/${classroom.id}`)
+                    navigate(`/instructor/classrooms/${classroom.id}/view`)
                   }
                 >
                   View Classroom

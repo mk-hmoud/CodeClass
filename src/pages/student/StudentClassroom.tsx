@@ -112,7 +112,7 @@ const StudentClassroom: React.FC = () => {
   };
 
   const handleAssignmentClick = (assignmentId: number) => {
-    navigate(`/student/classroom/${classroomId}/assignment/${assignmentId}`);
+    navigate(`/student/classrooms/${classroomId}/assignments/${assignmentId}`);
   };
 
   return (
@@ -301,7 +301,7 @@ const StudentClassroom: React.FC = () => {
                         </div>
                       </div>
 
-                      {Assignment.completed && 4 !== undefined && (
+                      {Assignment.completed && (
                         <div className="bg-green-900/20 border border-green-700 rounded-md p-3 mb-3">
                           <div className="flex justify-between items-center">
                             <span className="text-sm text-green-400">

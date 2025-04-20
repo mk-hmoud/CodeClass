@@ -31,7 +31,6 @@ import { Problem } from "@/types/Problem";
 
 interface BasicInfoSectionProps {
   form: UseFormReturn<FormValues>;
-  // Callback to pass the currently selected problem upward.
   onSelectedProblemChange?: (problem: Problem | null) => void;
 }
 
@@ -40,7 +39,6 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
   onSelectedProblemChange,
 }) => {
   const [problems, setProblems] = useState<Problem[]>([]);
-  // Local state for the selected problem.
   const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null);
 
   useEffect(() => {
@@ -55,7 +53,6 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
     fetchProblems();
   }, []);
 
-  // Watch the form field for problemId changes.
   const watchProblemId = form.watch("problemId");
 
   useEffect(() => {
@@ -63,14 +60,10 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
       const found =
         problems.find((p) => String(p.problemId) === watchProblemId) || null;
       setSelectedProblem(found);
-      if (onSelectedProblemChange) {
-        onSelectedProblemChange(found);
-      }
+      onSelectedProblemChange?.(found);
     } else {
       setSelectedProblem(null);
-      if (onSelectedProblemChange) {
-        onSelectedProblemChange(null);
-      }
+      onSelectedProblemChange?.(null);
     }
   }, [watchProblemId, problems, onSelectedProblemChange]);
 
@@ -78,6 +71,7 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
     <Card>
       <CardContent className="p-6 space-y-6">
         <h2 className="text-xl font-semibold">Basic Information</h2>
+
         <FormField
           control={form.control}
           name="problemId"
@@ -110,12 +104,14 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
             </FormItem>
           )}
         />
+
         {selectedProblem && (
           <div className="bg-[#0d1224] p-4 rounded-md text-sm">
             <h3 className="font-medium mb-1">Problem Description</h3>
             <p className="text-gray-400">{selectedProblem.description}</p>
           </div>
         )}
+
         <FormField
           control={form.control}
           name="title"
@@ -171,7 +167,116 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
             </FormItem>
           )}
         />
-        {/* Additional form fields can be added here */}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <FormField
+            control={form.control}
+            name="difficulty_level"
+            render={({ field }) => (
+              <FormItem>
+                <div className="flex items-center gap-2">
+                  <FormLabel>
+                    Difficulty Level <span className="text-red-500">*</span>
+                  </FormLabel>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info size={16} className="text-blue-400" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Set the difficulty level for this assignment</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select difficulty" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="Easy">Easy</SelectItem>
+                    <SelectItem value="Medium">Medium</SelectItem>
+                    <SelectItem value="Hard">Hard</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="points"
+            render={({ field }) => (
+              <FormItem>
+                <div className="flex items-center gap-2">
+                  <FormLabel>
+                    Points <span className="text-red-500">*</span>
+                  </FormLabel>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info size={16} className="text-blue-400" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>The number of points this assignment is worth</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <FormControl>
+                  <Input type="number" min={1} {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <FormField
+          control={form.control}
+          name="grading_method"
+          render={({ field }) => (
+            <FormItem>
+              <div className="flex items-center gap-2">
+                <FormLabel>
+                  Grading Method <span className="text-red-500">*</span>
+                </FormLabel>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info size={16} className="text-blue-400" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>How this assignment will be graded</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select grading method" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="Manual">Manual Grading</SelectItem>
+                  <SelectItem value="Automatic">Automatic Grading</SelectItem>
+                  <SelectItem value="Hybrid">Hybrid Grading</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                Choose how student submissions will be evaluated.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
       </CardContent>
     </Card>
   );

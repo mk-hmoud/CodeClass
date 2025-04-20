@@ -77,17 +77,14 @@ const StudentClassroom: React.FC = () => {
   oneWeekFromNow.setDate(now.getDate() + 7);
 
   const upcomingAssignments: Assignment[] = classroom.assignments
-    .filter(
-      (a) =>
-        !a.completed &&
-        new Date(a.due_date.toString()) > now &&
-        new Date(a.due_date.toString()) <= oneWeekFromNow
-    )
-    .sort(
-      (a, b) =>
-        new Date(a.due_date.toString()).getTime() -
-        new Date(b.due_date.toString()).getTime()
-    );
+    .filter((a) => {
+      if (!a.due_date || a.completed) return false;
+      const due = new Date(a.due_date);
+      return due > now && due <= oneWeekFromNow;
+    })
+    .sort((a, b) => {
+      return new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime();
+    });
 
   const completedAssignments = classroom.assignments.filter(
     (a) => a.completed
@@ -197,19 +194,31 @@ const StudentClassroom: React.FC = () => {
                     >
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{assignment.title}</span>
-                        <Badge
-                          variant="outline"
-                          className="bg-amber-900/30 text-amber-400 border-amber-700"
-                        >
-                          Due {formatDate(assignment.due_date.toString())}
-                        </Badge>
+                        {assignment.due_date ? (
+                          <Badge
+                            variant="outline"
+                            className="bg-amber-900/30 text-amber-400 border-amber-700"
+                          >
+                            Due {formatDate(assignment.due_date.toString())}
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="text-gray-500 italic"
+                          >
+                            No due date
+                          </Badge>
+                        )}
                       </div>
                       <div className="text-sm text-amber-400">
-                        {getDaysRemaining(assignment.due_date.toString()) <= 1
-                          ? "Due today!"
-                          : `${getDaysRemaining(
-                              assignment.due_date.toString()
-                            )} days left`}
+                        {assignment.due_date
+                          ? getDaysRemaining(assignment.due_date.toString()) <=
+                            1
+                            ? "Due today!"
+                            : `${getDaysRemaining(
+                                assignment.due_date.toString()
+                              )} days left`
+                          : null}
                       </div>
                     </div>
                   ))}
@@ -281,7 +290,14 @@ const StudentClassroom: React.FC = () => {
                           points
                         </div>
                         <div className="text-gray-400">
-                          Due: {formatDate(Assignment.due_date.toString())}
+                          Due:{" "}
+                          {Assignment.due_date ? (
+                            formatDate(Assignment.due_date.toString())
+                          ) : (
+                            <span className="italic text-gray-500">
+                              No due date
+                            </span>
+                          )}
                         </div>
                       </div>
 
@@ -298,7 +314,7 @@ const StudentClassroom: React.FC = () => {
                         </div>
                       )}
 
-                      {!Assignment.completed && (
+                      {!Assignment.completed && Assignment.due_date && (
                         <div className="flex items-center gap-2 text-sm text-gray-400 mb-3">
                           <Clock size={14} />
                           {getDaysRemaining(Assignment.due_date.toString()) <=

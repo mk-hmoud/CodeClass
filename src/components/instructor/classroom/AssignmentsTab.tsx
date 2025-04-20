@@ -70,7 +70,7 @@ const AssignmentsTab: React.FC<AssignmentsTabProps> = ({
           </Badge>
         );
       default:
-        return <Badge>{status}</Badge>;
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
 
@@ -101,57 +101,79 @@ const AssignmentsTab: React.FC<AssignmentsTabProps> = ({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {classroom.assignments.map((assignment) => (
-                  <TableRow key={assignment.assignmentId}>
-                    <TableCell className="font-medium">
-                      {assignment.title}
-                    </TableCell>
-                    <TableCell>
-                      {formatDate(assignment.due_date.toString())}
-                    </TableCell>
-                    <TableCell>{getStatusBadge("assignment.status")}</TableCell>
-                    <TableCell>{assignment.submissions}%</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() =>
-                            handleViewAssignment(assignment.assignmentId)
-                          }
-                        >
-                          <Eye size={16} />
-                        </Button>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal size={16} />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() =>
-                                handleEditAssignment(assignment.assignmentId)
-                              }
-                            >
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <BarChart className="mr-2 h-4 w-4" />
-                              View Statistics
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-red-500">
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {classroom.assignments.map((assignment) => {
+                  const dueDateObj = assignment.due_date
+                    ? new Date(assignment.due_date)
+                    : null;
+                  const formattedDue = dueDateObj
+                    ? formatDate(dueDateObj.toISOString())
+                    : undefined;
+
+                  let statusKey: string;
+                  if (!dueDateObj) {
+                    statusKey = "no due date";
+                  } else if (dueDateObj > new Date()) {
+                    statusKey = "active";
+                  } else {
+                    statusKey = "expired";
+                  }
+
+                  return (
+                    <TableRow key={assignment.assignmentId}>
+                      <TableCell className="font-medium">
+                        {assignment.title}
+                      </TableCell>
+                      <TableCell>
+                        {formattedDue ?? (
+                          <span className="text-gray-400 italic">
+                            No due date
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>{getStatusBadge(statusKey)}</TableCell>
+                      <TableCell>{assignment.submissions ?? 0}%</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() =>
+                              handleViewAssignment(assignment.assignmentId)
+                            }
+                          >
+                            <Eye size={16} />
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreHorizontal size={16} />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  handleEditAssignment(assignment.assignmentId)
+                                }
+                              >
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem>
+                                <BarChart className="mr-2 h-4 w-4" />
+                                View Statistics
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="text-red-500">
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           ) : (

@@ -37,8 +37,7 @@ const StudentAssignment = () => {
         const fetchedAssignment = await getAssignmentById(
           parseInt(assignmentId, 10)
         );
-        console.log(fetchedAssignment.data.data)
-        setAssignment(fetchedAssignment.data.data);
+        setAssignment(fetchedAssignment);
       } catch (error) {
         toast.error("Failed to load assignment");
         console.error("Error fetching assignment:", error);

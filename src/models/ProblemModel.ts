@@ -87,7 +87,7 @@ export const getProblemById = async (problemId: number): Promise<Problem | null>
       prerequisites: row.prerequisites,
       learning_outcomes: row.learning_outcomes,
       tags: row.tags,
-      createdAt: row.created_at,
+      created_at: row.created_at,
       test_cases: [] 
     };
 
@@ -146,7 +146,7 @@ export const getProblemsByInstructor = async (instructorId: number): Promise<Pro
       prerequisites: row.prerequisites,
       learning_outcomes: row.learning_outcomes,
       tags: row.tags,
-      createdAt: row.created_at,
+      created_at: row.created_at,
       test_cases: row.testcases // note: PostgreSQL returns the aggregated JSON column as lowercase "testcases"
     }));
   } catch (error) {

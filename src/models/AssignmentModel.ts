@@ -71,55 +71,107 @@ export const createAssignment = async (
   }
 };
 
-export const getAssignmentById = async (assignmentId: number): Promise<any> => {
+export const getAssignmentById = async (assignmentId: number): Promise<Assignment> => {
   const functionName = "getAssignmentById";
   try {
     logMessage(functionName, `Fetching assignment with ID: ${assignmentId}.`);
+    
     const assignmentQuery = `
-      SELECT * FROM assignments WHERE assignment_id = $1
+      SELECT 
+        a.assignment_id,
+        a.classroom_id,
+        a.problem_id,
+        a.difficulty_level,
+        a.points,
+        a.grading_method,
+        a.submission_attempts,
+        a.plagiarism_detection,
+        a.assigned_at,
+        a.publish_date,
+        a.due_date,
+        p.title,
+        p.description,
+        p.category,
+        p.prerequisites,
+        p.learning_outcomes,
+        p.tags,
+        p.created_at,
+        c.classroom_name,
+        c.classroom_code
+      FROM assignments a
+      JOIN problems p ON a.problem_id = p.problem_id
+      JOIN classrooms c ON a.classroom_id = c.classroom_id
+      WHERE a.assignment_id = $1
     `;
     const assignmentResult = await pool.query(assignmentQuery, [assignmentId]);
+    
     if (assignmentResult.rowCount === 0) {
       logMessage(functionName, "Assignment not found.");
       throw new Error("Assignment not found");
     }
-    const assignment = assignmentResult.rows[0];
-
-    const metadataQuery = `
-      SELECT * FROM assignment_metadata WHERE assignment_id = $1
-    `;
-    const metadataResult = await pool.query(metadataQuery, [assignmentId]);
-    const metadata = metadataResult.rowCount ? metadataResult.rows[0] : null;
-
-    const configQuery = `
-      SELECT * FROM assignment_config WHERE assignment_id = $1
-    `;
-    const configResult = await pool.query(configQuery, [assignmentId]);
-    const config = configResult.rowCount ? configResult.rows[0] : null;
-
+    
+    const assignmentRow = assignmentResult.rows[0];
+    
     const languageQuery = `
-      SELECT alp.*, l.name, l.version
+      SELECT 
+        alp.pair_id,
+        alp.assignment_id,
+        alp.language_id,
+        alp.initial_code,
+        l.name,
+        l.version
       FROM assignment_languages_pairs alp
       JOIN languages l ON alp.language_id = l.language_id
       WHERE alp.assignment_id = $1
     `;
     const languageResult = await pool.query(languageQuery, [assignmentId]);
-    const languages = languageResult.rows;
-
+    const languages = languageResult.rows.map(row => ({
+      pairId: row.pair_id,
+      assignmentId: row.assignment_id,
+      languageId: row.language_id,
+      initial_code: row.initial_code,
+      name: row.name,
+      version: row.version
+    }));
+    
     const testCaseQuery = `
-      SELECT * FROM assignment_test_cases WHERE assignment_id = $1
+      SELECT * FROM problem_test_cases 
+      WHERE problem_id = $1
     `;
-    const testCaseResult = await pool.query(testCaseQuery, [assignmentId]);
-    const test_cases = testCaseResult.rows;
-
-    logMessage(functionName, `Assignment with ID: ${assignmentId} fetched successfully.`);
-    return {
-      ...assignment,
-      metadata,
-      config,
-      languages,
-      test_cases,
+    const testCaseResult = await pool.query(testCaseQuery, [assignmentRow.problem_id]);
+    const testCases = testCaseResult.rows;
+    
+    const assignment: Assignment = {
+      assignmentId: assignmentRow.assignment_id,
+      classroomId: assignmentRow.classroom_id,
+      problem: {
+        problemId: assignmentRow.problem_id,
+        title: assignmentRow.title,
+        description: assignmentRow.description,
+        category: assignmentRow.category,
+        prerequisites: assignmentRow.prerequisites,
+        learning_outcomes: assignmentRow.learning_outcomes,
+        tags: assignmentRow.tags,
+        created_at: assignmentRow.created_at,
+        test_cases: testCases
+      },
+      title: assignmentRow.title,
+      description: assignmentRow.description,
+      difficulty_level: assignmentRow.difficulty_level,
+      points: assignmentRow.points,
+      grading_method: assignmentRow.grading_method,
+      submission_attempts: assignmentRow.submission_attempts,
+      plagiarism_detection: assignmentRow.plagiarism_detection,
+      assigned_at: new Date(assignmentRow.assigned_at),
+      publish_date: assignmentRow.publish_date ? new Date(assignmentRow.publish_date) : undefined,
+      due_date: assignmentRow.due_date ? new Date(assignmentRow.due_date) : undefined,
+      languages: languages,
+      completed: false
     };
+    
+    logMessage(functionName, `Assignment with ID: ${assignmentId} fetched successfully.`);
+    return assignment;
+    
   } catch (error) {
     logMessage(functionName, `Error fetching assignment: ${error}`);
     throw error;
@@ -166,7 +218,7 @@ export async function getAssignmentsForClassroom(classroomId: number): Promise<A
         'prerequisites', p.prerequisites,
         'learning_outcomes', p.learning_outcomes,
         'tags', p.tags,
-        'createdAt', p.created_at,
+        'created_at', p.created_at,
         'testCases', (
            SELECT COALESCE(json_agg(
              json_build_object(

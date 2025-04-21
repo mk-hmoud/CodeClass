@@ -52,7 +52,7 @@ const InstructorAssignment: React.FC = () => {
 
   const handleBack = () => {
     if (assignment) {
-      navigate(`/instructor/classrooms/view/${assignment.classroomId}`);
+      navigate(`/instructor/classrooms/${assignment.classroomId}/view`);
     } else {
       navigate("/instructor");
     }

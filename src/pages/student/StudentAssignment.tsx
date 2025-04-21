@@ -64,9 +64,13 @@ const StudentAssignment = () => {
       return null;
     }
 
+    const publishDate = new Date(assignment.publish_date).getTime();
+    const dueDate = new Date(assignment.due_date).getTime();
+    const timeLeft = Math.floor(Math.abs(Date.now() - dueDate) / (1000 * 60 * 60 * 24));
+    const timeLeftString = timeLeft > 1 ? `${timeLeft} days` : `${timeLeft} day`;
+
   // Format date for display
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString).getTime();
+  const formatDate = (date) => {
     return new Intl.DateTimeFormat('en-US', { 
       month: 'short', 
       day: 'numeric', 
@@ -103,7 +107,7 @@ const StudentAssignment = () => {
             <Card className="bg-[#0d1224] border-gray-700 shadow-lg overflow-hidden">
               <div className="p-6">
                 <div className="flex justify-between items-start">
-                  <h1 className="text-2xl font-bold">{assignment?.title || "Assignment" + assignmentId}</h1>
+                  <h1 className="text-2xl font-bold">{assignment?.title}</h1>
                   <Badge className={`
                     ${assignment?.difficulty_level === 'Easy'
                       ? 'bg-green-900/40 text-green-400 border border-green-700'
@@ -119,23 +123,23 @@ const StudentAssignment = () => {
                 <div className="mt-4 space-y-4">
                   <div className="flex items-center gap-2 text-gray-400">
                     <Calendar size={16} />
-                    <span>Published: {formatDate(assignment?.publish_date) || "Today"}</span>
+                    <span>Published: {formatDate(publishDate)}</span>
                   </div>
                   
                   <div className="flex items-center gap-2 text-gray-400">
                     <Clock size={16} />
-                    <span>Due: {formatDate(assignment?.due_date) || "Tomorrow"}</span>
+                    <span>Due: {formatDate(dueDate)}</span>
                   </div>
                   
                   <div className="flex items-center gap-2 text-gray-400">
                     <BookOpen size={16} />
-                    <span>{assignment.points || 10} points</span>
+                    <span>{assignment?.points} points</span>
                   </div>
 
                   {!assignment?.completed && (
                     <div className="flex items-center gap-2 text-amber-400">
                       <Clock size={16} />
-                      <span>{assignment?.timeLeft || 7} days remaining</span>
+                      <span>{timeLeftString} remaining</span>
                     </div>
                   )}
 
@@ -154,18 +158,23 @@ const StudentAssignment = () => {
                   <div className="flex flex-col gap-2">
                     <h3 className="text-sm font-semibold text-gray-400">Categories</h3>
                     <div className="flex flex-wrap gap-2">
-                      {assignment?.categories?.map((category, idx) => (
+                      {assignment?.problem?.categories && assignment?.problem?.categories?.map((category, idx) => (
                         <Badge key={idx} variant="outline" className="bg-blue-900/30 text-blue-400 border-blue-700">
                           {category}
                         </Badge>
                       ))}
+                      {assignment?.problem?.category && (
+                      <Badge variant="outline" className="bg-blue-900/30 text-blue-400 border-blue-700">
+                        {assignment?.problem?.category}
+                      </Badge>
+                      )}
                     </div>
                   </div>
                   
                   <div className="flex flex-col gap-2">
                     <h3 className="text-sm font-semibold text-gray-400">Tags</h3>
                     <div className="flex flex-wrap gap-2">
-                      {assignment?.tags?.map((tag, idx) => (
+                      {assignment?.problem?.tags?.map((tag, idx) => (
                         <Badge key={idx} variant="outline" className="bg-purple-900/30 text-purple-400 border-purple-700">
                           <Tag size={12} className="mr-1" />
                           {tag}
@@ -239,15 +248,21 @@ const StudentAssignment = () => {
                   </TabsList>
                 </div>
 
-                <TabsContent value="description" className="flex-1 overflow-y-auto m-0">
-                  {/* <ProblemDescription
-                      title={assignment.title}
-                      difficulty={assignment.difficulty}
-                      description={assignment.description}
-                      examples={assignment.examples}
-                      constraints={assignment.constraints}
-                      categories={assignment.categories}
-                    /> */}
+                <TabsContent value="description" className="p-6 flex-1 overflow-y-auto m-0">
+                  <div>
+                    <p>{assignment?.description}</p>
+                    <strong>You will be solving the following problem</strong>
+                  </div>
+                  <div className="space-y-4 mt-5">
+                    <div>
+                      <h3 className="text-xl font-semibold mb-4">Title</h3>
+                      <p>{assignment?.problem?.description}</p>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-semibold mb-4">Description</h3>
+                      <p>{assignment?.problem?.description}</p>
+                    </div>
+                  </div>
                 </TabsContent>
                 
                 <TabsContent value="prerequisites" className="p-6 flex-1 overflow-y-auto m-0">
@@ -255,7 +270,7 @@ const StudentAssignment = () => {
                   <div className="space-y-4">
                     <div className="border border-gray-700 rounded-lg p-4 bg-[#0c121f]">
                       <ul className="list-disc pl-5 space-y-2">
-                        {assignment?.prerequisites?.map((prereq, idx) => (
+                        {assignment?.problem?.prerequisites?.map((prereq, idx) => (
                           <li key={idx}>{prereq}</li>
                         ))}
                       </ul>
@@ -268,7 +283,7 @@ const StudentAssignment = () => {
                   <div className="space-y-4">
                     <div className="border border-gray-700 rounded-lg p-4 bg-[#0c121f]">
                       <ul className="list-disc pl-5 space-y-2">
-                        {assignment?.learningOutcomes?.map((outcome, idx) => (
+                        {assignment?.problem?.learning_outcomes?.map((outcome, idx) => (
                           <li key={idx} className="flex items-start gap-2">
                             <GraduationCap size={16} className="mt-1 flex-shrink-0" />
                             <span>{outcome}</span>
@@ -282,7 +297,7 @@ const StudentAssignment = () => {
                 <TabsContent value="hints" className="p-6 flex-1 overflow-y-auto m-0">
                   <h3 className="text-xl font-semibold mb-4">Hints</h3>
                   <div className="space-y-4">
-                    {assignment?.hints?.map((hint, idx) => (
+                    {assignment?.problem?.hints?.map((hint, idx) => (
                       <div key={idx} className="border border-gray-700 rounded-lg p-4 bg-[#0c121f]">
                         <h4 className="font-medium mb-2">Hint {idx + 1}:</h4>
                         <p>{hint}</p>

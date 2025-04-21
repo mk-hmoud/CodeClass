@@ -112,7 +112,9 @@ const StudentClassroom: React.FC = () => {
   };
 
   const handleAssignmentClick = (assignmentId: number) => {
-    navigate(`/student/classrooms/${classroomId}/assignments/${assignmentId}`);
+    navigate(
+      `/student/classrooms/${classroomId}/assignments/${assignmentId}/view`
+    );
   };
 
   return (

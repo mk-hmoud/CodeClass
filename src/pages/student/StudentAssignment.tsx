@@ -94,7 +94,10 @@ const StudentAssignment = () => {
   };
 
   const handleStartCoding = () => {
-    navigate(`/code-editor?problem=${assignmentId}`);
+    navigate(
+      `/student/classrooms/${classroomId}/assignments/${assignmentId}/solve`,
+      { state: assignment }
+    );
   };
 
   const handleBackToClassroom = () => {

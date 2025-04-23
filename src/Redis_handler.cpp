@@ -31,7 +31,7 @@ RedisHandler::~RedisHandler()
     redisFree(context_);
 }
 
-bool RedisHandler::brpop(std::string &value)
+bool RedisHandler::brpop(std::string &jobId, std::string &value)
 {
     LOG_DEBUG("Attempting BRPOP on 'judge:queue' queue");
     redisReply *reply = static_cast<redisReply *>(
@@ -44,7 +44,7 @@ bool RedisHandler::brpop(std::string &value)
         return false;
     }
 
-    std::string jobId = reply->element[1]->str;
+    jobId = reply->element[1]->str;
     freeReplyObject(reply);
 
     std::string hashKey = "judge:" + jobId;

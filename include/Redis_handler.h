@@ -20,7 +20,7 @@ class RedisHandler
 public:
     RedisHandler(const char *host, int port);
     ~RedisHandler();
-    bool brpop(std::string &value);
+    bool brpop(std::string &jobId, std::string &value);
     void set(const std::string &key, const std::string &value);
 
 private:

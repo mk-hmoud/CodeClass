@@ -4,6 +4,7 @@ import ProblemRoutes from './routes/ProblemRoutes';
 import AssignmentRoutes from './routes/AssignmentRoutes';
 import LanguageRoutes from './routes/LanguageRoutes';
 import AuthRoutes from './routes/AuthRoutes';
+import JudgeRoutes from './routes/JudgeRoutes';
 import cors from 'cors';
 import dotenv from 'dotenv';
 
@@ -30,6 +31,7 @@ app.use('/api/auth', AuthRoutes);
 
 app.use('/api/language', LanguageRoutes);
 
+app.use('/api/judge', JudgeRoutes);
 
 app.listen(port, () => {
   console.log(`Server is running at http://localhost:${port}!`);

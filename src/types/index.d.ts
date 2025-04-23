@@ -93,3 +93,9 @@ export interface ClassroomStudent {
       initial_code?: string;
     }>;
   }
+  
+  export interface TestCase{
+    input?: string;
+    expectedOutput: string;
+    isPublic?: boolean;
+  }

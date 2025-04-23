@@ -62,10 +62,14 @@ const App = () => (
               <Route path="view" element={<StudentClassroom />} />
               <Route path="assignments/:assignmentId">
                 <Route path="view" element={<StudentAssignment />} />
-                <Route path="solve" element={<CodeEditor />} />
               </Route>
             </Route>
           </Route>
+
+          <Route
+            path="/student/classrooms/:classroomId/assignments/:assignmentId/solve"
+            element={<CodeEditor />}
+          />
 
           <Route path="*" element={<NotFound />} />
         </Routes>

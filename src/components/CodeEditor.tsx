@@ -18,6 +18,7 @@ interface CodeEditorProps {
   onChange?: (code: string) => void;
   supportedLanguages?: string[];
   onLanguageChange?: (lang: string) => void;
+  language: string;
 }
 
 const CodeEditor: React.FC<CodeEditorProps> = ({
@@ -28,13 +29,12 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   onChange,
   supportedLanguages = ["javascript", "python", "cpp"],
   onLanguageChange,
+  language,
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const monacoInstance = useRef<monaco.editor.IStandaloneCodeEditor | null>(
     null
   );
-  const [language, setLanguage] = useState(defaultLanguage);
-
   useEffect(() => {
     if (editorRef.current && !monacoInstance.current) {
       monacoInstance.current = monaco.editor.create(editorRef.current, {
@@ -98,10 +98,6 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
     }
   }, [defaultValue]);
 
-  useEffect(() => {
-    setLanguage(defaultLanguage);
-  }, [defaultLanguage]);
-
   const handleRunCode = () => {
     if (monacoInstance.current) {
       const code = monacoInstance.current.getValue();
@@ -117,7 +113,6 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   };
 
   const handleLanguageChange = (value: string) => {
-    setLanguage(value);
     if (onLanguageChange) {
       onLanguageChange(value);
     }

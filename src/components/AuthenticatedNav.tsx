@@ -18,7 +18,6 @@ const AuthenticatedNav = ({ userName = "User" }: AuthenticatedNavProps) => {
   const location = useLocation();
   const isInstructorPath = location.pathname.includes("/instructor");
 
-  // Get initials for avatar
   const getInitials = (name: string) => {
     return name
       .split(" ")

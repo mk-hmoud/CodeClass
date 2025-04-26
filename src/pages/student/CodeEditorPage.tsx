@@ -120,17 +120,15 @@ const CodeEditorPage = () => {
     setActiveTestCaseId(testCaseId);
   };
 
-  // Get the active test case
   const activeTestCase = publicTestCases.find(
     (tc) => tc.testCaseId === activeTestCaseId
   );
 
-  // Get the test result for the active test case
   const activeTestResult = testResults.find(
     (tr) => tr.testCaseId === activeTestCaseId
   );
 
-  // Make the page not scrollable for a full-height layout
+  // not scrollable for a full-height layout
   useEffect(() => {
     document.body.style.overflow = "hidden";
     document.documentElement.style.overflow = "hidden";

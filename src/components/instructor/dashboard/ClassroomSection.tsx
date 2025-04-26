@@ -29,7 +29,7 @@ import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 
-import { Classroom } from "../../types/Classroom";
+import { Classroom } from "../../../types/Classroom";
 import {
   createClassroom,
   deleteClassroom,

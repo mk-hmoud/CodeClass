@@ -47,12 +47,10 @@ const CodeEditorBase: React.FC<CodeEditorBaseProps> = ({
         },
       });
 
-      // Update value when model changes
       monacoInstance.current.onDidChangeModelContent(() => {
         if (monacoInstance.current) {
           const value = monacoInstance.current.getValue();
 
-          // Always call onChange if provided
           if (onChange) {
             onChange(value);
           }
@@ -68,7 +66,6 @@ const CodeEditorBase: React.FC<CodeEditorBaseProps> = ({
     }
   }, []);
 
-  // Handle language changes
   useEffect(() => {
     if (monacoInstance.current) {
       const model = monacoInstance.current.getModel();
@@ -78,7 +75,6 @@ const CodeEditorBase: React.FC<CodeEditorBaseProps> = ({
     }
   }, [language]);
 
-  // Update editor value when defaultValue prop changes
   useEffect(() => {
     if (
       monacoInstance.current &&
@@ -88,7 +84,6 @@ const CodeEditorBase: React.FC<CodeEditorBaseProps> = ({
     }
   }, [defaultValue]);
 
-  // Update language when defaultLanguage prop changes
   useEffect(() => {
     setLanguage(defaultLanguage);
   }, [defaultLanguage]);

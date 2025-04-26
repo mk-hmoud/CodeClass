@@ -52,7 +52,6 @@ const StudentAssignment = () => {
     fetchAssignment();
   }, [assignmentId, classroomId]);
 
-  // Redirect if loading is done and assignment is still null
   useEffect(() => {
     if (!loading && !assignment) {
       navigate("/student/dashboard");
@@ -63,7 +62,6 @@ const StudentAssignment = () => {
     return <div>Loading classroom...</div>;
   }
 
-  // If not loading but assignment is null, return null (redirection is handled in useEffect)
   if (!assignment) {
     return null;
   }
@@ -87,7 +85,7 @@ const StudentAssignment = () => {
   const prereqList = splitList(p.prerequisites, ";");
   const outcomeList = splitList(p.learning_outcomes, ";");
 
-  // Format date for display
+  // format date for display
   const formatDate = (date) => {
     return new Intl.DateTimeFormat("en-US", {
       month: "short",

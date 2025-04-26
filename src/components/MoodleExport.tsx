@@ -47,7 +47,6 @@ const MoodleExport = ({
   const handleExport = () => {
     setIsExporting(true);
 
-    // Simulate export process
     setTimeout(() => {
       setIsExporting(false);
       toast.success(

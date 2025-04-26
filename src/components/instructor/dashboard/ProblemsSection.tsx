@@ -40,7 +40,6 @@ const ProblemsSection = ({ activeTab }: ProblemsSectionProps) => {
   const [problems, setProblems] = useState<Problem[]>([]);
   const [showProblems, setShowProblems] = useState(true);
   const [problemDialogOpen, setProblemDialogOpen] = useState(false);
-  // Set currentProblem as Partial<Problem> to allow new/edit values
   const [currentProblem, setCurrentProblem] = useState<Partial<Problem>>({
     title: "",
     description: "",

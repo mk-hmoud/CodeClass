@@ -31,7 +31,6 @@ const StudentClassroom: React.FC = () => {
   const [activeTab, setActiveTab] = useState("assignments");
   const [classroom, setClassroom] = useState<Classroom | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  // Fetch classroom data on mount
   useEffect(() => {
     const fetchClassroom = async () => {
       if (!classroomId) return;
@@ -55,7 +54,6 @@ const StudentClassroom: React.FC = () => {
     fetchClassroom();
   }, [classroomId]);
 
-  // Redirect if loading is done and classroom is still null
   useEffect(() => {
     if (!loading && !classroom) {
       navigate("/student/dashboard");
@@ -66,12 +64,11 @@ const StudentClassroom: React.FC = () => {
     return <div>Loading classroom...</div>;
   }
 
-  // If not loading but classroom is null, return null (redirection is handled in useEffect)
   if (!classroom) {
     return null;
   }
 
-  // Calculate upcoming assignments
+  // calculate upcoming assignments
   const now = new Date();
   const oneWeekFromNow = new Date();
   oneWeekFromNow.setDate(now.getDate() + 7);

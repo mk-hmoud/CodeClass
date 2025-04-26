@@ -52,7 +52,7 @@ const Signup = () => {
   const [shake, setShake] = useState(false);
   const navigate = useNavigate();
 
-  // Update password strength whenever password changes
+  // update password strength when pass changed
   useEffect(() => {
     console.info(`[Signup] Updating password strength for: "${password}"`);
     const newStrength = { ...passwordStrength };
@@ -81,7 +81,7 @@ const Signup = () => {
       console.warn("[Signup] Validation failed: Username is missing");
       return false;
     }
-    if (username.includes(' ')) {
+    if (username.includes(" ")) {
       setError("Username cannot contain spaces");
       console.warn("[Signup] Validation failed: Username contains spaces");
       return false;
@@ -128,7 +128,13 @@ const Signup = () => {
     setIsLoading(true);
     try {
       console.info("[Signup] Calling signupUser service");
-      const result = await signupUser({ name, username, email, password, role });
+      const result = await signupUser({
+        name,
+        username,
+        email,
+        password,
+        role,
+      });
       console.debug(`[Signup] signupUser response: ${JSON.stringify(result)}`);
 
       if (result.success) {

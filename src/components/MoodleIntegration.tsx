@@ -44,9 +44,7 @@ const MoodleIntegration = ({
   >("idle");
   const [progress, setProgress] = useState(0);
   const [activeTab, setActiveTab] = useState("sync");
-  const [moodleUrl, setMoodleUrl] = useState(
-    "https://moodle.youruniversity.edu"
-  );
+  const [moodleUrl, setMoodleUrl] = useState("https://moodle.eul.edu");
   const [courseId, setCourseId] = useState("");
   const [syncOptions, setSyncOptions] = useState({
     grades: true,

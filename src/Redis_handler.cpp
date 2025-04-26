@@ -82,3 +82,28 @@ void RedisHandler::set(const std::string &key, const std::string &value)
         freeReplyObject(reply);
     }
 }
+
+bool RedisHandler::expire(const std::string &key, int seconds)
+{
+    LOG_DEBUG("Setting expire on Redis key: " << key << " to " << seconds << "s");
+    redisReply *reply = static_cast<redisReply *>(
+        redisCommand(context_, "EXPIRE %s %d",
+                     key.c_str(), seconds));
+    if (!reply)
+    {
+        LOG_ERROR("Redis EXPIRE command failed: no reply");
+        return false;
+    }
+    bool success = false;
+    if (reply->type == REDIS_REPLY_INTEGER)
+    {
+        // reply->integer == 1 if TTL set, 0 if key does not exist
+        success = (reply->integer == 1);
+    }
+    else
+    {
+        LOG_ERROR("Redis EXPIRE failed: " << reply->str);
+    }
+    freeReplyObject(reply);
+    return success;
+}

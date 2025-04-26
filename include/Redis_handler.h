@@ -22,6 +22,7 @@ public:
     ~RedisHandler();
     bool brpop(std::string &jobId, std::string &value);
     void set(const std::string &key, const std::string &value);
+    bool expire(const std::string &key, int seconds);
 
 private:
     redisContext *context_;

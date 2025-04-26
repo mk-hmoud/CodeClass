@@ -4,6 +4,7 @@
 
 struct TestCase
 {
+    int test_case_id;
     std::string input;
     std::string expected_output;
     bool isPublic;
@@ -23,9 +24,10 @@ namespace nlohmann
     {
         static void from_json(const json &j, TestCase &tc)
         {
+            j.at("testCaseId").get_to(tc.test_case_id);
             j.at("input").get_to(tc.input);
-            j.at("expected_output").get_to(tc.expected_output);
-            j.at("is_public").get_to(tc.isPublic);
+            j.at("expectedOutput").get_to(tc.expected_output);
+            j.at("isPublic").get_to(tc.isPublic);
         }
     };
 }

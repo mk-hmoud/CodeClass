@@ -1,8 +1,9 @@
 import { Router } from 'express';
-import { runCodeHandler } from '../controllers/JudgeController';
+import { getStatusHandler, runCodeHandler } from '../controllers/JudgeController';
 
 const router = Router();
 
 router.post('/run', runCodeHandler);
+router.get('/status/:jobId', getStatusHandler);
 
 export default router;

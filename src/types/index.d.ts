@@ -43,12 +43,18 @@ export interface ClassroomStudent {
     learning_outcomes?: string;
     tags?: string;
     created_at: Date;
-    test_cases: Array<{
-      testCaseId: number;
-      input?: string;
-      expectedOutput: string;
-      isPublic: boolean;
-  }>;
+    testCases: TestCase[];
+  }
+
+  export interface ProblemCreationData {
+    instructorId: number;
+    title: string;
+    description: string;
+    category?: "Fundamentals" | "Algorithms" | "Bug fixes" | "Refactoring" | "Puzzles";
+    prerequisites?: string;
+    learning_outcomes?: string;
+    tags?: string;
+    testCases: TestCase[];
   }
 
   export interface Assignment {
@@ -65,14 +71,7 @@ export interface ClassroomStudent {
     assigned_at: Date;
     publish_date?: Date;
     due_date?: Date;
-    languages?: Array<{
-      pairId: number;
-      assignmentId: number;
-      languageId: number;
-      initial_code?: string;
-      name?: string;
-      version?: string;
-    }>;
+    languages?: AssignmentLanguage[];
     submissions?: number;
     avgScore?: number;
     completed?: boolean;
@@ -95,7 +94,19 @@ export interface ClassroomStudent {
   }
   
   export interface TestCase{
+    testCaseId: number;
     input?: string;
     expectedOutput: string;
-    isPublic?: boolean;
+    isPublic: boolean;
+  }
+
+  export interface Language {
+    language_id: number;
+    name: string;
+    version?: string;
+  }
+
+  export interface AssignmentLanguage {
+    language: Language;
+    initial_code?: string;
   }

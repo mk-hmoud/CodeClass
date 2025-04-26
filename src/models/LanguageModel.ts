@@ -1,15 +1,10 @@
 import pool from "../config/db";
+import { Language } from "../types"
 
 const logMessage = (functionName: string, message: string): void => {
   const timestamp = new Date().toISOString();
   console.log(`[${timestamp}] [LanguageModel.ts] [${functionName}] ${message}`);
 };
-
-export interface Language {
-  language_id: number;
-  name: string;
-  version?: string;
-}
 
 export const getLanguages = async (): Promise<Language[]> => {
   const functionName = "getLanguages";

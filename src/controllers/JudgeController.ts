@@ -71,3 +71,63 @@ export const runCodeHandler = async (req: Request, res: Response): Promise<void>
     });
   }
 };
+
+export interface TestResult {
+  testCaseId: number;
+  input: string;
+  actual: string;
+  expectedOutput: string;
+  executionTime: number;
+  error?: string;
+  status?: 'passed' | 'failed' | 'error';
+}
+
+export const getStatusHandler = async (req: Request, res: Response): Promise<void> => {
+  const { jobId } = req.params;
+  logMessage('getStatus', `Checking status for job ${jobId}`);
+
+  if (!redisClient.isReady) {
+    logMessage('getStatus', 'Redis client not ready');
+    res.status(503).json({ error: 'Service temporarily unavailable' });
+    return;
+  }
+
+  try {
+    const key = `judge:verdict:${jobId}`;
+    const raw = await redisClient.get(key);
+
+    if (raw === null) {
+      res.status(200).json({
+        job_id: jobId,
+        status: 'pending',
+      });
+    } else {
+      const verdict: TestResult[] = JSON.parse(raw);
+      const passedTests = verdict.filter(t => t.status === 'passed').length;
+      const totalTests = verdict.length;
+      
+      const formattedResults = verdict.map(t => ({
+        testCaseId: t.testCaseId,
+        input: t.input,
+        actual: t.actual,
+        expectedOutput: t.expectedOutput,
+        error: t.error,
+        status: t.status
+      }));
+
+      res.status(200).json({
+        job_id: jobId,
+        status: 'completed',
+        result: {
+          testResults: formattedResults,
+          passedTests,
+          totalTests
+        }
+    });
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    logMessage('getStatus', `Error fetching verdict: ${msg}`);
+    res.status(500).json({ error: 'Failed to fetch status' });
+  }
+};

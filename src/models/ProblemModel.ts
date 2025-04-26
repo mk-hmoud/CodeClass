@@ -1,25 +1,10 @@
 import pool from "../config/db";
-import { Problem } from "../types";
+import { Problem, ProblemCreationData } from "../types";
 
 const logMessage = (functionName: string, message: string): void => {
   const timestamp = new Date().toISOString();
   console.log(`[${timestamp}] [ProblemModel.ts] [${functionName}] ${message}`);
 };
-
-export interface ProblemCreationData {
-  instructorId: number;
-  title: string;
-  description: string;
-  category?: "Fundamentals" | "Algorithms" | "Bug fixes" | "Refactoring" | "Puzzles";
-  prerequisites?: string;
-  learning_outcomes?: string;
-  tags?: string;
-  test_cases: Array<{
-    input?: string;
-    expectedOutput: string;
-    isPublic?: boolean;
-  }>;
-}
 
 export const createProblem = async (
   data: ProblemCreationData
@@ -46,12 +31,12 @@ export const createProblem = async (
     const problemId: number = result.rows[0].problem_id;
     logMessage(functionName, `Inserted problem with ID: ${problemId}`);
 
-    if (data.test_cases && data.test_cases.length > 0) {
+    if (data.testCases && data.testCases.length > 0) {
       const insertTestCaseQuery = `
         INSERT INTO problem_test_cases (problem_id, input, expected_output, is_public)
         VALUES ($1, $2, $3, $4)
       `;
-      for (const tc of data.test_cases) {
+      for (const tc of data.testCases) {
         await pool.query(insertTestCaseQuery, [
           problemId,
           tc.input || null,
@@ -59,7 +44,7 @@ export const createProblem = async (
           tc.isPublic !== undefined ? tc.isPublic : false,
         ]);
       }
-      logMessage(functionName, `Inserted ${data.test_cases.length} test case(s) for problem ID: ${problemId}`);
+      logMessage(functionName, `Inserted ${data.testCases.length} test case(s) for problem ID: ${problemId}`);
     }
 
     await pool.query("COMMIT");
@@ -88,17 +73,17 @@ export const getProblemById = async (problemId: number): Promise<Problem | null>
       learning_outcomes: row.learning_outcomes,
       tags: row.tags,
       created_at: row.created_at,
-      test_cases: [] 
+      testCases: [] 
     };
 
-    const test_casesQuery = `
+    const testCasesQuery = `
       SELECT * FROM problem_test_cases
       WHERE problem_id = $1
       ORDER BY test_case_id ASC
     `;
-    const test_casesResult = await pool.query(test_casesQuery, [problemId]);
-    problem.test_cases = test_casesResult.rows.map((tc: any) => ({
-      testCaseId: tc.test_case_id,
+    const testCasesResult = await pool.query(testCasesQuery, [problemId]);
+    problem.testCases = testCasesResult.rows.map((tc: any) => ({
+      testCaseId: tc.testCase_id,
       input: tc.input,
       expectedOutput: tc.expected_output,
       isPublic: tc.is_public,
@@ -147,7 +132,7 @@ export const getProblemsByInstructor = async (instructorId: number): Promise<Pro
       learning_outcomes: row.learning_outcomes,
       tags: row.tags,
       created_at: row.created_at,
-      test_cases: row.testcases // note: PostgreSQL returns the aggregated JSON column as lowercase "testcases"
+      testCases: row.testcases
     }));
   } catch (error) {
     logMessage(functionName, `Error fetching problems: ${error}`);

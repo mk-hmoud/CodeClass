@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
-import { createProblem, getProblemById, getProblemsByInstructor, deleteProblem, ProblemCreationData } from '../models/ProblemModel';
+import { createProblem, getProblemById, getProblemsByInstructor, deleteProblem } from '../models/ProblemModel';
+import { ProblemCreationData } from '../types';
 
 const logMessage = (functionName: string, message: string): void => {
   const timestamp = new Date().toISOString();
@@ -24,7 +25,7 @@ export const createProblemController = async (req: Request, res: Response): Prom
       prerequisites: req.body.prerequisites,
       learning_outcomes: req.body.learning_outcomes,
       tags: req.body.tags,
-      test_cases: req.body.test_cases,
+      testCases: req.body.testCases,
     };
 
     const result = await createProblem(problemData);

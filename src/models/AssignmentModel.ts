@@ -1,5 +1,5 @@
 import pool from "../config/db";
-import { Assignment, AssignmentCreationData } from "../types"
+import { Assignment, AssignmentCreationData, Problem, TestCase, Language, AssignmentLanguage } from "../types"
 
 // Deprecated mostly.
 const logMessage = (functionName: string, message: string): void => {
@@ -71,13 +71,14 @@ export const createAssignment = async (
   }
 };
 
-export const getAssignmentById = async (assignmentId: number): Promise<Assignment> => {
-  const functionName = "getAssignmentById";
+export const getAssignmentById = async (
+  assignmentId: number
+): Promise<Assignment> => {
+  const fn = "getAssignmentById";
   try {
-    logMessage(functionName, `Fetching assignment with ID: ${assignmentId}.`);
-    
+    logMessage(fn, `Fetching assignment ${assignmentId}`);
     const assignmentQuery = `
-      SELECT 
+      SELECT
         a.assignment_id,
         a.classroom_id,
         a.problem_id,
@@ -89,92 +90,104 @@ export const getAssignmentById = async (assignmentId: number): Promise<Assignmen
         a.assigned_at,
         a.publish_date,
         a.due_date,
-        p.title,
-        p.description,
+        p.title AS problem_title,
+        p.description AS problem_description,
         p.category,
-        p.prerequisites,
-        p.learning_outcomes,
-        p.tags,
-        p.created_at,
-        c.classroom_name,
-        c.classroom_code
+        COALESCE(p.prerequisites, '') AS prerequisites,
+        COALESCE(p.learning_outcomes, '') AS learning_outcomes,
+        COALESCE(p.tags, '') AS tags,
+        p.created_at AS problem_created_at
       FROM assignments a
-      JOIN problems p ON a.problem_id = p.problem_id
-      JOIN classrooms c ON a.classroom_id = c.classroom_id
+      JOIN problems p
+        ON a.problem_id = p.problem_id
       WHERE a.assignment_id = $1
     `;
-    const assignmentResult = await pool.query(assignmentQuery, [assignmentId]);
-    
-    if (assignmentResult.rowCount === 0) {
-      logMessage(functionName, "Assignment not found.");
+
+    const resA = await pool.query(assignmentQuery, [assignmentId]);
+    if (resA.rowCount === 0) {
+      logMessage(fn, `Assignment ${assignmentId} not found`);
       throw new Error("Assignment not found");
     }
-    
-    const assignmentRow = assignmentResult.rows[0];
-    
+    const row = resA.rows[0];
+
     const languageQuery = `
-      SELECT 
-        alp.pair_id,
-        alp.assignment_id,
-        alp.language_id,
-        alp.initial_code,
+      SELECT
+        l.language_id,
         l.name,
-        l.version
+        l.version,
+        alp.initial_code
       FROM assignment_languages_pairs alp
-      JOIN languages l ON alp.language_id = l.language_id
+      JOIN languages l
+        ON alp.language_id = l.language_id
       WHERE alp.assignment_id = $1
+      ORDER BY l.language_id
     `;
-    const languageResult = await pool.query(languageQuery, [assignmentId]);
-    const languages = languageResult.rows.map(row => ({
-      pairId: row.pair_id,
-      assignmentId: row.assignment_id,
-      languageId: row.language_id,
-      initial_code: row.initial_code,
-      name: row.name,
-      version: row.version
-    }));
-    
-    const testCaseQuery = `
-      SELECT * FROM problem_test_cases 
-      WHERE problem_id = $1
-    `;
-    const testCaseResult = await pool.query(testCaseQuery, [assignmentRow.problem_id]);
-    const testCases = testCaseResult.rows;
-    
-    const assignment: Assignment = {
-      assignmentId: assignmentRow.assignment_id,
-      classroomId: assignmentRow.classroom_id,
-      problem: {
-        problemId: assignmentRow.problem_id,
-        title: assignmentRow.title,
-        description: assignmentRow.description,
-        category: assignmentRow.category,
-        prerequisites: assignmentRow.prerequisites,
-        learning_outcomes: assignmentRow.learning_outcomes,
-        tags: assignmentRow.tags,
-        created_at: assignmentRow.created_at,
-        test_cases: testCases
+    const resL = await pool.query(languageQuery, [assignmentId]);
+    const languages: AssignmentLanguage[] = resL.rows.map(r => ({
+      language: {
+        language_id: r.language_id,
+        name: r.name,
+        version: r.version ?? undefined
       },
-      title: assignmentRow.title,
-      description: assignmentRow.description,
-      difficulty_level: assignmentRow.difficulty_level,
-      points: assignmentRow.points,
-      grading_method: assignmentRow.grading_method,
-      submission_attempts: assignmentRow.submission_attempts,
-      plagiarism_detection: assignmentRow.plagiarism_detection,
-      assigned_at: new Date(assignmentRow.assigned_at),
-      publish_date: assignmentRow.publish_date ? new Date(assignmentRow.publish_date) : undefined,
-      due_date: assignmentRow.due_date ? new Date(assignmentRow.due_date) : undefined,
-      languages: languages,
-      completed: false
+      initial_code: r.initial_code ?? undefined
+    }));
+
+    const testCaseQuery = `
+      SELECT
+        test_case_id     AS "testCaseId",
+        input            AS "input",
+        expected_output  AS "expectedOutput",
+        is_public        AS "isPublic"
+      FROM problem_test_cases
+      WHERE problem_id = $1
+      ORDER BY test_case_id
+    `;
+    const resT = await pool.query(testCaseQuery, [row.problem_id]);
+    const testCases: TestCase[] = resT.rows.map(r => ({
+      testCaseId: r.testCaseId,
+      input: r.input ?? undefined,
+      expectedOutput: r.expectedOutput,
+      isPublic: r.isPublic
+    }));
+
+    const assignment: Assignment = {
+      assignmentId: row.assignment_id,
+      classroomId: row.classroom_id,
+      title: row.problem_title,
+      description: row.problem_description,
+      difficulty_level: row.difficulty_level as
+        | "Easy"
+        | "Medium"
+        | "Hard"
+        | undefined,
+      points: row.points ?? undefined,
+      grading_method: row.grading_method as "Manual" | "Automatic" | "Hybrid",
+      submission_attempts: row.submission_attempts ?? undefined,
+      plagiarism_detection: row.plagiarism_detection,
+      assigned_at: new Date(row.assigned_at),
+      publish_date: row.publish_date ? new Date(row.publish_date) : undefined,
+      due_date: row.due_date ? new Date(row.due_date) : undefined,
+      languages,
+      completed: false,
+
+      problem: {
+        problemId: row.problem_id,
+        title: row.problem_title,
+        description: row.problem_description,
+        category: row.category ?? undefined,
+        prerequisites: row.prerequisites ?? undefined,
+        learning_outcomes: row.learning_outcomes ?? undefined,
+        tags: row.tags ?? undefined,
+        created_at: new Date(row.problem_created_at),
+        testCases: testCases,
+      }
     };
-    
-    logMessage(functionName, `Assignment with ID: ${assignmentId} fetched successfully.`);
+
+    logMessage(fn, `Fetched assignment ${assignmentId} successfully`);
     return assignment;
-    
-  } catch (error) {
-    logMessage(functionName, `Error fetching assignment: ${error}`);
-    throw error;
+  } catch (err) {
+    logMessage(fn, `Error in ${fn}: ${err}`);
+    throw err;
   }
 };
 

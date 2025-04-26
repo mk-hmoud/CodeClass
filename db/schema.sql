@@ -95,6 +95,8 @@ CREATE TABLE assignments (
   assignment_id SERIAL PRIMARY KEY,
   classroom_id INT NOT NULL,
   problem_id INT NOT NULL,
+  title VARCHAR(255), --TODO: Add this
+  description TEXT, --Add this
   difficulty_level assignment_difficulty_enum,
   points INT,
   grading_method grading_method_enum NOT NULL,

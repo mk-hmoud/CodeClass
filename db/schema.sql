@@ -129,3 +129,38 @@ CREATE TABLE assignment_languages_pairs (
   FOREIGN KEY (language_id) REFERENCES languages(language_id) ON DELETE CASCADE,
   UNIQUE (assignment_id, language_id)
 );
+
+-- Changes to be added:
+
+ALTER TABLE assignments
+  DROP COLUMN submission_attempts,
+  ADD COLUMN max_submissions INT DEFAULT 1 CHECK (max_submissions >= 0);
+
+CREATE TABLE submissions (
+  submission_id   SERIAL PRIMARY KEY,
+  student_id      INT NOT NULL REFERENCES students(student_id) ON DELETE CASCADE,
+  assignment_id   INT NOT NULL REFERENCES assignments(assignment_id) ON DELETE CASCADE,
+  language_id     INT NOT NULL REFERENCES languages(language_id) ON DELETE CASCADE,
+  code            TEXT NOT NULL,
+  submitted_at    TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  passed_tests    INT,
+  total_tests     INT,
+  score           NUMERIC(5,2),
+  status          VARCHAR(20) NOT NULL
+    CHECK (status IN ('queued','running','completed','error'))
+    DEFAULT 'queued'
+);
+
+CREATE INDEX idx_submissions_status ON submissions(status);
+CREATE INDEX idx_submissions_student_assignment ON submissions(assignment_id, student_id, submitted_at DESC);
+
+CREATE TABLE submission_results (
+  submission_id     INT NOT NULL REFERENCES submissions(submission_id) ON DELETE CASCADE,
+  test_case_id      INT NOT NULL REFERENCES problem_test_cases(test_case_id) ON DELETE CASCADE,
+  passed            BOOLEAN NOT NULL,
+  actual_output     TEXT,
+  execution_time_ms INT,
+  memory_usage_kb   INT,
+  error_message     TEXT,
+  PRIMARY KEY (submission_id, test_case_id)
+);

@@ -6,8 +6,11 @@ export interface TestCase {
 }
 
 export interface TestResult {
-  test_case_id: number;
-  passed: boolean;
-  output: string;
+  testCaseId: number;
+  input: string;
+  actual: string;
+  expectedOutput: string;
   executionTime: number;
+  error?: string;
+  status?: 'passed' | 'failed' | 'error';
 }

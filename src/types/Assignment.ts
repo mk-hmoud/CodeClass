@@ -1,4 +1,5 @@
-import {Problem} from "./Problem"
+import { Problem } from "./Problem"
+import { AssignmentLanguage } from "./Language";
 
 export interface Assignment {
   assignmentId: number;
@@ -14,14 +15,7 @@ export interface Assignment {
   assigned_at: Date;
   publish_date?: Date;
   due_date?: Date;
-  languages?: Array<{
-    pairId: number;
-    assignmentId: number;
-    languageId: number;
-    initial_code?: string;
-    name?: string;
-    version?: string;
-  }>;
+  languages?: AssignmentLanguage[];
   submissions?: number;
   avgScore?: number;
   completed?: boolean;

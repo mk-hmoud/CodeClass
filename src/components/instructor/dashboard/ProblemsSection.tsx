@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import ProblemDetailDialog from "./ProblemDetailDialog";
-import { Problem } from "../../types/Problem";
+import { Problem } from "../../../types/Problem";
 import {
   createProblem,
   deleteProblem,
@@ -135,7 +135,7 @@ const ProblemsSection = ({ activeTab }: ProblemsSectionProps) => {
           prerequisites: currentProblem.prerequisites,
           learning_outcomes: currentProblem.learning_outcomes,
           tags: currentProblem.tags,
-          test_cases: currentProblem.test_cases,
+          testCases: currentProblem.testCases,
         };
         const result = await createProblem(newProblemData);
         const updatedProblems = await getProblems();

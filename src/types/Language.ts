@@ -3,3 +3,8 @@ export interface Language {
   name: string;
   version?: string;
 }
+
+export interface AssignmentLanguage {
+  language: Language;
+  initial_code?: string;
+}

@@ -1,3 +1,5 @@
+import { TestCase } from "./TestCase";
+
 export interface Problem {
     problemId: number;
     instructor: string; //?
@@ -8,10 +10,5 @@ export interface Problem {
     learning_outcomes?: string;
     tags?: string;
     createdAt: Date;
-    test_cases: Array<{
-        testCaseId: number;
-        input?: string;
-        expectedOutput: string;
-        isPublic: boolean;
-    }>;
+    testCases: TestCase[];
 }

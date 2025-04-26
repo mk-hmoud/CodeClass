@@ -64,7 +64,7 @@ const InstructorClassroom = () => {
       title: "",
       description: "",
       createdAt: new Date(),
-      test_cases: [],
+      testCases: [],
     },
     title: "",
     description: "",

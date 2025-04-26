@@ -109,12 +109,12 @@ const ProblemTab: React.FC<ProblemTabProps> = ({ assignment }) => {
           </div>
         )}
 
-        {assignment.problem.test_cases &&
-          assignment.problem.test_cases.length > 0 && (
+        {assignment.problem.testCases &&
+          assignment.problem.testCases.length > 0 && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Test Cases</h3>
               <div className="space-y-4">
-                {assignment.problem.test_cases.map((testCase, index) => (
+                {assignment.problem.testCases.map((testCase, index) => (
                   <div
                     key={testCase.testCaseId}
                     className="bg-[#0c121f] border border-gray-700 rounded-md p-4"

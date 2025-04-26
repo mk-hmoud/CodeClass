@@ -19,13 +19,16 @@ import CodeEditor from "@/components/CodeEditor";
 
 import "@/lib/monacoConfig"; // Import the centralized Monaco config
 import { TestCase, TestResult } from "@/types/TestCase";
-import { runCode } from "@/services/JudgeService";
+import { Assignment } from "@/types/Assignment";
+import { runCode, getStatus } from "@/services/JudgeService";
+
+const POLL_INTERVAL = 1000;
 
 const CodeEditorPage = () => {
   const navigate = useNavigate();
   const { classroomId, assignmentId } = useParams();
   const { state = {} } = useLocation();
-  const [assignment] = useState(state || null);
+  const [assignment] = useState<Assignment | null>(state as Assignment | null);
 
   const [output, setOutput] = useState(null);
   const [isRunning, setIsRunning] = useState(false);
@@ -36,17 +39,23 @@ const CodeEditorPage = () => {
   const [totalTests, setTotalTests] = useState<number | null>(null);
   const [activeTabIndex, setActiveTabIndex] = useState(0);
   const [supportedLanguages] = useState(
-    assignment.languages.map((lang) => lang.name)
+    assignment.languages.map((alang) => alang.language.name)
   );
   const [initialCodes] = useState(
-    assignment.languages.map((lang) => lang.initial_code)
+    assignment.languages.map((alang) => alang.initial_code)
   );
   const [code, setCode] = useState(initialCodes[0]);
-  const [activeTestCaseId, setActiveTestCaseId] = useState<number | null>(null);
   const [testResults, setTestResults] = useState<TestResult[]>([]);
   const [publicTestCases] = useState<TestCase[]>(
-    assignment?.problem?.test_cases
+    assignment?.problem?.testCases
   );
+  const [activeTestCaseId, setActiveTestCaseId] = useState<number>(0);
+  useEffect(() => {
+    if (publicTestCases.length > 0) {
+      setActiveTestCaseId(publicTestCases[0].testCaseId);
+    }
+  }, [publicTestCases]);
+
   const [selectedLanguage, setSelectedLanguage] = useState(
     supportedLanguages[0]
   );
@@ -91,14 +100,45 @@ const CodeEditorPage = () => {
   // }
   //};
 
-  const handleRunCode = async (code: string) => {
+  const handleRunCode = async (src: string) => {
+    setIsRunning(true);
     try {
-      console.log(code);
-      console.log("language", selectedLanguage);
-      console.log(publicTestCases);
-      await runCode(code, selectedLanguage, publicTestCases);
-    } catch (error) {
-      toast.error("An error occurred while running the code");
+      const { job_id } = await runCode(src, selectedLanguage, publicTestCases);
+      let statusData;
+      do {
+        await new Promise((r) => setTimeout(r, POLL_INTERVAL));
+        statusData = await getStatus(job_id);
+      } while (
+        statusData.status !== "completed" &&
+        statusData.status !== "error"
+      );
+
+      if (statusData.status === "error") {
+        toast.error("Code execution failed on the server");
+      } else {
+        const r = statusData.result!;
+        setTestResults(
+          r.testResults.map((tr) => ({
+            testCaseId: tr.testCaseId,
+            passed: tr.passed,
+            output: tr.output,
+            executionTime: tr.executionTime,
+          }))
+        );
+        setTestsPassed(r.passedTests);
+        setTotalTests(r.totalTests);
+
+        if (r.passedTests === r.totalTests) {
+          toast.success("All tests passed! 🎉");
+        } else {
+          toast.error(`${r.passedTests}/${r.totalTests} tests failed`);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Error running or polling code");
+    } finally {
+      setIsRunning(false);
     }
   };
 
@@ -123,8 +163,8 @@ const CodeEditorPage = () => {
     );
   };
 
-  const handleTestCaseClick = (test_case_id: number) => {
-    setActiveTestCaseId(test_case_id);
+  const handleTestCaseClick = (testCaseId: number) => {
+    setActiveTestCaseId(testCaseId);
   };
 
   // Get the active test case
@@ -134,14 +174,14 @@ const CodeEditorPage = () => {
 
   // Get the test result for the active test case
   const activeTestResult = testResults.find(
-    (tr) => tr.test_case_id === activeTestCaseId
+    (tr) => tr.testCaseId === activeTestCaseId
   );
 
   // Make the page not scrollable for a full-height layout
   useEffect(() => {
     document.body.style.overflow = "hidden";
     document.documentElement.style.overflow = "hidden";
-
+    console.log(assignment);
     return () => {
       document.body.style.overflow = "";
       document.documentElement.style.overflow = "";
@@ -221,8 +261,8 @@ const CodeEditorPage = () => {
                           {testResults.length > 0 && (
                             <span className="mr-1.5">
                               {testResults.find(
-                                (r) => r.test_case_id === testCase.testCaseId
-                              )?.passed ? (
+                                (r) => r.testCaseId === testCase.testCaseId
+                              )?.status === "passed" ? (
                                 <CheckCircle className="h-3 w-3 text-green-500" />
                               ) : (
                                 <XCircle className="h-3 w-3 text-red-500" />
@@ -259,7 +299,7 @@ const CodeEditorPage = () => {
                                     Output
                                   </div>
                                   <div className="bg-muted p-2 rounded-md whitespace-pre-wrap font-mono text-sm">
-                                    {activeTestResult.output}
+                                    {activeTestResult.actual}
                                   </div>
                                 </div>
 
@@ -275,12 +315,12 @@ const CodeEditorPage = () => {
                                 {output && (
                                   <div
                                     className={`text-sm ${
-                                      activeTestResult.passed
+                                      activeTestResult.status === "passed"
                                         ? "text-green-500"
                                         : "text-red-500"
                                     }`}
                                   >
-                                    {activeTestResult.passed
+                                    {activeTestResult.status === "passed"
                                       ? "Accepted"
                                       : "Wrong Answer"}{" "}
                                     | Runtime: {activeTestResult.executionTime}

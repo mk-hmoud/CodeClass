@@ -30,8 +30,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-import { Problem } from "../../types/Problem";
-import { TestCase } from "../../types/TestCase";
+import { Problem } from "../../../types/Problem";
+import { TestCase } from "../../../types/TestCase";
 
 interface ProblemDetailDialogProps {
   open: boolean;
@@ -69,7 +69,7 @@ const ProblemDetailDialog = ({
         category: currentProblem.category,
         prerequisites: currentProblem.prerequisites,
         learning_outcomes: currentProblem.learning_outcomes,
-        test_cases: currentProblem.test_cases,
+        testCases: currentProblem.testCases,
       });
       setTags(
         currentProblem.tags
@@ -133,33 +133,33 @@ const ProblemDetailDialog = ({
     field: keyof TestCase,
     value: any
   ) => {
-    if (editedProblem?.test_cases) {
-      const updatedTestCases = [...editedProblem.test_cases];
+    if (editedProblem?.testCases) {
+      const updatedTestCases = [...editedProblem.testCases];
       updatedTestCases[index] = {
         ...updatedTestCases[index],
         [field]: value,
       };
-      handleChange("test_cases", updatedTestCases);
+      handleChange("testCases", updatedTestCases);
     }
   };
 
   const handleAddTestCase = () => {
-    if (editedProblem?.test_cases) {
+    if (editedProblem?.testCases) {
       const newTestCase: TestCase = {
         testCaseId: Date.now(),
         input: "",
         expectedOutput: "",
         isPublic: true,
       };
-      handleChange("test_cases", [...editedProblem.test_cases, newTestCase]);
+      handleChange("testCases", [...editedProblem.testCases, newTestCase]);
     }
   };
 
   const handleRemoveTestCase = (index: number) => {
-    if (editedProblem?.test_cases) {
-      const updatedTestCases = [...editedProblem.test_cases];
+    if (editedProblem?.testCases) {
+      const updatedTestCases = [...editedProblem.testCases];
       updatedTestCases.splice(index, 1);
-      handleChange("test_cases", updatedTestCases);
+      handleChange("testCases", updatedTestCases);
     }
   };
 
@@ -294,7 +294,7 @@ const ProblemDetailDialog = ({
                   </Label>
 
                   <div className="space-y-4 mt-2">
-                    {editedProblem.test_cases?.map((testCase, index) => (
+                    {editedProblem.testCases?.map((testCase, index) => (
                       <div
                         key={testCase.testCaseId}
                         className="border border-gray-700 rounded-md p-3"
@@ -437,7 +437,7 @@ const ProblemDetailDialog = ({
                     Test Cases
                   </h3>
                   <div className="mt-1 space-y-2">
-                    {editedProblem.test_cases?.map((testCase, index) => (
+                    {editedProblem.testCases?.map((testCase, index) => (
                       <div
                         key={testCase.testCaseId}
                         className="bg-[#0c121f] p-3 rounded-md"

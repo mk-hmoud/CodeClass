@@ -45,7 +45,7 @@ const formSchema = z.object({
   prerequisites: z.string().optional(),
   learning_outcomes: z.string().optional(),
   tags: z.string().optional(),
-  test_cases: z
+  testCases: z
     .array(
       z.object({
         input: z.string(),
@@ -62,7 +62,7 @@ type FormValues = z.infer<typeof formSchema>;
 
 const ProblemCreation = () => {
   const navigate = useNavigate();
-  const [test_cases, setTestCases] = useState<TestCase[]>([
+  const [testCases, setTestCases] = useState<TestCase[]>([
     { input: "", expectedOutput: "", isPublic: false },
   ]);
 
@@ -75,12 +75,12 @@ const ProblemCreation = () => {
       prerequisites: "",
       learning_outcomes: "",
       tags: "",
-      test_cases: [{ input: "", expectedOutput: "", isPublic: false }],
+      testCases: [{ input: "", expectedOutput: "", isPublic: false }],
     },
   });
 
   const onSubmit = async (data: FormValues) => {
-    const emptyOutputs = data.test_cases.filter(
+    const emptyOutputs = data.testCases.filter(
       (tc) => !tc.expectedOutput.trim()
     );
     if (emptyOutputs.length > 0) {
@@ -100,22 +100,22 @@ const ProblemCreation = () => {
 
   const addTestCase = () => {
     const newTestCase = { input: "", expectedOutput: "", isPublic: false };
-    setTestCases([...test_cases, newTestCase]);
-    form.setValue("test_cases", [...form.getValues().test_cases, newTestCase]);
+    setTestCases([...testCases, newTestCase]);
+    form.setValue("testCases", [...form.getValues().testCases, newTestCase]);
   };
 
   const removeTestCase = (index: number) => {
-    if (test_cases.length === 1) {
+    if (testCases.length === 1) {
       toast.error("At least one test case is required");
       return;
     }
-    const newTestCases = [...test_cases];
+    const newTestCases = [...testCases];
     newTestCases.splice(index, 1);
     setTestCases(newTestCases);
 
-    const formTestCases = [...form.getValues().test_cases];
+    const formTestCases = [...form.getValues().testCases];
     formTestCases.splice(index, 1);
-    form.setValue("test_cases", formTestCases);
+    form.setValue("testCases", formTestCases);
   };
 
   const updateTestCase = (
@@ -123,16 +123,16 @@ const ProblemCreation = () => {
     field: keyof TestCase,
     value: string | boolean
   ) => {
-    const updatedTestCases = [...test_cases];
+    const updatedTestCases = [...testCases];
     updatedTestCases[index] = { ...updatedTestCases[index], [field]: value };
     setTestCases(updatedTestCases);
 
-    const updatedFormTestCases = [...form.getValues().test_cases];
+    const updatedFormTestCases = [...form.getValues().testCases];
     updatedFormTestCases[index] = {
       ...updatedFormTestCases[index],
       [field]: value,
     };
-    form.setValue("test_cases", updatedFormTestCases);
+    form.setValue("testCases", updatedFormTestCases);
   };
 
   return (
@@ -305,7 +305,7 @@ const ProblemCreation = () => {
               </Button>
             </div>
 
-            {test_cases.map((testCase, index) => (
+            {testCases.map((testCase, index) => (
               <Card key={index} className="bg-[#0d1224] border-gray-700">
                 <CardContent className="p-4">
                   <div className="flex justify-between items-start mb-4">

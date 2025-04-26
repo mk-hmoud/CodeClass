@@ -20,12 +20,16 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getAssignmentById } from "@/services/AssignmentService";
 import { toast } from "sonner";
+import { Assignment } from "@/types/Assignment";
+import { Problem } from "@/types/Problem";
+import { AssignmentLanguage } from "@/types/Language";
+import { TestCase } from "@/types/TestCase";
 
 const StudentAssignment = () => {
   const { classroomId, assignmentId } = useParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("description");
-  const [assignment, setAssignment] = useState(null);
+  const [assignment, setAssignment] = useState<Assignment | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
@@ -37,6 +41,7 @@ const StudentAssignment = () => {
           parseInt(assignmentId, 10)
         );
         setAssignment(fetchedAssignment);
+        console.log(assignment);
       } catch (error) {
         toast.error("Failed to load assignment");
         console.error("Error fetching assignment:", error);
@@ -174,27 +179,15 @@ const StudentAssignment = () => {
                 <div className="space-y-4">
                   <div className="flex flex-col gap-2">
                     <h3 className="text-sm font-semibold text-gray-400">
-                      Categories
+                      Category
                     </h3>
                     <div className="flex flex-wrap gap-2">
-                      {assignment?.problem?.categories &&
-                        assignment?.problem?.categories?.map(
-                          (category, idx) => (
-                            <Badge
-                              key={idx}
-                              variant="outline"
-                              className="bg-blue-900/30 text-blue-400 border-blue-700"
-                            >
-                              {category}
-                            </Badge>
-                          )
-                        )}
                       {assignment?.problem?.category && (
                         <Badge
                           variant="outline"
                           className="bg-blue-900/30 text-blue-400 border-blue-700"
                         >
-                          {assignment?.problem?.category}
+                          {assignment.problem.category}
                         </Badge>
                       )}
                     </div>
@@ -223,14 +216,16 @@ const StudentAssignment = () => {
                       Languages Allowed
                     </h3>
                     <div className="flex flex-wrap gap-2">
-                      {assignment?.languages?.map((lang, idx) => (
+                      {assignment?.languages?.map((alang, idx) => (
                         <Badge
                           key={idx}
                           variant="outline"
                           className="bg-green-900/30 text-green-400 border-green-700"
                         >
                           <Code size={12} className="mr-1" />
-                          {lang.name}
+                          {alang.language.name}
+                          {alang.language.version &&
+                            ` ${alang.language.version}`}
                         </Badge>
                       ))}
                     </div>
@@ -245,7 +240,7 @@ const StudentAssignment = () => {
                         <RotateCcw size={14} />
                         <span>
                           {assignment?.submission_attempts} /{" "}
-                          {assignment?.max_submission_attempts}
+                          {assignment?.submission_attempts}
                         </span>
                       </div>
                     </div>
@@ -377,6 +372,7 @@ const StudentAssignment = () => {
                   className="p-6 flex-1 overflow-y-auto m-0"
                 >
                   <h3 className="text-xl font-semibold mb-4">Hints</h3>
+                  {/*
                   <div className="space-y-4">
                     {assignment?.problem?.hints?.map((hint, idx) => (
                       <div
@@ -388,6 +384,8 @@ const StudentAssignment = () => {
                       </div>
                     ))}
                   </div>
+                  */}
+                  <p>No hints</p>
                 </TabsContent>
 
                 <TabsContent

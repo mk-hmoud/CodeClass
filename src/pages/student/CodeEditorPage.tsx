@@ -60,46 +60,6 @@ const CodeEditorPage = () => {
     supportedLanguages[0]
   );
 
-  //const handleRunCode = async (code: string) => {
-  // setIsRunning(true);
-  // setCode(code);
-  // try {
-  //   const result = await evaluateCode(code);
-  //   setOutput(result);
-  //   setLastExecutionTime(result.executionTime || null);
-  //   setTestsPassed(result.passedTests || null);
-  //   setTotalTests(result.totalTests || null);
-  //   // Generate test results
-  //   const newTestResults: TestResult[] = publicTestCases.map((testCase, index) => {
-  //     const passed = index < (result.passedTests || 0);
-  //     return {
-  //       testCaseId: testCase.id,
-  //       passed,
-  //       output: passed ? testCase.expectedOutput : "Incorrect result",
-  //       executionTime: result.executionTime || 0
-  //     };
-  //   });
-  //   setTestResults(newTestResults);
-  //   setActiveTestCaseId(publicTestCases[0].id);
-  //   if (result.success) {
-  //     toast.success("Code executed successfully");
-  //     if (result.passedTests === result.totalTests) {
-  //       toast.success("All tests passed! Great job!");
-  //     }
-  //   } else {
-  //     toast.error("Code execution failed");
-  //   }
-  // } catch (error) {
-  //   toast.error("Failed to run code. Please try again.");
-  //   setOutput({
-  //     success: false,
-  //     error: error instanceof Error ? error.message : "Unknown error occurred",
-  //   });
-  // } finally {
-  //   setIsRunning(false);
-  // }
-  //};
-
   const handleRunCode = async (src: string) => {
     setIsRunning(true);
     try {
@@ -117,14 +77,7 @@ const CodeEditorPage = () => {
         toast.error("Code execution failed on the server");
       } else {
         const r = statusData.result!;
-        setTestResults(
-          r.testResults.map((tr) => ({
-            testCaseId: tr.testCaseId,
-            passed: tr.passed,
-            output: tr.output,
-            executionTime: tr.executionTime,
-          }))
-        );
+        setTestResults(r.testResults);
         setTestsPassed(r.passedTests);
         setTotalTests(r.totalTests);
 

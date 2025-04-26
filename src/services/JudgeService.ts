@@ -1,5 +1,5 @@
 import apiClient from "./APIclient";
-import { TestCase } from "@/types/TestCase";
+import { TestCase, TestResult } from "@/types/TestCase";
 
 export interface RunCodeResponse {
   job_id: string;
@@ -27,12 +27,7 @@ export interface StatusResponse {
   job_id: string;
   status: "queued" | "running" | "complete" | "error";
   result?: {
-    testResults: {
-      testCaseId: number;
-      passed: boolean;
-      output: string;
-      executionTime: number;
-    }[];
+    testResults: TestResult[];
     totalTests: number;
     passedTests: number;
   };

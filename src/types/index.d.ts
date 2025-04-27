@@ -66,7 +66,7 @@ export interface ClassroomStudent {
     difficulty_level?: "Easy" | "Medium" | "Hard";
     points?: number;
     grading_method: "Manual" | "Automatic" | "Hybrid";
-    submission_attempts?: number;
+    max_submissions?: number;
     plagiarism_detection: boolean;
     assigned_at: Date;
     publish_date?: Date;
@@ -83,7 +83,7 @@ export interface ClassroomStudent {
     points?: number;
     difficulty_level?: "Easy" | "Medium" | "Hard";
     grading_method: "Manual" | "Automatic" | "Hybrid";
-    submission_attempts?: number;
+    max_submissions?: number;
     plagiarism_detection: boolean;
     publish_date?: Date;
     due_date?: Date;

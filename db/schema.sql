@@ -100,7 +100,7 @@ CREATE TABLE assignments (
   difficulty_level assignment_difficulty_enum,
   points INT,
   grading_method grading_method_enum NOT NULL,
-  submission_attempts INT,
+  max_submissions INT,
   plagiarism_detection BOOLEAN NOT NULL DEFAULT FALSE,
   assigned_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
   publish_date TIMESTAMPTZ,
@@ -129,12 +129,6 @@ CREATE TABLE assignment_languages_pairs (
   FOREIGN KEY (language_id) REFERENCES languages(language_id) ON DELETE CASCADE,
   UNIQUE (assignment_id, language_id)
 );
-
--- Changes to be added:
-
-ALTER TABLE assignments
-  DROP COLUMN submission_attempts,
-  ADD COLUMN max_submissions INT DEFAULT 1 CHECK (max_submissions >= 0);
 
 CREATE TABLE submissions (
   submission_id   SERIAL PRIMARY KEY,

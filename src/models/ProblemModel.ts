@@ -1,5 +1,6 @@
 import pool from "../config/db";
 import { Problem, ProblemCreationData } from "../types";
+import { TestCase } from "../types";
 
 const logMessage = (functionName: string, message: string): void => {
   const timestamp = new Date().toISOString();
@@ -150,4 +151,23 @@ export const deleteProblem = async (problemId: number): Promise<void> => {
     logMessage(functionName, `Error deleting problem: ${error}`);
     throw error;
   }
+};
+
+
+export const getAssignmentTestCases = async (
+  assignmentId: number
+): Promise<TestCase[]> => {
+  const sql = `
+    SELECT tc.test_case_id   AS "testCaseId",
+           tc.input          AS input,
+           tc.expected_output AS "expectedOutput",
+           tc.is_public      AS "isPublic"
+    FROM assignments a
+    JOIN problem_test_cases tc
+      ON a.problem_id = tc.problem_id
+    WHERE a.assignment_id = $1
+    ORDER BY tc.test_case_id
+  `;
+  const { rows } = await pool.query(sql, [assignmentId]);
+  return rows;
 };

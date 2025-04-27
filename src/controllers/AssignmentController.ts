@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { createAssignment, getAssignments, getAssignmentById, deleteAssignment } from '../models/AssignmentModel';
+import { createAssignment, getAssignments, getAssignmentById, deleteAssignment, getRemainingAttempts } from '../models/AssignmentModel';
 import { getInstructorByUserId } from '../models/InstructorModel';
 
 const logMessage = (functionName: string, message: string): void => {
@@ -81,5 +81,57 @@ export const getAssignmentsController = async (req: Request, res: Response): Pro
   } catch (error) {
     logMessage(functionName, `Error fetching assignments: ${error}`);
     res.status(500).json({ success: false, message: 'Failed to fetch assignments' });
+  }
+};
+
+export const getRemainingAttemptsController = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const fn = "getRemainingAttemptsController";
+  logMessage(fn, `Received request to get remaining attempts.`);
+
+  try {
+    if (!req.user) {
+        logMessage(fn, "Unauthorized: No user information found in request.");
+        res.status(401).json({ success: false, message: 'Unauthorized' });
+        return;
+    }
+
+    logMessage(fn, `Checking user role. User ID: ${req.user.id}, Role: ${req.user.role}`);
+    if (req.user.role !== "student") {
+      logMessage(fn, `Forbidden: User ${req.user.id} is not a student.`);
+      res.status(403).json({ success: false, message: "Forbidden: Student role required" });
+      return;
+    }
+
+    const assignmentId = Number(req.params.assignmentId);
+    const studentId = req.user.role_id as number;
+    logMessage(fn, `Getting remaining attempts for assignment ${assignmentId} and student ${studentId}.`);
+
+    if (isNaN(assignmentId) || assignmentId <= 0) {
+        logMessage(fn, `Invalid assignment ID received: ${req.params.assignmentId}`);
+        res.status(400).json({ success: false, message: 'Invalid assignment ID' });
+        logMessage(fn, 'Sent 400 response.');
+        return;
+    }
+
+    logMessage(fn, `Calling getRemainingAttempts model function.`);
+    const remaining = await getRemainingAttempts(assignmentId, studentId);
+    logMessage(fn, `Remaining attempts fetched: ${remaining} for assignment ${assignmentId}, student ${studentId}.`);
+
+    res.status(200).json({ success: true, data: { remainingAttempts: remaining } });
+    logMessage(fn, 'Sent 200 response.');
+
+  } catch (err) {
+    logMessage(fn, `Error fetching remaining attempts: ${err}`);
+
+     if (err instanceof Error && err.message === "Assignment not found") {
+        res.status(404).json({ success: false, message: err.message });
+        logMessage(fn, 'Sent 404 response (Assignment not found).');
+     } else {
+        res.status(500).json({ success: false, message: "Could not fetch remaining attempts" });
+        logMessage(fn, 'Sent 500 response.');
+     }
   }
 };

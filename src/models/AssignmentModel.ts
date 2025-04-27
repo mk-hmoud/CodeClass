@@ -22,7 +22,7 @@ export const createAssignment = async (
         difficulty_level,
         points,
         grading_method,
-        submission_attempts,
+        max_submissions,
         plagiarism_detection,
         publish_date,
         due_date
@@ -36,8 +36,8 @@ export const createAssignment = async (
       assignment.difficulty_level || null,
       assignment.points !== undefined ? assignment.points : null,
       assignment.grading_method,
-      assignment.submission_attempts !== undefined
-        ? assignment.submission_attempts
+      assignment.max_submissions !== undefined
+        ? assignment.max_submissions
         : null,
       assignment.plagiarism_detection,
       assignment.publish_date || null,
@@ -85,7 +85,7 @@ export const getAssignmentById = async (
         a.difficulty_level,
         a.points,
         a.grading_method,
-        a.submission_attempts,
+        a.max_submissions,
         a.plagiarism_detection,
         a.assigned_at,
         a.publish_date,
@@ -162,7 +162,7 @@ export const getAssignmentById = async (
         | undefined,
       points: row.points ?? undefined,
       grading_method: row.grading_method as "Manual" | "Automatic" | "Hybrid",
-      submission_attempts: row.submission_attempts ?? undefined,
+      max_submissions: row.max_submissions?? undefined,
       plagiarism_detection: row.plagiarism_detection,
       assigned_at: new Date(row.assigned_at),
       publish_date: row.publish_date ? new Date(row.publish_date) : undefined,
@@ -217,7 +217,7 @@ export async function getAssignmentsForClassroom(classroomId: number): Promise<A
       a.difficulty_level AS "difficultyLevel",
       a.points,
       a.grading_method AS "gradingMethod",
-      a.submission_attempts AS "submissionAttempts",
+      a.max_submissions AS "submissionAttempts",
       a.plagiarism_detection AS "plagiarismDetection",
       to_char(a.assigned_at, 'YYYY-MM-DD"T"HH24:MI:SSZ') AS "assignedAt",
       to_char(a.publish_date, 'YYYY-MM-DD"T"HH24:MI:SSZ') AS "publishDate",
@@ -295,7 +295,7 @@ export const getAssignments = async (instructorId: number): Promise<Assignment[]
         ) AS metadata,
         json_build_object(
           'grading_method', ac.grading_method,
-          'submission_attempts', ac.submission_attempts,
+          'max_submissions', ac.max_submissions,
           'plagiarism_detection', ac.plagiarism_detection
         ) AS config,
         (
@@ -337,3 +337,57 @@ export const getAssignments = async (instructorId: number): Promise<Assignment[]
     throw error;
   }
 };
+
+export async function getRemainingAttempts(
+  assignmentId: number,
+  studentId: number
+): Promise<number> {
+  const functionName = "getRemainingAttempts";
+  logMessage(functionName, `Checking remaining attempts for assignment ${assignmentId} and student ${studentId}`);
+
+  try {
+    logMessage(functionName, `Getting max submission attempts for assignment ${assignmentId}`);
+    const assignRes = await pool.query<{
+      submission_attempts: number | null;
+    }>(
+      `SELECT max_submissions
+         FROM assignments
+        WHERE assignment_id = $1`,
+      [assignmentId]
+    );
+
+    if (assignRes.rowCount === 0) {
+      logMessage(functionName, `Assignment ${assignmentId} not found`);
+      throw new Error("Assignment not found");
+    }
+
+    const maxAttempts = assignRes.rows[0].submission_attempts as number;
+    logMessage(functionName, `Max attempts for assignment ${assignmentId}: ${maxAttempts === null ? 'Unlimited' : maxAttempts}`);
+
+
+    if (maxAttempts === null) {
+      logMessage(functionName, `Returning unlimited attempts (Infinity) for assignment ${assignmentId}`);
+      return Infinity;
+    }
+
+    logMessage(functionName, `Counting submissions for assignment ${assignmentId} and student ${studentId}`);
+    const countRes = await pool.query<{ cnt: string }>(
+      `SELECT COUNT(*) AS cnt
+         FROM submissions
+        WHERE assignment_id = $1
+          AND student_id = $2`,
+      [assignmentId, studentId]
+    );
+    const used = parseInt(countRes.rows[0].cnt, 10);
+    logMessage(functionName, `Used attempts for assignment ${assignmentId} by student ${studentId}: ${used}`);
+
+
+    const remaining = Math.max(0, maxAttempts - used);
+    logMessage(functionName, `Remaining attempts calculated: ${remaining}`);
+    return remaining;
+
+  } catch (error) {
+    logMessage(functionName, `Error in ${functionName} for assignment ${assignmentId}, student ${studentId}: ${error}`);
+    throw error;
+  }
+}

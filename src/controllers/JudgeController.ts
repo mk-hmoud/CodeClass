@@ -3,6 +3,8 @@ import { nanoid } from 'nanoid';
 
 import redisClient from '../config/redis';
 import { TestCase } from '../types';
+import { getAssignmentTestCases } from '../models/ProblemModel';
+import { createSubmission } from '../models/SubmissionModel';
 
 const logMessage = (functionName: string, message: string): void => {
   const timestamp = new Date().toISOString();
@@ -48,8 +50,9 @@ export const runCodeHandler = async (req: Request, res: Response): Promise<void>
     const jobId = nanoid();
     logMessage('runCode', `Enqueueing job ${jobId}`);
 
+    const mode = "run";
     await redisClient.hSet(`judge:${jobId}`, {
-      data: JSON.stringify({ code, language, testCases }),
+      data: JSON.stringify({ code, language, testCases, mode }),
       createdAt: Date.now().toString(),
     });
 
@@ -131,3 +134,87 @@ export const getStatusHandler = async (req: Request, res: Response): Promise<voi
     res.status(500).json({ error: 'Failed to fetch status' });
   }
 };
+
+export const submitHandler = async (req: Request, res: Response): Promise<void> => {
+  const functionName = "submit";
+  const { assignmentId, code, language } = req.body as {
+    assignmentId: number;
+    code: string;
+    language: string;
+  };
+
+  if (!req.user) {
+    logMessage(functionName, 'No user in request.');
+    res.status(401).json({ success: false, message: 'Unauthorized' });
+    return;
+  }
+
+  if (req.user?.role !== "student") {
+    logMessage(functionName, `User ${req.user?.id} is not a student`);
+    res.status(403).json({ success: false, message: 'Forbidden: Student role required' });
+    return;
+  }
+
+  const studentId = req.user.role_id as number;
+
+  logMessage(functionName, `Student ${studentId} submitting assignment ${assignmentId}`);
+
+  if (!code || !language || !assignmentId) {
+    res.status(400).json({ error: "Missing required parameters" });
+    return;
+  }
+
+  let submissionId: number;
+  try {
+    submissionId = await createSubmission({
+      studentId,
+      assignmentId,
+      language,
+      code,
+    });
+    logMessage(functionName, `Created submission ${submissionId}`);
+  } catch (err) {
+    logMessage(functionName, `Error creating submission: ${err}`);
+    res.status(400).json({ error: (err as Error).message });
+    return;
+  }
+
+  if (!redisClient.isReady) {
+    logMessage(functionName, "Redis not ready");
+    res
+      .status(503)
+      .json({ error: "Service temporarily unavailable" });
+    return;
+  }
+
+  let testCases: TestCase[];
+  try {
+    testCases = await getAssignmentTestCases(assignmentId);
+    if (testCases.length === 0) {
+      throw new Error("No test cases found for assignment");
+    }
+  } catch (err) {
+    logMessage(functionName, `Error fetching test cases: ${err}`);
+    res.status(500).json({ error: "Failed to load test cases" });
+    return;
+  }
+
+  try {
+    await redisClient.hSet(`judge:${submissionId}`, {
+      data: JSON.stringify({ code, language, testCases, mode: "submit"}),
+      createdAt: Date.now().toString(),
+    });
+    await redisClient.lPush("judge:queue", submissionId.toString());
+    logMessage(functionName, `Enqueued job ${submissionId} for submission ${submissionId}`);
+  } catch (err) {
+    logMessage(functionName, `Error enqueuing job: ${err}`);
+    res.status(500).json({ error: "Failed to queue grading job" });
+    return;
+  }
+
+  res.status(202).json({
+    submissionId,
+    job_id: submissionId,
+    status_url: `/api/judge/status/${submissionId}`,
+  });
+}

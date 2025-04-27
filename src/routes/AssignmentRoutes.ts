@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createAssignmentController, getAssignmentsController, getAssignmentByIdController, deleteAssignmentController } from '../controllers/AssignmentController';
+import { createAssignmentController, getAssignmentsController, getAssignmentByIdController, deleteAssignmentController, getRemainingAttemptsController } from '../controllers/AssignmentController';
 import { authMiddleware, requireRole } from '../middleware/AuthMiddleware';
 
 const router = Router();
@@ -8,6 +8,7 @@ const router = Router();
 router.post('/', authMiddleware, createAssignmentController);
 router.get('/assignments', authMiddleware, getAssignmentsController);
 router.get('/:assignmentId', getAssignmentByIdController);
+router.get('/:assignmentId/remaining-attempts', authMiddleware, getRemainingAttemptsController);
 router.delete('/:assignmentId', deleteAssignmentController);
 
 export default router;

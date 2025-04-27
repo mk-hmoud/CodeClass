@@ -151,10 +151,24 @@ void JudgeWorker::processSubmission(const std::string &jobId,
         auto results = json::parse(outputStr);
         LOG_INFO("Job " << jobId << " processed with results: "
                         << results.dump());
-        std::string verdictKey = "judge:verdict:" + jobId;
-        std::cout << "\n\nresults: " << results.dump();
-        redis_.set("judge:verdict:" + jobId, results.dump());
+        std::string prefix;
+        if (submission.mode == "submit")
+        {
+            prefix = "judge:submit:verdict:";
+        }
+        else if (submission.mode == "run")
+        {
+            prefix = "judge:run:verdict:";
+        }
+        else
+        {
+            LOG_ERROR("Unknown submission mode: " << submission.mode);
+            return;
+        }
 
+        std::string verdictKey = prefix + jobId;
+        std::cout << "\n\nresults: " << results.dump();
+        redis_.set(verdictKey, results.dump());
         redis_.expire(verdictKey, 3600);
     }
     catch (const std::exception &e)
@@ -164,6 +178,7 @@ void JudgeWorker::processSubmission(const std::string &jobId,
 
     unlink(inputFilename);
     unlink(outputFilename);
+    // redis_.del("judge:" + jobId);
 }
 
 Submission JudgeWorker::parseSubmission(const std::string &jsonSubmissionData)
@@ -172,5 +187,6 @@ Submission JudgeWorker::parseSubmission(const std::string &jsonSubmissionData)
     return {
         j["code"].get<std::string>(),
         j["language"].get<std::string>(),
-        j["testCases"].get<std::vector<TestCase>>()};
+        j["testCases"].get<std::vector<TestCase>>(),
+        j["mode"].get<std::string>()};
 }

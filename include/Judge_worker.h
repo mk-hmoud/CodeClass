@@ -15,6 +15,7 @@ struct Submission
     std::string code;
     std::string language;
     std::vector<TestCase> testCases;
+    std::string mode;
 };
 
 namespace nlohmann

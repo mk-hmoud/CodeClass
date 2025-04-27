@@ -85,7 +85,7 @@ export interface TestResult {
   status?: 'passed' | 'failed' | 'error';
 }
 
-export const getStatusHandler = async (req: Request, res: Response): Promise<void> => {
+export const getRunStatusHandler = async (req: Request, res: Response): Promise<void> => {
   const { jobId } = req.params;
   logMessage('getStatus', `Checking status for job ${jobId}`);
 
@@ -96,7 +96,7 @@ export const getStatusHandler = async (req: Request, res: Response): Promise<voi
   }
 
   try {
-    const key = `judge:verdict:${jobId}`;
+    const key = `judge:run:verdict:${jobId}`;
     const raw = await redisClient.get(key);
 
     if (raw === null) {
@@ -218,3 +218,58 @@ export const submitHandler = async (req: Request, res: Response): Promise<void> 
     status_url: `/api/judge/status/${submissionId}`,
   });
 }
+
+export const getSubmitStatusHandler = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { jobId } = req.params;
+  logMessage("getSubmitStatus", `Checking submit status for job ${jobId}`);
+
+  if (!redisClient.isReady) {
+    logMessage("getSubmitStatus", "Redis client not ready");
+    res.status(503).json({ error: "Service temporarily unavailable" });
+    return;
+  }
+
+  try {
+    const key = `judge:submit:verdict:${jobId}`;
+    const raw = await redisClient.get(key);
+
+    if (raw === null) {
+      res.status(200).json({
+        job_id: jobId,
+        status: "pending",
+      });
+      return;
+    }
+
+    const verdict: TestResult[] = JSON.parse(raw);
+    const passedTests = verdict.filter((t) => t.status === "passed").length;
+    const totalTests = verdict.length;
+
+    // separate public vs private
+
+    res.status(200).json({
+      job_id: jobId,
+      status: "completed",
+      result: {
+        testResults: verdict.map((t) => ({
+          testCaseId: t.testCaseId,
+          input: t.input,
+          actual: t.actual,
+          expectedOutput: t.expectedOutput,
+          executionTime: t.executionTime,
+          error: t.error,
+          status: t.status,
+        })),
+        passedTests,
+        totalTests,
+      },
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Unknown error";
+    logMessage("getSubmitStatus", `Error fetching submit verdict: ${msg}`);
+    res.status(500).json({ error: "Failed to fetch submit status" });
+  }
+};

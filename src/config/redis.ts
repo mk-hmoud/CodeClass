@@ -5,8 +5,10 @@ const logMessage = (functionName: string, message: string): void => {
   console.log(`[${timestamp}] [Redis] [${functionName}] ${message}`);
 };
 
+const REDIS_URL = process.env.REDIS_URL || 
+                 `redis://${process.env.REDIS_HOST || '127.0.0.1'}:${process.env.REDIS_PORT || 6379}`;
 const redisClient = createClient({
-    url: `redis://${process.env.REDIS_HOST || '127.0.0.1'}:${process.env.REDIS_PORT || 6379}`
+    url: REDIS_URL
 });
 
 redisClient.on('error', (err) => 

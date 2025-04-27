@@ -2,6 +2,7 @@ import json
 import subprocess
 import sys
 import os
+import time
 from tempfile import TemporaryDirectory
 
 def main():
@@ -40,33 +41,38 @@ def main():
         os.chmod(exe_path, 0o755)
 
         for tc in test_cases:
-            test_case_id           = tc.get('testCaseId')
-            raw_input       = tc.get('input', '')
-            expected_output = tc.get('expectedOutput', '').strip()
+            test_case_id   = tc.get('testCaseId')
+            raw_input      = tc.get('input', '')
+            expected_output= tc.get('expectedOutput', '').strip()
 
-            # split "3, 7" -> ["3","7"]
             args = [part.strip() for part in raw_input.split(',') if part.strip()]
 
             result = {
-                "test_case_id": test_case_id,
-                "args":         args,
-                "expected_output":     expected_output,
-                "actual":       None,
-                "status":       None,
-                "error":        None
+                "testCaseId": test_case_id,
+                "input": args,
+                "expectedOutput": expected_output,
+                "actual": None,
+                "status": None,
+                "error": None,
+                "executionTime": None
             }
 
             try:
+                start = time.time()
                 proc = subprocess.run(
                     [exe_path] + args,
                     capture_output=True,
                     text=True,
                     timeout=5
                 )
+                elapsed = (time.time() - start) * 1000 
+
                 actual = proc.stdout.strip()
                 errout = proc.stderr.strip()
 
                 result["actual"] = actual
+                result["executionTime"] = int(elapsed)
+
                 if proc.returncode != 0:
                     result["status"] = "runtime_error"
                     result["error"]  = errout
@@ -76,6 +82,7 @@ def main():
             except subprocess.TimeoutExpired:
                 result["status"] = "timeout"
                 result["error"]  = "Execution timed out after 5 seconds"
+                result["executionTime"] = 5000
             except Exception as e:
                 result["status"] = "error"
                 result["error"]  = str(e)

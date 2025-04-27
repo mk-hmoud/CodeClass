@@ -46,3 +46,10 @@ export const getAssignments = async (): Promise<Assignment[]> => {
     return [];
   }
 };
+
+export async function getRemainingAttempts(assignmentId: number): Promise<number> {
+  const { data } = await apiClient.get<{ data: { remainingAttempts: number } }>(
+    `/assignments/${assignmentId}/remaining-attempts`
+  );
+  return data.data.remainingAttempts;
+}

@@ -1,7 +1,7 @@
 import apiClient from "./APIclient";
 import { TestCase, TestResult } from "@/types/TestCase";
 
-export interface RunCodeResponse {
+export interface JudgeResponse {
   job_id: string;
   status_url: string;
 }
@@ -10,9 +10,9 @@ export const runCode = async (
   code: string,
   language: string,
   testCases: TestCase[]
-): Promise<RunCodeResponse> => {
+): Promise<JudgeResponse> => {
   try {
-    const { data } = await apiClient.post<RunCodeResponse>(
+    const { data } = await apiClient.post<JudgeResponse>(
       "/judge/run",
       { code, language, testCases }
     );
@@ -23,22 +23,61 @@ export const runCode = async (
   }
 };
 
+export interface SubmissionResult {
+  testReults: TestResult[];
+  passedTests: number;
+  totalTests: number;
+  score?: number;
+
+  publicPassed?: number;
+  publicTotal?: number;
+  privatePassed?: number;
+  privateTotal?: number;
+}
+
 export interface StatusResponse {
   job_id: string;
   status: "queued" | "running" | "complete" | "error";
-  result?: {
-    testResults: TestResult[];
-    totalTests: number;
-    passedTests: number;
-  };
+  result?: SubmissionResult;
 }
 
-export const getStatus = async (
+export const getRunStatus = async (
   jobId: string
 ): Promise<StatusResponse> => {
   try {
     const { data } = await apiClient.get<StatusResponse>(
-      `/judge/status/${jobId}`
+      `/judge/status/run/${jobId}`
+    );
+    return data;
+  } catch (error) {
+    console.error("Error fetching status:", error);
+    throw error;
+  }
+};
+
+export const submit = async (
+  assignmentId: number,
+  code: string,
+  language: string,
+): Promise<JudgeResponse> => {
+  try {
+    const { data } = await apiClient.post<JudgeResponse>(
+      "/judge/submit",
+      { assignmentId, code, language}
+    );
+    return data;
+  } catch (error) {
+    console.error("Error running code:", error);
+    throw error;
+  }
+};
+
+export const getSubmitStatus = async (
+  jobId: string
+): Promise<StatusResponse> => {
+  try {
+    const { data } = await apiClient.get<StatusResponse>(
+      `/judge/status/submit/${jobId}`
     );
     return data;
   } catch (error) {

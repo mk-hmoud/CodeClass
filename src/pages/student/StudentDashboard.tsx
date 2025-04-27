@@ -62,7 +62,6 @@ const upcomingDeadlines = [
   },
 ];
 
-// Mock last opened assignment
 const lastOpenedAssignment = {
   id: "a1",
   title: "Binary Search Tree Implementation",
@@ -136,7 +135,6 @@ const StudentDashboard = () => {
     try {
       setJoining(true);
       await joinClassroom(classCode.trim());
-      // Refresh classrooms after joining
       const updatedClassrooms = await getClassrooms();
       setClassrooms(updatedClassrooms);
 

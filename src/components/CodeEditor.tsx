@@ -14,6 +14,7 @@ interface CodeEditorProps {
   defaultLanguage: string;
   defaultValue: string;
   onRunCode: (code: string) => void;
+  onSubmitCode: (code: string) => void;
   showButtons?: boolean;
   onChange?: (code: string) => void;
   supportedLanguages?: string[];
@@ -25,6 +26,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   defaultLanguage,
   defaultValue,
   onRunCode,
+  onSubmitCode,
   showButtons = false,
   onChange,
   supportedLanguages = ["javascript", "python", "cpp"],
@@ -106,9 +108,9 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   };
 
   const handleSubmitCode = () => {
-    if (monacoInstance.current) {
+    if (monacoInstance.current && onSubmitCode) {
       const code = monacoInstance.current.getValue();
-      onRunCode(code);
+      onSubmitCode(code);
     }
   };
 
@@ -142,13 +144,15 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
             <Play size={16} />
             Run
           </Button>
-          <Button
-            onClick={handleSubmitCode}
-            className="flex items-center gap-1"
-          >
-            <Send size={16} />
-            Submit
-          </Button>
+          {onSubmitCode && (
+            <Button
+              onClick={handleSubmitCode}
+              className="flex items-center gap-1"
+            >
+              <Send size={16} />
+              Submit
+            </Button>
+          )}
         </div>
       )}
       <div ref={editorRef} className="flex-grow" />

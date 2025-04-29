@@ -55,6 +55,7 @@ void JudgeWorker::processSubmission(const std::string &jobId,
         tcJson["testCaseId"] = tc.test_case_id;
         tcJson["input"] = tc.input;
         tcJson["expectedOutput"] = tc.expected_output;
+        tcJson["isPublic"] = tc.is_public;
         inputJson["testCases"].push_back(tcJson);
     }
     std::string inputStr = inputJson.dump();

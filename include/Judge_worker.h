@@ -7,7 +7,7 @@ struct TestCase
     int test_case_id;
     std::string input;
     std::string expected_output;
-    bool isPublic;
+    bool is_public;
 };
 
 struct Submission
@@ -28,7 +28,7 @@ namespace nlohmann
             j.at("testCaseId").get_to(tc.test_case_id);
             j.at("input").get_to(tc.input);
             j.at("expectedOutput").get_to(tc.expected_output);
-            j.at("isPublic").get_to(tc.isPublic);
+            j.at("isPublic").get_to(tc.is_public);
         }
     };
 }

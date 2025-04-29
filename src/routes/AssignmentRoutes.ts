@@ -7,7 +7,7 @@ const router = Router();
 
 router.post('/', authMiddleware, createAssignmentController);
 router.get('/assignments', authMiddleware, getAssignmentsController);
-router.get('/:assignmentId', getAssignmentByIdController);
+router.get('/:assignmentId', authMiddleware, getAssignmentByIdController);
 router.get('/:assignmentId/remaining-attempts', authMiddleware, getRemainingAttemptsController);
 router.delete('/:assignmentId', deleteAssignmentController);
 

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { createAssignment, getAssignments, getAssignmentById, deleteAssignment, getRemainingAttempts } from '../models/AssignmentModel';
+import { createAssignment, getAssignments, getAssignmentById, deleteAssignment, getRemainingAttempts, getAssignmentForStudent } from '../models/AssignmentModel';
 import { getInstructorByUserId } from '../models/InstructorModel';
 
 const logMessage = (functionName: string, message: string): void => {
@@ -33,7 +33,14 @@ export const getAssignmentByIdController = async (req: Request, res: Response): 
   try {
     const assignmentId = Number(req.params.assignmentId);
     logMessage(functionName, `Received request to fetch assignment ID: ${assignmentId}`);
-    const assignment = await getAssignmentById(assignmentId);
+
+    let assignment;
+    if (req.user?.role === "student") {
+      assignment = await getAssignmentForStudent(assignmentId);
+    } else {
+      assignment = await getAssignmentById(assignmentId);
+    }
+
     logMessage(functionName, `Fetched assignment ID: ${assignmentId}`);
     res.status(200).json({ success: true, data: assignment });
   } catch (error) {

@@ -191,6 +191,35 @@ export const getAssignmentById = async (
   }
 };
 
+export const getAssignmentForStudent = async (
+  assignmentId: number
+): Promise<Assignment> => {
+  const fn = "getAssignmentForStudent";
+  try {
+    logMessage(fn, `Loading assignment ${assignmentId} for student view`);
+    const a = await getAssignmentById(assignmentId);
+
+    const beforeCount = a.problem.testCases.length;
+    a.problem.testCases = a.problem.testCases.filter((tc) => tc.isPublic);
+    const afterCount = a.problem.testCases.length;
+    logMessage(
+      fn,
+      `Filtered test cases: ${beforeCount} → ${afterCount} public only`
+    );
+
+    delete (a as any).grading_method;
+    delete (a as any).assigned_at;
+    delete (a as any).plagiarism_detection;
+    logMessage(fn, `Stripped instructor-only fields from assignment object`);
+
+    logMessage(fn, `Returning assignment ${assignmentId} to student`);
+    return a;
+  } catch (err) {
+    logMessage(fn, `Error in getAssignmentForStudent: ${(err as Error).message}`);
+    throw err;
+  }
+};
+
 export const deleteAssignment = async (assignmentId: number): Promise<void> => {
   const functionName = "deleteAssignment";
   try {

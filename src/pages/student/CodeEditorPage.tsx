@@ -19,7 +19,7 @@ import {
 import CodeEditor from "@/components/CodeEditor";
 
 import "@/lib/monacoConfig"; // Import the centralized Monaco config
-import { TestCase, TestResult } from "@/types/TestCase";
+import { TestCase, JudgeVerdict } from "@/types/TestCase";
 import { Assignment } from "@/types/Assignment";
 import {
   runCode,
@@ -32,20 +32,25 @@ import { Progress } from "@radix-ui/react-progress";
 
 const POLL_INTERVAL = 1000;
 
+//default
+const emptyVerdict: JudgeVerdict = {
+  status: "pending",
+  testResults: [],
+  metrics: {
+    passedTests: 0,
+    totalTests: 0,
+    averageRuntime: 0,
+  },
+};
+
 const CodeEditorPage = () => {
   const navigate = useNavigate();
   const { classroomId, assignmentId } = useParams();
   const { state = {} } = useLocation();
   const [assignment] = useState<Assignment | null>(state as Assignment | null);
 
-  const [output, setOutput] = useState(null);
   const [isRunning, setIsRunning] = useState(false);
   const [isSubmissionView, setIsSubmissionView] = useState(false);
-  const [lastExecutionTime, setLastExecutionTime] = useState<number | null>(
-    null
-  );
-  const [testsPassed, setTestsPassed] = useState<number | null>(null);
-  const [totalTests, setTotalTests] = useState<number | null>(null);
   const [activeTabIndex, setActiveTabIndex] = useState(0);
   const [supportedLanguages] = useState(
     assignment.languages.map((alang) => alang.language.name)
@@ -54,20 +59,14 @@ const CodeEditorPage = () => {
     assignment.languages.map((alang) => alang.initial_code)
   );
   const [code, setCode] = useState(initialCodes[0]);
-  const [testResults, setTestResults] = useState<TestResult[]>([]);
   const [publicTestCases] = useState<TestCase[]>(
     assignment?.problem?.testCases
   );
   const [activeTestCaseId, setActiveTestCaseId] = useState<number>(0);
-  useEffect(() => {
-    if (publicTestCases.length > 0) {
-      setActiveTestCaseId(publicTestCases[0].testCaseId);
-    }
-  }, [publicTestCases]);
-  const [privateTestResults, setPrivateTestResults] = useState<{
-    total: number;
-    passed: number;
-  } | null>(null);
+
+  const [runVerdict, setRunVerdict] = useState<JudgeVerdict>(emptyVerdict);
+  const [submitVerdict, setSubmitVerdict] =
+    useState<JudgeVerdict>(emptyVerdict);
 
   const [selectedLanguage, setSelectedLanguage] = useState(
     supportedLanguages[0]
@@ -94,30 +93,46 @@ const CodeEditorPage = () => {
   const handleRunCode = async (src: string) => {
     setIsRunning(true);
     setIsSubmissionView(false);
+    setRunVerdict({ ...emptyVerdict });
+
     try {
       const { job_id } = await runCode(src, selectedLanguage, publicTestCases);
-      let statusData;
+      let statusData: JudgeVerdict;
+
       do {
         await new Promise((r) => setTimeout(r, POLL_INTERVAL));
         statusData = await getRunStatus(job_id);
-      } while (
-        statusData.status !== "completed" &&
-        statusData.status !== "error"
-      );
+        setRunVerdict(statusData);
+      } while (statusData.status === "pending");
 
-      if (statusData.status === "error") {
-        toast.error("Code execution failed on the server");
-      } else {
-        const r = statusData.result!;
-        setTestResults(r.testResults);
-        setTestsPassed(r.passedTests);
-        setTotalTests(r.totalTests);
+      if (statusData.status === "compile_error" && statusData.error) {
+        toast.error(`Compilation error: ${statusData.error.errorMessage}`);
+        setIsRunning(false);
+        return;
+      }
 
-        if (r.passedTests === r.totalTests) {
+      if (statusData.status === "system_error" && statusData.error) {
+        toast.error(`System error: ${statusData.error.errorMessage}`);
+        setIsRunning(false);
+        return;
+      }
+
+      if (
+        statusData.status === "completed" &&
+        statusData.testResults &&
+        statusData.metrics
+      ) {
+        setRunVerdict(statusData);
+
+        if (statusData.metrics.passedTests === statusData.metrics.totalTests) {
           toast.success("All tests passed! 🎉");
         } else {
-          toast.error(`${r.passedTests}/${r.totalTests} tests failed`);
+          toast.error(
+            `${statusData.metrics.passedTests}/${statusData.metrics.totalTests} tests passed`
+          );
         }
+      } else {
+        toast.error("Received unexpected response format from server");
       }
     } catch (err) {
       console.error(err);
@@ -128,7 +143,6 @@ const CodeEditorPage = () => {
   };
 
   const handleSubmitCode = async () => {
-    console.log(remainingAttempts);
     if (remainingAttempts !== null && remainingAttempts <= 0) {
       toast.error("No submission attempts remaining");
       return;
@@ -137,6 +151,8 @@ const CodeEditorPage = () => {
     setSubmissionStatus("submitting");
     setIsRunning(true);
     setIsSubmissionView(true);
+    setSubmitVerdict({ ...emptyVerdict });
+
     try {
       const { job_id } = await submit(
         assignment.assignmentId,
@@ -144,44 +160,52 @@ const CodeEditorPage = () => {
         selectedLanguage
       );
 
-      let statusData;
+      let statusData: JudgeVerdict;
       do {
         await new Promise((r) => setTimeout(r, POLL_INTERVAL));
         statusData = await getSubmitStatus(job_id);
-        console.log(statusData);
-      } while (
-        statusData.status !== "completed" &&
-        statusData.status !== "error"
-      );
+        setSubmitVerdict(statusData);
+      } while (statusData.status === "pending");
 
-      if (statusData.status === "error") {
+      if (statusData.status === "compile_error" && statusData.error) {
+        toast.error(`Compilation error: ${statusData.error.errorMessage}`);
         setSubmissionStatus("error");
-        toast.error("Submission failed on server");
-      } else {
-        const {
-          testResults,
-          passedTests,
-          totalTests,
-          score,
-          privatePassed,
-          privateTotal,
-        } = statusData.result;
+        setIsRunning(false);
+        return;
+      }
 
-        setTestResults(testResults);
-        setTestsPassed(passedTests);
-        setTotalTests(totalTests);
-        setPrivateTestResults({
-          total: privateTotal,
-          passed: privatePassed,
-        });
+      if (statusData.status === "system_error" && statusData.error) {
+        toast.error(`System error: ${statusData.error.errorMessage}`);
+        setSubmissionStatus("error");
+        setIsRunning(false);
+        return;
+      }
 
-        if (passedTests === totalTests && privatePassed === privateTotal) {
+      if (
+        statusData.status === "completed" &&
+        statusData.testResults &&
+        statusData.metrics
+      ) {
+        setSubmitVerdict(statusData);
+
+        const privatePassed = statusData.metrics.privatePassedTests || 0;
+        const privateTotal = statusData.metrics.privateTestsTotal || 0;
+
+        if (
+          statusData.metrics.passedTests === statusData.metrics.totalTests &&
+          privatePassed === privateTotal
+        ) {
           toast.success("Code submitted successfully! All tests passed! 🎉");
         } else {
           toast.error(
-            `Submission result: ${passedTests}/${totalTests} public and ${privatePassed}/${privateTotal} private tests passed`
+            `Submission result: ${statusData.metrics.passedTests}/${statusData.metrics.totalTests} public and ${privatePassed}/${privateTotal} private tests passed`
           );
         }
+      } else {
+        toast.error("Received unexpected response format from server");
+        setSubmissionStatus("error");
+        setIsRunning(false);
+        return;
       }
 
       if (isFinite(remainingAttempts)) {
@@ -225,21 +249,61 @@ const CodeEditorPage = () => {
     (tc) => tc.testCaseId === activeTestCaseId
   );
 
+  const currentVerdict = isSubmissionView ? submitVerdict : runVerdict;
+  const testResults = currentVerdict.testResults || [];
+  const testsPassed = currentVerdict.metrics?.passedTests || 0;
+  const totalTests = currentVerdict.metrics?.totalTests || 0;
+
   const activeTestResult = testResults.find(
     (tr) => tr.testCaseId === activeTestCaseId
   );
 
   const renderTestCasePanel = () => {
+    if (
+      (currentVerdict.status === "compile_error" ||
+        currentVerdict.status === "system_error") &&
+      currentVerdict.error
+    ) {
+      return (
+        <div className="p-4 rounded-md border bg-red-50">
+          <h3 className="font-medium text-red-700 mb-2">
+            {currentVerdict.status === "compile_error"
+              ? "Compilation Error"
+              : "System Error"}
+          </h3>
+          <div className="bg-red-100 p-3 rounded text-red-900 font-mono text-sm whitespace-pre-wrap">
+            {currentVerdict.error.errorMessage}
+          </div>
+
+          {currentVerdict.error.fullError && (
+            <details className="mt-3">
+              <summary className="cursor-pointer text-sm text-red-700">
+                Show full error
+              </summary>
+              <div className="bg-red-100 p-3 mt-2 rounded text-red-900 font-mono text-xs overflow-x-auto whitespace-pre-wrap">
+                {currentVerdict.error.fullError}
+              </div>
+            </details>
+          )}
+        </div>
+      );
+    }
+
     if (isRunning) {
       return (
         <div className="text-center py-4">
           <div className="animate-spin mb-2 mx-auto h-5 w-5 border-2 border-primary border-r-transparent rounded-full"></div>
 
           <p>Running your code...</p>
+          {currentVerdict.status === "pending" && (
+            <p className="text-sm text-muted-foreground mt-2">
+              Waiting for results...
+            </p>
+          )}
         </div>
       );
     }
-    console.log(testResults);
+
     if (isSubmissionView) {
       return (
         <>
@@ -247,29 +311,40 @@ const CodeEditorPage = () => {
             <div className="space-y-2">
               <h3 className="font-medium">Public Test Results</h3>
 
-              {testResults.map((result, idx) => (
-                <div key={result.testCaseId} className="p-3 rounded-md border">
-                  <div className="flex items-center gap-2">
-                    {result.status === "passed" ? (
-                      <CheckCircle className="h-5 w-5 text-green-500" />
-                    ) : (
-                      <XCircle className="h-5 w-5 text-red-500" />
+              {testResults
+                .filter((result) => result.isPublic)
+                .map((result, idx) => (
+                  <div
+                    key={result.testCaseId ?? idx}
+                    className="p-3 rounded-md border"
+                  >
+                    <div className="flex items-center gap-2">
+                      {result.status === "passed" ? (
+                        <CheckCircle className="h-5 w-5 text-green-500" />
+                      ) : (
+                        <XCircle className="h-5 w-5 text-red-500" />
+                      )}
+
+                      <span>
+                        Public Test Case {idx + 1} –{" "}
+                        {result.status === "passed" ? "Passed" : "Failed"}
+                      </span>
+
+                      <span className="ml-auto text-muted-foreground">
+                        {result.executionTime}ms
+                      </span>
+                    </div>
+
+                    {result.status === "error" && result.errorMessage && (
+                      <div className="mt-2 text-sm text-red-500">
+                        Error: {result.errorMessage}
+                      </div>
                     )}
-
-                    <span>
-                      Public Test Case {idx + 1} -{" "}
-                      {result.status === "passed" ? "Passed" : "Failed"}
-                    </span>
-
-                    <span className="ml-auto text-muted-foreground">
-                      {result.executionTime}ms
-                    </span>
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
 
-            {privateTestResults && (
+            {submitVerdict.metrics && (
               <div>
                 <h3 className="font-medium mt-6 mb-2">Private Test Results</h3>
 
@@ -278,14 +353,15 @@ const CodeEditorPage = () => {
                     <span>Results</span>
 
                     <span className="font-medium">
-                      {privateTestResults.passed} / {privateTestResults.total}{" "}
-                      passed
+                      {submitVerdict.metrics.privatePassedTests} /{" "}
+                      {submitVerdict.metrics.privateTestsTotal} passed
                     </span>
                   </div>
 
                   <Progress
                     value={
-                      (privateTestResults.passed / privateTestResults.total) *
+                      (submitVerdict.metrics.privatePassedTests /
+                        submitVerdict.metrics.privateTestsTotal) *
                       100
                     }
                     className="h-1"
@@ -360,20 +436,25 @@ const CodeEditorPage = () => {
                   </div>
                 </div>
 
-                {output && (
-                  <div
-                    className={`text-sm ${
-                      activeTestResult.status === "passed"
-                        ? "text-green-500"
-                        : "text-red-500"
-                    }`}
-                  >
-                    {activeTestResult.status === "passed"
-                      ? "Accepted"
-                      : "Wrong Answer"}{" "}
-                    | Runtime: {activeTestResult.executionTime}ms
-                  </div>
-                )}
+                <div
+                  className={`text-sm ${
+                    activeTestResult.status === "passed"
+                      ? "text-green-500"
+                      : "text-red-500"
+                  }`}
+                >
+                  {activeTestResult.status === "passed"
+                    ? "Accepted"
+                    : activeTestResult.status === "error"
+                    ? `Error: ${
+                        activeTestResult.errorMessage || "Unknown error"
+                      }`
+                    : activeTestResult.status === "timeout"
+                    ? "Time Limit Exceeded"
+                    : "Wrong Answer"}{" "}
+                  {activeTestResult.executionTime !== undefined &&
+                    `| Runtime: ${activeTestResult.executionTime}ms`}
+                </div>
               </>
             )}
           </div>
@@ -385,7 +466,6 @@ const CodeEditorPage = () => {
   useEffect(() => {
     document.body.style.overflow = "hidden";
     document.documentElement.style.overflow = "hidden";
-    console.log(assignment);
     return () => {
       document.body.style.overflow = "";
       document.documentElement.style.overflow = "";
@@ -439,7 +519,7 @@ const CodeEditorPage = () => {
                       <span className="font-semibold">Testcases</span>
                       {testResults.length > 0 && (
                         <span className="text-muted-foreground">
-                          | {testsPassed} / {totalTests} passing
+                          | {testsPassed} / {totalTests} passed
                         </span>
                       )}
                     </div>

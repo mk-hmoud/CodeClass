@@ -6,11 +6,39 @@ export interface TestCase {
 }
 
 export interface TestResult {
-  testCaseId: number;
-  input: string;
-  actual: string;
-  expectedOutput: string;
-  executionTime: number;
-  error?: string;
-  status?: 'passed' | 'failed' | 'error';
+  testCaseId: number | null;
+  input: string[];
+  actual?: string;
+  expectedOutput?: string;
+  executionTime?: number;
+  status: 'passed' | 'failed' | 'error' | 'timeout' | 'runtime_error';
+  errorType?: string;            
+  errorMessage?: string;
+  fullError?: string;
+  isPublic?: boolean;
+}
+
+export type JudgeStatus = 
+  | 'pending'
+  | 'compile_error'
+  | 'completed'
+  | 'system_error';
+
+export interface JudgeVerdict {
+  status: JudgeStatus;
+  error?: {
+    errorType: string;
+    errorMessage: string;
+    fullError: string;
+    stackTrace?: string;
+  };
+  testResults?: TestResult[];
+  metrics?: {
+    passedTests?: number;
+    totalTests?: number;
+    averageRuntime?: number;
+    memoryUsage?: number;
+    privatePassedTests?: number;
+    privateTestsTotal?: number;
+  };
 }

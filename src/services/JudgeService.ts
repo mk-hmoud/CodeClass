@@ -1,5 +1,5 @@
 import apiClient from "./APIclient";
-import { TestCase, TestResult } from "@/types/TestCase";
+import { TestCase, TestResult, JudgeVerdict } from "@/types/TestCase";
 
 export interface JudgeResponse {
   job_id: string;
@@ -43,9 +43,9 @@ export interface StatusResponse {
 
 export const getRunStatus = async (
   jobId: string
-): Promise<StatusResponse> => {
+): Promise<JudgeVerdict> => {
   try {
-    const { data } = await apiClient.get<StatusResponse>(
+    const { data } = await apiClient.get<JudgeVerdict>(
       `/judge/status/run/${jobId}`
     );
     return data;
@@ -74,9 +74,9 @@ export const submit = async (
 
 export const getSubmitStatus = async (
   jobId: string
-): Promise<StatusResponse> => {
+): Promise<JudgeVerdict> => {
   try {
-    const { data } = await apiClient.get<StatusResponse>(
+    const { data } = await apiClient.get<JudgeVerdict>(
       `/judge/status/submit/${jobId}`
     );
     return data;

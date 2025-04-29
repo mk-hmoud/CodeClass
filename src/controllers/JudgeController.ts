@@ -75,65 +75,127 @@ export const runCodeHandler = async (req: Request, res: Response): Promise<void>
   }
 };
 
-export interface TestResult {
-  testCaseId: number;
-  input: string;
-  actual: string;
-  expectedOutput: string;
-  executionTime: number;
-  error?: string;
-  status?: 'passed' | 'failed' | 'error';
+interface TestResult {
+  testCaseId: number | null;
+  input: string[];
+  actual?: string;
+  expectedOutput?: string;
+  executionTime?: number;
+  status: 'passed' | 'failed' | 'timeout' | 'error';
+  errorType?: string;
+  errorMessage?: string
+  fullError?: string;
+  isPublic?: boolean;
+}
+
+export type JudgeStatus = 
+  | 'pending'
+  | 'compile_error'
+  | 'completed'
+  | 'system_error';
+
+interface JudgeVerdict {
+  status: JudgeStatus;
+  error?: {
+    errorType: string;
+    errorMessage: string;
+    fullError: string;
+    stackTrace?: string;
+  };
+  testResults?: TestResult[];
+  metrics?: {
+    passedTests?: number;
+    totalTests?: number;
+    averageRuntime?: number;
+    memoryUsage?: number;
+    privatePassedTests?: number;
+    privateTestsTotal?: number;
+  };
 }
 
 export const getRunStatusHandler = async (req: Request, res: Response): Promise<void> => {
   const { jobId } = req.params;
-  logMessage('getStatus', `Checking status for job ${jobId}`);
+  logMessage('getRunStatus', `Checking status for job ${jobId}`);
 
   if (!redisClient.isReady) {
-    logMessage('getStatus', 'Redis client not ready');
+    logMessage('getRunStatus', 'Redis client not ready');
     res.status(503).json({ error: 'Service temporarily unavailable' });
     return;
   }
 
   try {
-    const key = `judge:run:verdict:${jobId}`;
-    const raw = await redisClient.get(key);
-
+    const raw = await redisClient.get(`judge:run:verdict:${jobId}`);
+    
     if (raw === null) {
-      res.status(200).json({
-        job_id: jobId,
-        status: 'pending',
-      });
-    } else {
-      const verdict: TestResult[] = JSON.parse(raw);
-      const passedTests = verdict.filter(t => t.status === 'passed').length;
-      const totalTests = verdict.length;
-      
-      const formattedResults = verdict.map(t => ({
-        testCaseId: t.testCaseId,
-        input: t.input,
-        actual: t.actual,
-        expectedOutput: t.expectedOutput,
-        error: t.error,
-        status: t.status
-      }));
-
-      res.status(200).json({
-        job_id: jobId,
-        status: 'completed',
-        result: {
-          testResults: formattedResults,
-          passedTests,
-          totalTests
-        }
-    });
+      const verdict: JudgeVerdict = { status: 'pending' };
+      res.status(200).json(verdict);
+      return;
     }
+
+    const parsedData = JSON.parse(raw);
+    
+    if (parsedData.status === 'compile_error') {
+      const verdict: JudgeVerdict = {
+        status: 'compile_error',
+        error: {
+          errorType: parsedData.error.errorType,
+          errorMessage: parsedData.error.errorMessage,
+          fullError: parsedData.error.fullError
+        }
+      };
+      res.status(200).json(verdict);
+      return;
+    }
+    
+    let testResults: TestResult[];
+    
+    if (Array.isArray(parsedData)) {
+      testResults = parsedData;
+    } else if (parsedData.testResults && Array.isArray(parsedData.testResults)) {
+      testResults = parsedData.testResults;
+      
+      if (parsedData.status && parsedData.metrics) {
+        res.status(200).json(parsedData);
+        return;
+      }
+    } else {
+      testResults = [];
+      logMessage('getRunStatus', `No valid test results found in data: ${JSON.stringify(parsedData).substring(0, 200)}`);
+    }
+        
+    const passed = testResults.filter((t) => t.status === 'passed').length;
+    const total = testResults.length;
+    
+    const testsWithTime = testResults.filter((t) => typeof t.executionTime === 'number');
+    const avg = testsWithTime.length > 0 
+      ? testsWithTime.reduce((sum, t) => sum + (t.executionTime || 0), 0) / testsWithTime.length
+      : 0;
+    
+    const verdict: JudgeVerdict = {
+      status: 'completed',
+      testResults: testResults,
+      metrics: { 
+        passedTests: passed, 
+        totalTests: total, 
+        averageRuntime: Math.round(avg) 
+      }
+    };
+
+    console.log(verdict);
+    res.status(200).json(verdict);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Unknown error';
-    logMessage('getStatus', `Error fetching verdict: ${msg}`);
-    res.status(500).json({ error: 'Failed to fetch status' });
+    logMessage('getRunStatus', `Error fetching verdict: ${err}`);
+    res.status(500).json({ 
+      status: 'system_error',
+      error: {
+        errorType: 'SYSTEM_ERROR',
+        errorMessage: 'Failed to fetch run status',
+        fullError: err instanceof Error ? err.message : 'Unknown error'
+      }
+    });
   }
 };
+
 
 export const submitHandler = async (req: Request, res: Response): Promise<void> => {
   const functionName = "submit";
@@ -233,43 +295,100 @@ export const getSubmitStatusHandler = async (
   }
 
   try {
-    const key = `judge:submit:verdict:${jobId}`;
-    const raw = await redisClient.get(key);
+    const raw = await redisClient.get(`judge:submit:verdict:${jobId}`);
 
     if (raw === null) {
-      res.status(200).json({
-        job_id: jobId,
-        status: "pending",
-      });
+      const verdict: JudgeVerdict = { status: "pending" };
+      res.status(200).json(verdict);
       return;
     }
 
-    const verdict: TestResult[] = JSON.parse(raw);
-    const passedTests = verdict.filter((t) => t.status === "passed").length;
-    const totalTests = verdict.length;
+    const parsedData = JSON.parse(raw);
+    logMessage(
+      "getSubmitStatus",
+      `Raw verdict data: ${raw.substring(0, 200)}...`
+    );
 
-    // separate public vs private
+    if (parsedData.status === "compile_error") {
+      const verdict: JudgeVerdict = {
+        status: "compile_error",
+        error: {
+          errorType: parsedData.errorType ?? "COMPILATION_FAILED",
+          errorMessage: parsedData.errorMessage ?? "Compilation failed",
+          fullError:
+            parsedData.fullError ??
+            parsedData.errorMessage ??
+            "Unknown compilation error",
+        },
+      };
+      res.status(200).json(verdict);
+      return;
+    }
 
-    res.status(200).json({
-      job_id: jobId,
+    let testResults: TestResult[] = [];
+    if (Array.isArray(parsedData)) {
+      testResults = parsedData;
+    } else if (
+      parsedData.testResults &&
+      Array.isArray(parsedData.testResults)
+    ) {
+      testResults = parsedData.testResults;
+
+      if (parsedData.status && parsedData.metrics) {
+        res.status(200).json(parsedData);
+        return;
+      }
+    } else {
+      logMessage(
+        "getSubmitStatus",
+        `No valid test results in: ${JSON.stringify(parsedData).substring(
+          0,
+          200
+        )}`
+      );
+    }
+
+    const publicTests = testResults.filter((t) => t.isPublic);
+    const privateTests = testResults.filter((t) => !t.isPublic);
+
+    const passedPublic = publicTests.filter((t) => t.status === "passed")
+      .length;
+    const passedPrivate = privateTests.filter((t) => t.status === "passed")
+      .length;
+
+    const allWithTime = testResults.filter(
+      (t) => typeof t.executionTime === "number"
+    );
+    const avgRuntime =
+      allWithTime.length > 0
+        ? Math.round(
+            allWithTime.reduce((sum, t) => sum + (t.executionTime || 0), 0) /
+              allWithTime.length
+          )
+        : 0;
+
+    const verdict: JudgeVerdict = {
       status: "completed",
-      result: {
-        testResults: verdict.map((t) => ({
-          testCaseId: t.testCaseId,
-          input: t.input,
-          actual: t.actual,
-          expectedOutput: t.expectedOutput,
-          executionTime: t.executionTime,
-          error: t.error,
-          status: t.status,
-        })),
-        passedTests,
-        totalTests,
+      testResults,
+      metrics: {
+        privatePassedTests: passedPrivate,
+        privateTestsTotal: privateTests.length,
+        passedTests: passedPublic + passedPrivate,
+        totalTests: publicTests.length + privateTests.length,
+        averageRuntime: avgRuntime,
+      },
+    };
+    console.log(verdict);
+    res.status(200).json(verdict);
+  } catch (err) {
+    logMessage("getSubmitStatus", `Error fetching verdict: ${err}`);
+    res.status(500).json({
+      status: "system_error",
+      error: {
+        errorType: "SYSTEM_ERROR",
+        errorMessage: "Failed to fetch submit status",
+        fullError: err instanceof Error ? err.message : "Unknown error",
       },
     });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    logMessage("getSubmitStatus", `Error fetching submit verdict: ${msg}`);
-    res.status(500).json({ error: "Failed to fetch submit status" });
   }
 };

@@ -161,15 +161,14 @@ export const deleteClassroomController = async (req: Request, res: Response): Pr
   try {
     const classroomId = Number(req.params.classroomId);
     logMessage(functionName, `Received request to delete classroom ID: ${classroomId}`);
-
+    
     if (!req.user) {
       logMessage(functionName, "No user information found in request.");
       res.status(401).json({ success: false, message: 'Unauthorized' });
       return;
     }
 
-    const instructor = await getInstructorByUserId(req.user.role_id);
-    if (!instructor) {
+    if (req.user.role !== "instructor") {
       res.status(401).json({ success: false, message: 'Unauthorized: User is not an instructor' });
       return;
     }
@@ -180,7 +179,7 @@ export const deleteClassroomController = async (req: Request, res: Response): Pr
       return;
     }
 
-    if (instructor.instructor_id !== classroom_instructor) {
+    if (req.user.role_id !== classroom_instructor) {
       res.status(403).json({ success: false, message: 'Forbidden: You are not authorized to delete this classroom' });
       return;
     }

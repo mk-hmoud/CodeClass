@@ -253,6 +253,7 @@ const CodeEditorPage = () => {
   const testResults = currentVerdict.testResults || [];
   const testsPassed = currentVerdict.metrics?.passedTests || 0;
   const totalTests = currentVerdict.metrics?.totalTests || 0;
+  const averageRuntime = currentVerdict.metrics?.averageRuntime;
 
   const activeTestResult = testResults.find(
     (tr) => tr.testCaseId === activeTestCaseId
@@ -308,6 +309,11 @@ const CodeEditorPage = () => {
       return (
         <>
           <div className="space-y-4">
+            {typeof averageRuntime === "number" && (
+              <div className="text-sm text-muted-foreground">
+                Average runtime: <strong>{averageRuntime} ms</strong>
+              </div>
+            )}
             <div className="space-y-2">
               <h3 className="font-medium">Public Test Results</h3>
 

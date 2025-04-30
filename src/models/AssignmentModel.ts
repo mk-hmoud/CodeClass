@@ -1,7 +1,6 @@
 import pool from "../config/db";
 import { Assignment, AssignmentCreationData, Problem, TestCase, Language, AssignmentLanguage } from "../types"
 
-// Deprecated mostly.
 const logMessage = (functionName: string, message: string): void => {
   const timestamp = new Date().toISOString();
   console.log(`[${timestamp}] [AssignmentModel.ts] [${functionName}] ${message}`);
@@ -10,15 +9,18 @@ const logMessage = (functionName: string, message: string): void => {
 export const createAssignment = async (
   assignment: AssignmentCreationData
 ): Promise<{ assignmentId: number }> => {
-  const functionName = "createAssignment";
+  const fn = "createAssignment";
+  const client = await pool.connect();
   try {
-    logMessage(functionName, "Beginning transaction for assignment creation.");
-    await pool.query("BEGIN");
+    logMessage(fn, "Beginning transaction");
+    await client.query("BEGIN");
 
-    const insertAssignmentQuery = `
+    const insertSql = `
       INSERT INTO assignments (
         classroom_id,
         problem_id,
+        title,
+        description,
         difficulty_level,
         points,
         grading_method,
@@ -26,50 +28,79 @@ export const createAssignment = async (
         plagiarism_detection,
         publish_date,
         due_date
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      RETURNING assignment_id
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+      RETURNING assignment_id, title, description
     `;
-    const assignmentResult = await pool.query(insertAssignmentQuery, [
+    const {
+      rows: [inserted],
+    } = await client.query(insertSql, [
       assignment.classroomId,
       assignment.problemId,
+      assignment.title || null,
+      assignment.description || null,
       assignment.difficulty_level || null,
-      assignment.points !== undefined ? assignment.points : null,
+      assignment.points ?? null,
       assignment.grading_method,
-      assignment.max_submissions !== undefined
-        ? assignment.max_submissions
-        : null,
+      assignment.max_submissions ?? null,
       assignment.plagiarism_detection,
       assignment.publish_date || null,
       assignment.due_date || null,
     ]);
-    const assignmentId: number = assignmentResult.rows[0].assignment_id;
-    logMessage(functionName, `Inserted into assignments with ID: ${assignmentId}.`);
 
-    if (assignment.languages && assignment.languages.length > 0) {
-      const insertLanguageQuery = `
-        INSERT INTO assignment_languages_pairs (assignment_id, language_id, initial_code)
-        VALUES ($1, $2, $3)
-      `;
-      for (const lang of assignment.languages) {
-        await pool.query(insertLanguageQuery, [
-          assignmentId,
-          lang.languageId,
-          lang.initial_code || null,
-        ]);
+    const assignmentId: number = inserted.assignment_id;
+    logMessage(fn, `Inserted assignment ${assignmentId}`);
+
+    if (!inserted.title || !inserted.description) {
+      const { rows: problemRows } = await client.query(
+        `SELECT title, description FROM problems WHERE problem_id = $1`,
+        [assignment.problemId]
+      );
+      if (problemRows.length) {
+        const pb = problemRows[0];
+        await client.query(
+          `UPDATE assignments
+             SET title       = COALESCE($1, title),
+                 description = COALESCE($2, description)
+           WHERE assignment_id = $3`,
+          [
+            inserted.title || pb.title,
+            inserted.description || pb.description,
+            assignmentId,
+          ]
+        );
+        logMessage(fn, `Backfilled title/description from problem`);
       }
-      logMessage(functionName, "Inserted into assignment_languages_pairs.");
     }
 
-    await pool.query("COMMIT");
-    logMessage(functionName, "Transaction committed successfully.");
+    if (assignment.languages?.length) {
+      const langSql = `
+        INSERT INTO assignment_languages_pairs
+          (assignment_id, language_id, initial_code)
+        VALUES ($1,$2,$3)
+      `;
+      for (const { languageId, initial_code } of assignment.languages) {
+        await client.query(langSql, [
+          assignmentId,
+          languageId,
+          initial_code || null,
+        ]);
+      }
+      logMessage(fn, "Inserted languages");
+    }
+
+    await client.query("COMMIT");
+    logMessage(fn, "Transaction committed");
     return { assignmentId };
-  } catch (error) {
-    await pool.query("ROLLBACK");
-    logMessage(functionName, `Transaction rolled back due to error: ${error}`);
-    throw error;
+  } catch (err) {
+    await client.query("ROLLBACK");
+    logMessage(fn, `Rolled back due to error: ${err instanceof Error ? err.message : err}`);
+    throw err;
+  } finally {
+    client.release();
   }
 };
+
+
 
 export const getAssignmentById = async (
   assignmentId: number
@@ -243,6 +274,8 @@ export async function getAssignmentsForClassroom(classroomId: number): Promise<A
       a.assignment_id AS "assignmentId",
       a.classroom_id AS "classroomId",
       a.problem_id AS "problemId",
+      a.title,
+      a.description,
       a.difficulty_level AS "difficultyLevel",
       a.points,
       a.grading_method AS "gradingMethod",

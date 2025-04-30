@@ -80,6 +80,8 @@ export interface ClassroomStudent {
   export interface AssignmentCreationData{
     classroomId: number;
     problemId: number;
+    title: string;
+    description: string;
     points?: number;
     difficulty_level?: "Easy" | "Medium" | "Hard";
     grading_method: "Manual" | "Automatic" | "Hybrid";

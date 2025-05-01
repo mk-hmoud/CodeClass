@@ -95,8 +95,8 @@ CREATE TABLE assignments (
   assignment_id SERIAL PRIMARY KEY,
   classroom_id INT NOT NULL,
   problem_id INT NOT NULL,
-  title VARCHAR(255), --TODO: Add this
-  description TEXT, --Add this
+  title VARCHAR(255),
+  description TEXT,
   difficulty_level assignment_difficulty_enum,
   points INT,
   grading_method grading_method_enum NOT NULL,
@@ -157,4 +157,25 @@ CREATE TABLE submission_results (
   memory_usage_kb   INT,
   error_message     TEXT,
   PRIMARY KEY (submission_id, test_case_id)
+);
+
+CREATE TABLE submission_fingerprints (
+  submission_id    INT   PRIMARY KEY
+    REFERENCES submissions(submission_id)
+    ON DELETE CASCADE,
+  fingerprint_hashes BIGINT[] NOT NULL,
+  indexed_at        TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE plagiarism_reports (
+  report_id            SERIAL PRIMARY KEY,
+  submission_id        INT    NOT NULL
+    REFERENCES submissions(submission_id)
+    ON DELETE CASCADE,
+  compared_submission  INT    NOT NULL
+    REFERENCES submissions(submission_id)
+    ON DELETE CASCADE,
+  similarity           NUMERIC(5,2) NOT NULL,
+  checked_at           TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(submission_id, compared_submission)
 );

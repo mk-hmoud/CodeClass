@@ -4,7 +4,8 @@ import { nanoid } from 'nanoid';
 import redisClient from '../config/redis';
 import { TestCase } from '../types';
 import { getAssignmentTestCases } from '../models/ProblemModel';
-import { createSubmission } from '../models/SubmissionModel';
+import { createSubmission, updateSubmissionStatus } from '../models/SubmissionModel';
+import { runPlagiarismCheck } from './PlagiarismController';
 
 const logMessage = (functionName: string, message: string): void => {
   const timestamp = new Date().toISOString();
@@ -285,17 +286,20 @@ export const getSubmitStatusHandler = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { jobId } = req.params;
-  logMessage("getSubmitStatus", `Checking submit status for job ${jobId}`);
+  const fn = 'getSubmitStatus'
+  const submissionId = parseInt(req.params.jobId, 10);
+  logMessage(fn, `Checking submit status for job ${submissionId}`);
 
   if (!redisClient.isReady) {
-    logMessage("getSubmitStatus", "Redis client not ready");
+    logMessage(fn, "Redis client not ready");
     res.status(503).json({ error: "Service temporarily unavailable" });
     return;
   }
 
   try {
-    const raw = await redisClient.get(`judge:submit:verdict:${jobId}`);
+    await updateSubmissionStatus(submissionId, "running");
+
+    const raw = await redisClient.get(`judge:submit:verdict:${submissionId}`);
 
     if (raw === null) {
       const verdict: JudgeVerdict = { status: "pending" };
@@ -310,6 +314,7 @@ export const getSubmitStatusHandler = async (
     );
 
     if (parsedData.status === "compile_error") {
+      await updateSubmissionStatus(submissionId, "error");
       const verdict: JudgeVerdict = {
         status: "compile_error",
         error: {
@@ -340,7 +345,7 @@ export const getSubmitStatusHandler = async (
       }
     } else {
       logMessage(
-        "getSubmitStatus",
+        fn,
         `No valid test results in: ${JSON.stringify(parsedData).substring(
           0,
           200
@@ -378,8 +383,12 @@ export const getSubmitStatusHandler = async (
         averageRuntime: avgRuntime,
       },
     };
+
+    await updateSubmissionStatus(submissionId, "completed");
     console.log(verdict);
     res.status(200).json(verdict);
+
+    runPlagiarismCheck(submissionId);
   } catch (err) {
     logMessage("getSubmitStatus", `Error fetching verdict: ${err}`);
     res.status(500).json({

@@ -410,7 +410,7 @@ export async function getRemainingAttempts(
   try {
     logMessage(functionName, `Getting max submission attempts for assignment ${assignmentId}`);
     const assignRes = await pool.query<{
-      submission_attempts: number | null;
+      max_submissions: number | null;
     }>(
       `SELECT max_submissions
          FROM assignments
@@ -423,7 +423,7 @@ export async function getRemainingAttempts(
       throw new Error("Assignment not found");
     }
 
-    const maxAttempts = assignRes.rows[0].submission_attempts as number;
+    const maxAttempts = assignRes.rows[0].max_submissions as number;
     logMessage(functionName, `Max attempts for assignment ${assignmentId}: ${maxAttempts === null ? 'Unlimited' : maxAttempts}`);
 
 

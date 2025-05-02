@@ -29,7 +29,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   onSubmitCode,
   showButtons = false,
   onChange,
-  supportedLanguages = ["javascript", "python", "cpp"],
+  supportedLanguages = ["javascript", "python", "cpp", "c", "typescript"],
   onLanguageChange,
   language,
 }) => {

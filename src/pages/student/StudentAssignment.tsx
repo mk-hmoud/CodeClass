@@ -229,7 +229,7 @@ const StudentAssignment = () => {
                     </div>
                   </div>
 
-                  {assignment?.submission_attempts !== undefined && (
+                  {assignment?.max_submissions !== undefined && (
                     <div className="flex flex-col gap-2">
                       <h3 className="text-sm font-semibold text-gray-400">
                         Submission Attempts
@@ -237,8 +237,8 @@ const StudentAssignment = () => {
                       <div className="flex items-center gap-2">
                         <RotateCcw size={14} />
                         <span>
-                          {assignment?.submission_attempts} /{" "}
-                          {assignment?.submission_attempts}
+                          {assignment?.max_submissions} /{" "}
+                          {assignment?.max_submissions}
                         </span>
                       </div>
                     </div>

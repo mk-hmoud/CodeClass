@@ -67,12 +67,12 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
             <h3 className="font-semibold">Submission Settings</h3>
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div className="text-gray-400">Limit Submission Attempts:</div>
-              <div>{formData.enable_submission_attempts ? "Yes" : "No"}</div>
+              <div>{formData.enable_max_submissions ? "Yes" : "No"}</div>
 
-              {formData.enable_submission_attempts && (
+              {formData.enable_max_submissions && (
                 <>
                   <div className="text-gray-400">Max Attempts:</div>
-                  <div>{formData.submission_attempts}</div>
+                  <div>{formData.max_submissions}</div>
                 </>
               )}
 

@@ -52,14 +52,14 @@ const SubmissionSettingsSection: React.FC<SubmissionSettingsSectionProps> = ({
             id="enable-attempts"
             checked={watchEnableSubmissionAttempts}
             onCheckedChange={(checked) => {
-              form.setValue("enable_submission_attempts", checked);
+              form.setValue("enable_max_submissions", checked);
             }}
           />
         </div>
 
         <FormField
           control={form.control}
-          name="submission_attempts"
+          name="max_submissions"
           render={({ field }) => (
             <FormItem>
               <div className="flex items-center gap-2">

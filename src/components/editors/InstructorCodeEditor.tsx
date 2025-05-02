@@ -25,14 +25,7 @@ const InstructorCodeEditor: React.FC<InstructorCodeEditorProps> = ({
   onSaveCode,
   onRunCode,
   onChange,
-  supportedLanguages = [
-    "javascript",
-    "typescript",
-    "python",
-    "java",
-    "cpp",
-    "csharp",
-  ],
+  supportedLanguages = ["javascript", "typescript", "python", "cpp", "c"],
 }) => {
   const [language, setLanguage] = React.useState(defaultLanguage);
   const [code, setCode] = React.useState(defaultValue);

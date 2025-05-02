@@ -56,8 +56,8 @@ const CreateAssignmentPage: React.FC = () => {
       difficulty_level: "Medium",
       points: 10,
       grading_method: "Automatic",
-      enable_submission_attempts: false,
-      submission_attempts: 3,
+      enable_max_submissions: false,
+      max_submissions: 3,
       plagiarism_detection: true,
       publish_immediately: false,
       publish_date: new Date(),
@@ -68,9 +68,7 @@ const CreateAssignmentPage: React.FC = () => {
     },
   });
 
-  const watchEnableSubmissionAttempts = form.watch(
-    "enable_submission_attempts"
-  );
+  const watchEnableSubmissionAttempts = form.watch("enable_max_submissions");
   const watchPublishImmediately = form.watch("publish_immediately");
   const selectedLanguages = form.watch("programming_languages") || [];
 
@@ -155,8 +153,8 @@ const CreateAssignmentPage: React.FC = () => {
       difficulty_level: formData.difficulty_level,
       points: formData.points,
       grading_method: formData.grading_method,
-      submission_attempts: formData.enable_submission_attempts
-        ? formData.submission_attempts
+      max_submissions: formData.enable_max_submissions
+        ? formData.max_submissions
         : undefined,
       plagiarism_detection: formData.plagiarism_detection,
       publish_date: formData.publish_date,

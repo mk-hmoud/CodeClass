@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import {
@@ -26,9 +26,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useNavigate } from "react-router-dom";
+import { deleteAssignment } from "@/services/AssignmentService";
 
 import { Classroom } from "../../../types/Classroom";
 import { Assignment } from "../../../types/Assignment";
+import { toast } from "sonner";
 
 interface AssignmentsTabProps {
   classroom: Classroom;
@@ -40,6 +42,12 @@ const AssignmentsTab: React.FC<AssignmentsTabProps> = ({
   formatDate = (date) => new Date(date).toLocaleDateString(),
 }) => {
   const navigate = useNavigate();
+
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+
+  useEffect(() => {
+    setAssignments(classroom.assignments);
+  }, [classroom.assignments]);
 
   const handleCreateAssignment = () => {
     navigate(`/instructor/classrooms/${classroom.id}/assignments/create`);
@@ -53,6 +61,19 @@ const AssignmentsTab: React.FC<AssignmentsTabProps> = ({
 
   const handleEditAssignment = (assignmentId: number) => {
     navigate(`/instructor/edit-assignment/${assignmentId}`);
+  };
+
+  const handleDeleteAssignment = async (assignmentId: number) => {
+    try {
+      await deleteAssignment(assignmentId);
+      toast.success("Assignment deleted");
+      setAssignments((cur) =>
+        cur.filter((a) => a.assignmentId !== assignmentId)
+      );
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Failed to delete assignment");
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -121,12 +142,7 @@ const AssignmentsTab: React.FC<AssignmentsTabProps> = ({
                   }
 
                   return (
-                    <TableRow
-                      key={assignment.assignmentId}
-                      onClick={() =>
-                        handleViewAssignment(assignment.assignmentId)
-                      }
-                    >
+                    <TableRow key={assignment.assignmentId}>
                       <TableCell className="font-medium">
                         {assignment.title}
                       </TableCell>
@@ -170,7 +186,14 @@ const AssignmentsTab: React.FC<AssignmentsTabProps> = ({
                                 View Statistics
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-red-500">
+                              <DropdownMenuItem
+                                className="text-red-500"
+                                onClick={() =>
+                                  handleDeleteAssignment(
+                                    assignment.assignmentId
+                                  )
+                                }
+                              >
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Delete
                               </DropdownMenuItem>

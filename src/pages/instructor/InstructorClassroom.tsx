@@ -2,16 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Users, Book, Calendar, Settings, PlusCircle } from "lucide-react";
@@ -22,7 +12,6 @@ import StatisticsTab from "@/components/instructor/classroom/StatisticsTab";
 
 import { getClassroomById } from "../../services/ClassroomService";
 import { Classroom } from "../../types/Classroom";
-import { Assignment } from "../../types/Assignment";
 
 interface Student {
   id: string;
@@ -52,27 +41,7 @@ const InstructorClassroom = () => {
   const { classroomId } = useParams<{ classroomId: string }>();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("assignments");
-  const [newAssignmentOpen, setNewAssignmentOpen] = useState(false);
-  const [editAssignmentOpen, setEditAssignmentOpen] = useState(false);
-  const [deleteAssignmentOpen, setDeleteAssignmentOpen] = useState(false);
-  const [currentAssignment, setCurrentAssignment] = useState<Assignment>({
-    assignmentId: 0,
-    classroomId: 0,
-    problem: {
-      problemId: 0,
-      instructor: "",
-      title: "",
-      description: "",
-      createdAt: new Date(),
-      testCases: [],
-    },
-    title: "",
-    description: "",
-    difficulty_level: "Easy",
-    grading_method: "Manual",
-    plagiarism_detection: false,
-    assigned_at: new Date(),
-  });
+
   const [classroom, setClassroom] = useState<Classroom | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -152,104 +121,6 @@ const InstructorClassroom = () => {
     return null;
   }
 
-  const handleCreateAssignment = () => {
-    if (!currentAssignment.problem.title.trim()) {
-      toast.error("Please enter an assignment title");
-      return;
-    }
-    const newAssignment = {
-      assignmentId: 4,
-      title: currentAssignment.title,
-      due_date: currentAssignment.due_date,
-      description: currentAssignment.description,
-      submissions: 0,
-      avgScore: 0,
-      completed: false,
-    } as Assignment;
-
-    setClassroom({
-      ...classroom,
-      assignments: [...classroom.assignments, newAssignment],
-    });
-    setNewAssignmentOpen(false);
-    setCurrentAssignment({
-      assignmentId: Date.now(),
-      classroomId: classroom?.id || 0,
-      problem: { ...currentAssignment.problem },
-      title: currentAssignment.title,
-      description: currentAssignment.description,
-      difficulty_level: currentAssignment.difficulty_level,
-      grading_method: currentAssignment.grading_method || "Manual",
-      plagiarism_detection: currentAssignment.plagiarism_detection,
-      assigned_at: new Date(),
-      due_date: currentAssignment.due_date,
-      submissions: 0,
-      avgScore: 0,
-      completed: false,
-    });
-    toast.success("Assignment created successfully");
-  };
-
-  const openEditAssignment = (assignment) => {
-    setCurrentAssignment({
-      assignmentId: assignment.assignmentId,
-      classroomId: assignment.classroomId,
-      problem: assignment.problem,
-      title: assignment.title,
-      description: assignment.description,
-      difficulty_level: assignment.difficulty_level,
-      grading_method: assignment.grading_method,
-      plagiarism_detection: assignment.plagiarism_detection,
-      assigned_at: assignment.assigned_at,
-      due_date: assignment.due_date,
-    });
-    setEditAssignmentOpen(true);
-  };
-
-  const handleUpdateAssignment = () => {
-    if (!currentAssignment.title.trim()) {
-      toast.error("Please enter an assignment title");
-      return;
-    }
-    setClassroom({
-      ...classroom,
-      assignments: classroom.assignments.map((a) =>
-        a.assignmentId === currentAssignment.assignmentId
-          ? { ...a, ...currentAssignment }
-          : a
-      ),
-    });
-    setEditAssignmentOpen(false);
-    toast.success("Assignment updated successfully");
-  };
-
-  const openDeleteAssignment = (assignment: Assignment) => {
-    setCurrentAssignment({
-      assignmentId: assignment.assignmentId,
-      classroomId: assignment.classroomId,
-      problem: assignment.problem,
-      title: assignment.title,
-      description: assignment.description,
-      difficulty_level: assignment.difficulty_level,
-      grading_method: assignment.grading_method,
-      plagiarism_detection: assignment.plagiarism_detection,
-      assigned_at: assignment.assigned_at,
-      due_date: assignment.due_date,
-    });
-    setDeleteAssignmentOpen(true);
-  };
-
-  const handleDeleteAssignment = () => {
-    setClassroom({
-      ...classroom,
-      assignments: classroom.assignments.filter(
-        (a) => a.assignmentId !== currentAssignment.assignmentId
-      ),
-    });
-    setDeleteAssignmentOpen(false);
-    toast.success("Assignment deleted successfully");
-  };
-
   const formatDate = (dateString: string): string => {
     const options: Intl.DateTimeFormatOptions = {
       year: "numeric",
@@ -258,15 +129,6 @@ const InstructorClassroom = () => {
     };
     return new Date(dateString).toLocaleDateString(undefined, options);
   };
-
-  const formattedAssignments =
-    classroom.assignments?.map((assignment) => ({
-      id: assignment.assignmentId.toString(),
-      title: assignment.title,
-      dueDate: assignment.due_date,
-      status: new Date(assignment.due_date) > new Date() ? "active" : "expired",
-      submissionRate: Math.floor(Math.random() * 100),
-    })) || [];
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -389,175 +251,6 @@ const InstructorClassroom = () => {
           <StatisticsTab stats={classStats} />
         </TabsContent>
       </Tabs>
-
-      <Dialog open={newAssignmentOpen} onOpenChange={setNewAssignmentOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create New Assignment</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div>
-              <Label htmlFor="title">Assignment Title</Label>
-              <Input
-                id="title"
-                value={currentAssignment.title}
-                onChange={(e) =>
-                  setCurrentAssignment({
-                    ...currentAssignment,
-                    title: e.target.value,
-                  })
-                }
-                placeholder="e.g. Binary Search Trees"
-                className="mt-2"
-              />
-            </div>
-            <div>
-              <Label htmlFor="dueDate">Due Date</Label>
-              <Input
-                id="dueDate"
-                type="date"
-                value={
-                  currentAssignment.due_date
-                    ? currentAssignment.due_date.toISOString().split("T")[0]
-                    : ""
-                }
-                onChange={(e) =>
-                  setCurrentAssignment({
-                    ...currentAssignment,
-                    due_date: e.target.value
-                      ? new Date(e.target.value)
-                      : undefined,
-                  })
-                }
-                className="mt-2"
-              />
-            </div>
-            <div>
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={currentAssignment.description}
-                onChange={(e) =>
-                  setCurrentAssignment({
-                    ...currentAssignment,
-                    description: e.target.value,
-                  })
-                }
-                placeholder="Describe the assignment..."
-                className="mt-2 min-h-[100px]"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setNewAssignmentOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleCreateAssignment}>Create Assignment</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={editAssignmentOpen} onOpenChange={setEditAssignmentOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Assignment</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div>
-              <Label htmlFor="edit-title">Assignment Title</Label>
-              <Input
-                id="edit-title"
-                value={currentAssignment.title}
-                onChange={(e) =>
-                  setCurrentAssignment({
-                    ...currentAssignment,
-                    title: e.target.value,
-                  })
-                }
-                className="mt-2"
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-dueDate">Due Date</Label>
-              <Input
-                id="edit-dueDate"
-                type="date"
-                value={
-                  currentAssignment.due_date
-                    ? currentAssignment.due_date.toISOString().split("T")[0]
-                    : ""
-                }
-                onChange={(e) =>
-                  setCurrentAssignment({
-                    ...currentAssignment,
-                    due_date: e.target.value
-                      ? new Date(e.target.value)
-                      : undefined,
-                  })
-                }
-                className="mt-2"
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-description">Description</Label>
-              <Textarea
-                id="edit-description"
-                value={currentAssignment.description}
-                onChange={(e) =>
-                  setCurrentAssignment({
-                    ...currentAssignment,
-                    description: e.target.value,
-                  })
-                }
-                className="mt-2 min-h-[100px]"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setEditAssignmentOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleUpdateAssignment}>Save Changes</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={deleteAssignmentOpen}
-        onOpenChange={setDeleteAssignmentOpen}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm Deletion</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p>
-              Are you sure you want to delete the assignment "
-              {currentAssignment.title}"?
-            </p>
-            <p className="text-sm text-gray-400 mt-2">
-              This action cannot be undone.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteAssignmentOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteAssignment}>
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

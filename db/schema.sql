@@ -179,3 +179,110 @@ CREATE TABLE plagiarism_reports (
   checked_at           TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(submission_id, compared_submission)
 );
+
+
+CREATE TABLE assignment_statistics (
+  stat_id SERIAL PRIMARY KEY,
+  assignment_id INT NOT NULL,
+  snapshot_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  total_submissions INT NOT NULL DEFAULT 0,
+  distinct_submitters INT NOT NULL DEFAULT 0,
+  average_score NUMERIC(5,2),
+  median_score NUMERIC(5,2),
+  average_runtime_ms INT,
+  public_test_pass_rate NUMERIC(5,2),
+  private_test_pass_rate NUMERIC(5,2),
+  plagiarism_rate NUMERIC(5,2),
+  max_similarity NUMERIC(5,2),
+  avg_similarity NUMERIC(5,2),
+  runtime_error_rate NUMERIC(5,2),
+  FOREIGN KEY (assignment_id) REFERENCES assignments(assignment_id) ON DELETE CASCADE,
+  UNIQUE (assignment_id, snapshot_time)
+);
+
+CREATE TABLE assignment_score_distribution (
+  distribution_id SERIAL PRIMARY KEY,
+  assignment_id INT NOT NULL,
+  snapshot_time TIMESTAMPTZ NOT NULL,
+  bucket_start INT NOT NULL,
+  bucket_end INT NOT NULL,
+  count INT NOT NULL DEFAULT 0,
+  FOREIGN KEY (assignment_id) REFERENCES assignments(assignment_id) ON DELETE CASCADE,
+  UNIQUE (assignment_id, snapshot_time, bucket_start)
+);
+
+CREATE TABLE assignment_attempts_distribution (
+  distribution_id SERIAL PRIMARY KEY,
+  assignment_id INT NOT NULL,
+  snapshot_time TIMESTAMPTZ NOT NULL,
+  avg_attempts NUMERIC(5,2) NOT NULL,
+  median_attempts INT NOT NULL,
+  max_attempts INT NOT NULL,
+  FOREIGN KEY (assignment_id) REFERENCES assignments(assignment_id) ON DELETE CASCADE,
+  UNIQUE (assignment_id, snapshot_time)
+);
+
+CREATE TABLE assignment_runtime_distribution (
+  distribution_id SERIAL PRIMARY KEY,
+  assignment_id INT NOT NULL,
+  snapshot_time TIMESTAMPTZ NOT NULL,
+  min_runtime_ms INT,
+  percentile_25_ms INT,
+  median_runtime_ms INT,
+  percentile_75_ms INT,
+  max_runtime_ms INT,
+  FOREIGN KEY (assignment_id) REFERENCES assignments(assignment_id) ON DELETE CASCADE,
+  UNIQUE (assignment_id, snapshot_time)
+);
+
+CREATE TABLE assignment_test_case_stats (
+  stat_id SERIAL PRIMARY KEY,
+  assignment_id INT NOT NULL,
+  test_case_id INT NOT NULL,
+  snapshot_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  failure_rate NUMERIC(5,2) NOT NULL,
+  avg_runtime_ms INT,
+  FOREIGN KEY (assignment_id) REFERENCES assignments(assignment_id) ON DELETE CASCADE,
+  FOREIGN KEY (test_case_id) REFERENCES problem_test_cases(test_case_id) ON DELETE CASCADE,
+  UNIQUE (assignment_id, test_case_id, snapshot_time)
+);
+
+CREATE TABLE assignment_error_patterns (
+  pattern_id SERIAL PRIMARY KEY,
+  assignment_id INT NOT NULL,
+  snapshot_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  error_type VARCHAR(100) NOT NULL,
+  error_message TEXT NOT NULL,
+  occurrence_count INT NOT NULL DEFAULT 0,
+  FOREIGN KEY (assignment_id) REFERENCES assignments(assignment_id) ON DELETE CASCADE,
+  UNIQUE (assignment_id, snapshot_time, error_type, error_message)
+);
+
+CREATE TABLE assignment_submission_timeline (
+  timeline_id SERIAL PRIMARY KEY,
+  assignment_id INT NOT NULL,
+  snapshot_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  submission_day INT NOT NULL,
+  submission_hour INT NOT NULL,
+  submission_count INT NOT NULL DEFAULT 0,
+  FOREIGN KEY (assignment_id) REFERENCES assignments(assignment_id) ON DELETE CASCADE,
+  UNIQUE (assignment_id, snapshot_time, submission_day, submission_hour)
+);
+
+CREATE TABLE assignment_submission_trend (
+  trend_id SERIAL PRIMARY KEY,
+  assignment_id INT NOT NULL,
+  snapshot_date DATE NOT NULL,
+  submission_count INT NOT NULL DEFAULT 0,
+  FOREIGN KEY (assignment_id) REFERENCES assignments(assignment_id) ON DELETE CASCADE,
+  UNIQUE (assignment_id, snapshot_date)
+);
+
+CREATE INDEX idx_assignment_statistics_assignment_id ON assignment_statistics(assignment_id);
+CREATE INDEX idx_score_distribution_assignment_id ON assignment_score_distribution(assignment_id);
+CREATE INDEX idx_attempts_distribution_assignment_id ON assignment_attempts_distribution(assignment_id);
+CREATE INDEX idx_runtime_distribution_assignment_id ON assignment_runtime_distribution(assignment_id);
+CREATE INDEX idx_test_case_stats_assignment_id ON assignment_test_case_stats(assignment_id);
+CREATE INDEX idx_error_patterns_assignment_id ON assignment_error_patterns(assignment_id);
+CREATE INDEX idx_submission_timeline_assignment_id ON assignment_submission_timeline(assignment_id);
+CREATE INDEX idx_submission_trend_assignment_id ON assignment_submission_trend(assignment_id);

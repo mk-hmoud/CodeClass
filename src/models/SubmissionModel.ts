@@ -1,4 +1,5 @@
 import pool from "../config/db";
+import { SubmissionRecord } from "../types";
 
 const logMessage = (functionName: string, message: string): void => {
   const timestamp = new Date().toISOString();
@@ -90,11 +91,6 @@ export const createSubmission = async ({
     }
   };
 
-  export interface SubmissionRecord {
-    submission_id: number;
-    assignment_id: number;
-    code: string;
-  }
 
   export const getSubmissionById = async (
     submissionId: number

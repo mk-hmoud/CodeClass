@@ -7,6 +7,7 @@ import AuthRoutes from './routes/AuthRoutes';
 import JudgeRoutes from './routes/JudgeRoutes';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { AssignmentStatisticsService } from './services/statistics/AssignmentStatistics';
 
 // Load environment variables
 dotenv.config();
@@ -36,3 +37,5 @@ app.use('/api/judge', JudgeRoutes);
 app.listen(port, () => {
   console.log(`Server is running at http://localhost:${port}!`);
 });
+
+AssignmentStatisticsService.getInstance();

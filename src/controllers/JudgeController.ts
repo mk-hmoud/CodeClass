@@ -2,10 +2,12 @@ import { Request, Response } from 'express';
 import { nanoid } from 'nanoid';
 
 import redisClient from '../config/redis';
-import { TestCase } from '../types';
+import { JudgeVerdict, TestCase, TestResult } from '../types';
 import { getAssignmentTestCases } from '../models/ProblemModel';
-import { createSubmission, updateSubmissionStatus } from '../models/SubmissionModel';
+import { createSubmission, getSubmissionById, updateSubmissionStatus } from '../models/SubmissionModel';
 import { runPlagiarismCheck } from './PlagiarismController';
+import { statisticsEventEmitter } from '../services/statistics/events/emitter';
+import { SubmissionCompletedEvent, SubmissionCreatedEvent } from '../services/statistics/events/types';
 
 const logMessage = (functionName: string, message: string): void => {
   const timestamp = new Date().toISOString();
@@ -76,43 +78,6 @@ export const runCodeHandler = async (req: Request, res: Response): Promise<void>
   }
 };
 
-interface TestResult {
-  testCaseId: number | null;
-  input: string[];
-  actual?: string;
-  expectedOutput?: string;
-  executionTime?: number;
-  status: 'passed' | 'failed' | 'timeout' | 'error';
-  errorType?: string;
-  errorMessage?: string
-  fullError?: string;
-  isPublic?: boolean;
-}
-
-export type JudgeStatus = 
-  | 'pending'
-  | 'compile_error'
-  | 'completed'
-  | 'system_error';
-
-interface JudgeVerdict {
-  status: JudgeStatus;
-  error?: {
-    errorType: string;
-    errorMessage: string;
-    fullError: string;
-    stackTrace?: string;
-  };
-  testResults?: TestResult[];
-  metrics?: {
-    passedTests?: number;
-    totalTests?: number;
-    averageRuntime?: number;
-    memoryUsage?: number;
-    privatePassedTests?: number;
-    privateTestsTotal?: number;
-  };
-}
 
 export const getRunStatusHandler = async (req: Request, res: Response): Promise<void> => {
   const { jobId } = req.params;
@@ -235,7 +200,16 @@ export const submitHandler = async (req: Request, res: Response): Promise<void> 
       language,
       code,
     });
+
     logMessage(functionName, `Created submission ${submissionId}`);
+
+    const createdEvent: SubmissionCreatedEvent = {
+      type: 'SUBMISSION_CREATED',
+      timestamp: new Date().toISOString(),
+      payload: { submissionId, assignmentId, studentId }
+    };
+    statisticsEventEmitter.emit('SUBMISSION_CREATED', createdEvent.payload);
+
   } catch (err) {
     logMessage(functionName, `Error creating submission: ${err}`);
     res.status(400).json({ error: (err as Error).message });
@@ -389,6 +363,32 @@ export const getSubmitStatusHandler = async (
     res.status(200).json(verdict);
 
     runPlagiarismCheck(submissionId);
+
+    const submission = await getSubmissionById(submissionId);
+
+    console.log( submission);
+    console.log( submission.assignment_id);
+    const completedEvent: SubmissionCompletedEvent = {
+      type: 'SUBMISSION_COMPLETED',
+      timestamp: new Date().toISOString(),
+      payload: {
+        submissionId,
+        assignmentId: submission.assignment_id,
+        studentId: req.user?.role_id || 0,
+        score: (passedPublic + passedPrivate) / (publicTests.length + privateTests.length) * 100,
+        passedTests: passedPublic + passedPrivate,
+        totalTests: (publicTests.length + privateTests.length),
+        publicPassedTests: passedPublic,
+        publicTotalTests: publicTests.length + privateTests.length,
+        privatePassedTests: passedPrivate,
+        privateTotalTests: privateTests.length,
+        averageRuntime: avgRuntime,
+        status: verdict.status,
+        testResults
+      }
+    };
+    statisticsEventEmitter.emit('SUBMISSION_COMPLETED', completedEvent.payload);
+
   } catch (err) {
     logMessage("getSubmitStatus", `Error fetching verdict: ${err}`);
     res.status(500).json({

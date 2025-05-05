@@ -18,7 +18,10 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getAssignmentById } from "@/services/AssignmentService";
+import {
+  getAssignmentById,
+  getRemainingAttempts,
+} from "@/services/AssignmentService";
 import { toast } from "sonner";
 import { Assignment } from "@/types/Assignment";
 import { Problem } from "@/types/Problem";
@@ -30,6 +33,7 @@ const StudentAssignment = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("description");
   const [assignment, setAssignment] = useState<Assignment | null>(null);
+  const [remainingAttempts, setRemainingAttempts] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
@@ -41,7 +45,9 @@ const StudentAssignment = () => {
           parseInt(assignmentId, 10)
         );
         setAssignment(fetchedAssignment);
-        console.log(assignment);
+
+        const attempts = await getRemainingAttempts(parseInt(assignmentId, 10));
+        setRemainingAttempts(attempts);
       } catch (error) {
         toast.error("Failed to load assignment");
         console.error("Error fetching assignment:", error);
@@ -237,8 +243,7 @@ const StudentAssignment = () => {
                       <div className="flex items-center gap-2">
                         <RotateCcw size={14} />
                         <span>
-                          {assignment?.max_submissions} /{" "}
-                          {assignment?.max_submissions}
+                          {remainingAttempts} / {assignment?.max_submissions}
                         </span>
                       </div>
                     </div>

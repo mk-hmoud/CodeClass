@@ -1,0 +1,38 @@
+{
+    "defaultAction": "SCMP_ACT_ERRNO",
+    "architectures": [
+      "SCMP_ARCH_X86_64"
+    ],
+    "syscalls": [
+      {
+        "names": [
+          "read", "write", "close", "stat", "fstat", "lstat",
+          "poll", "lseek", "mmap", "mprotect", "munmap",
+          "brk", "rt_sigaction", "rt_sigprocmask", "rt_sigreturn",
+          "ioctl", "readv", "writev", "access", "pipe", "select",
+          "sched_yield", "mremap", "msync", "mincore", "madvise",
+          "pause", "nanosleep", "getitimer", "alarm", "setitimer",
+          "getpid", "sendfile", "socket", "connect", "accept",
+          "sendto", "recvfrom", "sendmsg", "recvmsg", "shutdown",
+          "bind", "listen", "getsockname", "getpeername", "socketpair",
+          "getsockopt", "setsockopt", "clone", "execve", "exit",
+          "wait4", "kill", "uname", "fcntl", "flock", "fsync",
+          "truncate", "ftruncate", "getcwd", "chdir", "rename",
+          "mkdir", "rmdir", "creat", "link", "unlink", "symlink",
+          "readlink", "chmod", "fchmod", "chown", "fchown", "umask",
+          "gettimeofday", "getrlimit", "getrusage", "times", "ptrace",
+          "getuid", "sysinfo", "getgid", "setuid", "setgid", "geteuid",
+          "getegid", "setpgid", "getppid", "getpgrp", "setsid", "setreuid",
+          "setregid", "getgroups", "setgroups", "setresuid", "getresuid",
+          "setresgid", "getresgid", "getsid", "capget", "capset",
+          "sigaltstack", "sendfile", "vfork", "futex", "sched_getaffinity",
+          "sched_setaffinity", "set_tid_address", "exit_group", 
+          "epoll_create", "epoll_ctl", "epoll_wait", "openat", "newfstatat",
+          "readlinkat", "faccessat", "pselect6", "ppoll", "set_robust_list", 
+          "prlimit64", "getrandom", "statfs", "arch_prctl", "gettid",
+          "clock_gettime", "clock_nanosleep", "getdents64"
+        ],
+        "action": "SCMP_ACT_ALLOW"
+      }
+    ]
+  }

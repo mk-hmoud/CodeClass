@@ -47,6 +47,7 @@ void JudgeWorker::processSubmission(const std::string &jobId,
 
     // The input is a json,meaning my parsing is useless.
     json inputJson;
+    inputJson["language"] = submission.language;
     inputJson["code"] = submission.code;
     inputJson["testCases"] = json::array();
     for (const auto &tc : submission.testCases)
@@ -113,6 +114,16 @@ void JudgeWorker::processSubmission(const std::string &jobId,
         close(inFd);
         close(outFd);
 
+        const char *image = "judge-cpp:latest";
+        if (submission.language == "python")
+        {
+            image = "judge-py:latest";
+        }
+        else if (submission.language == "javascript" || submission.language == "typescript")
+        {
+            image = "judge-js:latest";
+        }
+
         // exec() docker WITHOUT a shell
         execlp("docker", "docker",
                "run", "--rm", "-i",
@@ -120,7 +131,7 @@ void JudgeWorker::processSubmission(const std::string &jobId,
                "--tmpfs", "/tmp:exec",
                "--memory=256m",
                "--cpus=0.5",
-               "judge-cpp:latest",
+               image,
                (char *)nullptr);
 
         std::cerr << "execlp(docker) failed: " << strerror(errno) << "\n";

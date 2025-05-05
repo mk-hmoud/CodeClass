@@ -1,0 +1,19 @@
+{
+    "defaultAction": "SCMP_ACT_ERRNO",
+    "architectures": [
+        "SCMP_ARCH_X86_64"
+    ],
+    "syscalls": [
+        {
+            "names": [
+                "read", "write", "close",
+                "fstat", "poll", "lseek",
+                "mmap", "mprotect", "munmap",
+                "rt_sigaction", "rt_sigprocmask",
+                "execve", "arch_prctl", "exit_group",
+                "openat", "newfstatat"
+            ],
+            "action": "SCMP_ACT_ALLOW"
+        }
+    ]
+}

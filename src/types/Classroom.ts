@@ -35,3 +35,67 @@ export interface Classroom {
     completion? : number;
     created_at : string;
 }
+
+export interface ClassroomAnalyticsPayload {
+    participation: {
+      totalStudents: number;
+      activeStudents: number;
+      activeStudentsPercentage: number;
+      submissionRate: number;
+      submissionTrend: Array<{
+        day: number;
+        hour: number;
+        count: number;
+      }>;
+    };
+  
+    performance: {
+      averageAssignmentScore: number;
+      medianAssignmentScore: number;
+      scoreDistribution: Array<{
+        range: string;
+        count: number;
+      }>;
+      // We don't have a built‑in SQL table for “scoreTrend” so you’d need
+      // another table or view—but here’s the shape:
+      scoreTrend: Array<{
+        // for example, month name or ISO date string
+        period: string;
+        averageScore: number;
+      }>;
+    };
+  
+    timings: {
+      heatmap: Array<{
+        day: number;
+        hour: number;
+        count: number;
+      }>;
+    };
+  
+    quality: {
+      plagiarismRate: number;
+      averageSimilarity: number;
+      maxSimilarity: number;
+      runtimeErrorRate: number; 
+      languageUsage: Array<{
+        languageId: number;
+        count: number;
+      }>;
+    };
+  
+    progress: {
+      assignmentCompletionRate: number;
+      dropOffRate: number;
+      improvementDistribution: Array<{
+        range: "significant" | "moderate" | "flat" | "declined";
+        count: number;
+      }>;
+    };
+  
+    // meta
+    classroomId: number;
+    snapshotTime: string;
+    classroomName: string;
+  }
+  

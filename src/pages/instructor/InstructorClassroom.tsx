@@ -4,11 +4,17 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { Users, Book, Calendar, Settings, PlusCircle } from "lucide-react";
+import {
+  Users,
+  Book,
+  Calendar,
+  Settings,
+  PlusCircle,
+  BarChart,
+} from "lucide-react";
 
 import AssignmentsTab from "@/components/instructor/classroom/AssignmentsTab";
 import StudentsTab from "@/components/instructor/classroom/StudentsTab";
-import StatisticsTab from "@/components/instructor/classroom/StatisticsTab";
 
 import { getClassroomById } from "../../services/ClassroomService";
 import { Classroom } from "../../types/Classroom";
@@ -163,13 +169,13 @@ const InstructorClassroom = () => {
             )}
           </div>
 
-          <div className="flex gap-4 text-sm text-gray-400">
+          <div className="flex gap-4 text-sm">
             <div className="flex items-center gap-1">
-              <Users size={16} />
+              <Users size={16} className="mr-2 text-blue-400" />
               <span>{classroom.students.length} Students</span>
             </div>
             <div className="flex items-center gap-1">
-              <Book size={16} />
+              <Book size={16} className="mr-2 text-blue-400" />
               <span>{classroom.assignments.length} Assignments</span>
             </div>
             <div className="flex items-center gap-1">
@@ -208,6 +214,16 @@ const InstructorClassroom = () => {
             <Settings size={16} />
             <span>Settings</span>
           </Button>
+          <Button
+            onClick={() =>
+              navigate(`/instructor/classrooms/${classroomId}/analytics`)
+            }
+            variant="outline"
+            className="flex gap-2 items-center"
+          >
+            <BarChart size={16} className="mr-2" />
+            <span>Analytics</span>
+          </Button>
         </div>
       </div>
 
@@ -230,12 +246,6 @@ const InstructorClassroom = () => {
             >
               Students
             </TabsTrigger>
-            <TabsTrigger
-              value="statistics"
-              className="data-[state=active]:border-b-2 data-[state=active]:border-[#00b7ff] data-[state=active]:text-white rounded-none border-b-2 border-transparent px-4 py-2"
-            >
-              Statistics
-            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -245,10 +255,6 @@ const InstructorClassroom = () => {
 
         <TabsContent value="students" className="space-y-6">
           <StudentsTab students={students} formatDate={formatDate} />
-        </TabsContent>
-
-        <TabsContent value="statistics" className="space-y-6">
-          <StatisticsTab stats={classStats} />
         </TabsContent>
       </Tabs>
     </div>

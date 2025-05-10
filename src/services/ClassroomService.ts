@@ -1,5 +1,5 @@
 import apiClient from './APIclient';
-import { Classroom } from '../types/Classroom'
+import { Classroom, ClassroomAnalyticsPayload } from '../types/Classroom'
 
 
 export const createClassroom = async (classroomData: any): Promise<Classroom> => {
@@ -41,13 +41,20 @@ export const getClassrooms = async (): Promise<Classroom[]> => {
     }
 };
 
+export const getClassroomAnalytics = async (classroomId: number): Promise<ClassroomAnalyticsPayload> => {
+  try {
+    const response = await apiClient.get(`/classrooms/${classroomId}/analytics`);
+    return response.data.data as ClassroomAnalyticsPayload;
+  } catch (error) {
+    console.error(`Error fetching classroom analytics with ID ${classroomId}:`, error);
+    throw error;
+  }
+}
+
 export const joinClassroom = (code: string) => {
     return apiClient.post('/classrooms/join', { code });
 };
 
-export const assignAssignmentToClassroom = (data: { classroomId: number; assignmentId: number; due_date: string | null }) => {
-    return apiClient.post('/classrooms/assign', data);
-};
 
 export const deleteClassroom = (classroomId: number) => {
     return apiClient.delete(`/classrooms/${classroomId}`);

@@ -1,110 +1,257 @@
-import React from "react";
-import { Link } from "react-router-dom";
-import { ArrowRight, Book, Code, Plus } from "lucide-react";
-import Navbar from "@/components/Navbar";
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ArrowRight, Eye, EyeOff, LogIn } from "lucide-react";
+import { toast } from "sonner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { motion } from "framer-motion";
+import Logo from "@/components/Logo";
+import { loginUser } from "@/services/AuthService";
 
 const Home = () => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
+
+  const validateForm = () => {
+    if (!email) {
+      setError("Email is required");
+      return false;
+    }
+
+    if (!password) {
+      setError("Password is required");
+      return false;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError("Please enter a valid email address");
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!validateForm()) {
+      triggerShakeAnimation();
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const result = await loginUser({ email, password });
+
+      if (result.success) {
+        toast.success("Login successful");
+        if (result.user.role === "instructor") {
+          navigate("/instructor/dashboard");
+        } else {
+          navigate("/student/dashboard");
+        }
+      } else {
+        setError(result.message);
+        toast.error(result.message);
+        triggerShakeAnimation();
+      }
+    } catch (err) {
+      setError("An unexpected error occurred. Please try again.");
+      triggerShakeAnimation();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const triggerShakeAnimation = () => {
+    setShake(true);
+    setTimeout(() => setShake(false), 600);
+  };
+
   return (
-    <div className="min-h-screen flex flex-col bg-[#0b0f1a] text-white">
-      <Navbar />
+    <div className="min-h-screen bg-gradient-to-b from-background to-background/90 flex flex-col md:flex-row">
+      {/* left side */}
+      <div className="w-full md:w-1/2 flex items-center justify-center p-6 md:p-12 bg-gradient-to-br from-[#0b0f1a] to-[#121a2e]">
+        <motion.div
+          className="max-w-lg"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="flex justify-center md:justify-start mb-6">
+            <Logo size="large" />
+          </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center px-4 py-20 text-center relative">
-        <div className="absolute top-20 left-[25%] text-gray-700 opacity-30 text-7xl">{`{`}</div>
-        <div className="absolute bottom-40 right-[25%] text-gray-700 opacity-30 text-7xl">{`}`}</div>
-        <div className="absolute top-40 right-[10%] text-gray-700 opacity-20 text-7xl">{`//`}</div>
+          <h1 className="text-3xl md:text-4xl lg:text-5xl font-mono font-bold mb-4 text-center md:text-left">
+            Coding <span className="text-cyan-400">Mastery</span>
+          </h1>
 
-        <div className="bg-[#123651] rounded-full p-6 mb-8">
-          <div className="text-[#00b7ff] text-4xl font-mono">{`<>`}</div>
-        </div>
+          <p className="text-lg font-mono text-gray-400 mb-6 text-center md:text-left">
+            A powerful platform designed to make coding education engaging,
+            effective, and accessible for students and instructors.
+          </p>
 
-        <h1 className="text-5xl md:text-6xl font-bold max-w-3xl mb-4">
-          <span className="text-[#00b7ff]">Level Up Your Code</span>
-          <br />
-          <span className="text-white">through challenge</span>
-        </h1>
+          <div className="space-y-6 mb-8 font-mono">
+            <div className="flex items-start">
+              <div className="bg-cyan-500/20 rounded-full p-1 mr-3 mt-1">
+                <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
+              </div>
+              <p className="text-sm">
+                Powerful code editor with support for multiple languages
+              </p>
+            </div>
 
-        <p className="text-gray-400 max-w-2xl mb-12 text-lg">
-          Improve your development skills by creating and solving code
-          challenges.
-        </p>
+            <div className="flex items-start">
+              <div className="bg-cyan-500/20 rounded-full p-1 mr-3 mt-1">
+                <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
+              </div>
+              <p className="text-sm">
+                Real-time feedback and automated grading
+              </p>
+            </div>
 
-        <div className="flex flex-col sm:flex-row gap-4 mb-20">
-          <Link
-            to="/login"
-            className="flex items-center justify-center gap-2 bg-[#00b7ff] text-black font-medium py-3 px-6 rounded-md hover:bg-[#00a7ea] transition-colors"
-          >
-            Explore Challenges <ArrowRight size={20} />
-          </Link>
+            <div className="flex items-start">
+              <div className="bg-cyan-500/20 rounded-full p-1 mr-3 mt-1">
+                <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
+              </div>
+              <p className="text-sm">
+                Comprehensive analytics for tracking progress
+              </p>
+            </div>
+          </div>
 
-          <Link
-            to="/login"
-            className="flex items-center justify-center gap-2 bg-transparent border border-gray-600 text-white font-medium py-3 px-6 rounded-md hover:bg-gray-800 transition-colors"
-          >
-            Create Assignments <Plus size={20} />
-          </Link>
-        </div>
+          <div className="hidden md:block">
+            <Link
+              to="/signup"
+              className="text-cyan-400 hover:text-cyan-300 flex items-center group font-mono"
+            >
+              New to CodeEd? Sign up
+              <ArrowRight
+                size={16}
+                className="ml-1 group-hover:translate-x-1 transition-transform"
+              />
+            </Link>
+          </div>
+        </motion.div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto px-4 pb-20">
-        <div className="bg-[#0d1224] border border-gray-700 rounded-lg p-8 flex flex-col items-center">
-          <div className="bg-[#0e2335] p-4 rounded-lg mb-6">
-            <Book className="text-[#00b7ff]" size={28} />
-          </div>
-          <h3 className="text-xl font-bold mb-3 text-center">
-            Browse Assignments
-          </h3>
-          <p className="text-gray-400 text-center mb-6">
-            Discover coding challenges across various difficulty levels and
-            topics.
-          </p>
-          <Link
-            to="/login"
-            className="text-[#00b7ff] flex items-center hover:underline"
-          >
-            View assignments <ArrowRight size={16} className="ml-1" />
-          </Link>
-        </div>
+      {/* right side */}
+      <div className="w-full md:w-1/2 flex items-center justify-center p-6 md:p-12">
+        <motion.div
+          className="w-full max-w-md"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
+          <div className="bg-black/20 border border-gray-800 rounded-lg backdrop-blur-sm p-6 md:p-8">
+            <h2 className="text-2xl font-bold mb-2">Welcome back</h2>
+            <p className="text-gray-400 mb-6">
+              Sign in to your account to continue
+            </p>
 
-        <div className="bg-[#0d1224] border border-gray-700 rounded-lg p-8 flex flex-col items-center">
-          <div className="bg-[#0e2335] p-4 rounded-lg mb-6">
-            <Code className="text-[#00b7ff]" size={28} />
-          </div>
-          <h3 className="text-xl font-bold mb-3 text-center">
-            Solve Challenges
-          </h3>
-          <p className="text-gray-400 text-center mb-6">
-            Practice your coding skills in our integrated development
-            environment.
-          </p>
-          <Link
-            to="/login"
-            className="text-[#00b7ff] flex items-center hover:underline"
-          >
-            Start coding <ArrowRight size={16} className="ml-1" />
-          </Link>
-        </div>
+            {error && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-        <div className="bg-[#0d1224] border border-gray-700 rounded-lg p-8 flex flex-col items-center">
-          <div className="bg-[#0e2335] p-4 rounded-lg mb-6">
-            <Plus className="text-[#00b7ff]" size={28} />
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="your.email@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="bg-black/30"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="password">Password</Label>
+                  <Button
+                    variant="link"
+                    className="p-0 h-auto text-xs"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      toast.info("Password reset functionality would go here");
+                    }}
+                  >
+                    Forgot password?
+                  </Button>
+                </div>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="bg-black/30"
+                    required
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowPassword(!showPassword)}
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </Button>
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full gap-2 bg-blue-600 hover:bg-blue-700"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full"></div>
+                ) : (
+                  <LogIn size={18} />
+                )}
+                {isLoading ? "Signing in..." : "Sign in"}
+              </Button>
+            </form>
+
+            <div className="mt-6 text-center">
+              <p className="text-sm text-gray-400">
+                Don't have an account?{" "}
+                <Link
+                  to="/signup"
+                  className="text-cyan-400 hover:text-cyan-300"
+                >
+                  Sign up
+                </Link>
+              </p>
+            </div>
           </div>
-          <h3 className="text-xl font-bold mb-3 text-center">
-            Create Assignments
-          </h3>
-          <p className="text-gray-400 text-center mb-6">
-            Design your own coding challenges with custom test cases and
-            descriptions.
+
+          <p className="text-xs text-center text-gray-500 mt-8">
+            © {new Date().getFullYear()} CodeEd. All rights reserved.
           </p>
-          <Link
-            to="/login"
-            className="text-[#00b7ff] flex items-center hover:underline"
-          >
-            Create now <ArrowRight size={16} className="ml-1" />
-          </Link>
-        </div>
+        </motion.div>
       </div>
     </div>
   );
 };
 
 export default Home;
+function setShake(arg0: boolean) {
+  throw new Error("Function not implemented.");
+}

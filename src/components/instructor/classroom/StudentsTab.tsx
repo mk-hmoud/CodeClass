@@ -78,50 +78,6 @@ const StudentsTab: React.FC<StudentsTabProps> = ({
     <>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold">Students</h2>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <UserPlus size={16} />
-              Add Students
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="bg-card">
-            <DialogHeader>
-              <DialogTitle>Add Students</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium mb-1 block">
-                  Email Addresses
-                </label>
-                <Input
-                  placeholder="Enter student emails separated by commas"
-                  className="bg-background"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Students will receive an invitation email to join this
-                  classroom
-                </p>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-1 block">
-                  Or share invite code
-                </label>
-                <div className="flex gap-2">
-                  <Input
-                    value="CLASS123"
-                    readOnly
-                    className="bg-background font-mono"
-                  />
-                  <Button variant="outline">Copy</Button>
-                </div>
-              </div>
-
-              <Button className="w-full">Send Invitations</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
 
       <Card className="bg-card border-border">
@@ -135,8 +91,6 @@ const StudentsTab: React.FC<StudentsTabProps> = ({
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Last Active</TableHead>
                   <TableHead>Completion Rate</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -148,8 +102,6 @@ const StudentsTab: React.FC<StudentsTabProps> = ({
                       {student.name}
                     </TableCell>
                     <TableCell>{student.email}</TableCell>
-                    <TableCell>{getStatusBadge(student.status)}</TableCell>
-                    <TableCell>{formatDate(student.lastActive)}</TableCell>
                     <TableCell>{student.completionRate}%</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
@@ -191,10 +143,6 @@ const StudentsTab: React.FC<StudentsTabProps> = ({
           ) : (
             <div className="text-center p-4">
               <p className="text-muted-foreground">No students enrolled yet.</p>
-              <Button variant="outline" className="mt-2">
-                <UserPlus className="mr-2 h-4 w-4" />
-                Invite students
-              </Button>
             </div>
           )}
         </CardContent>

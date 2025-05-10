@@ -143,7 +143,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
                   variant="outline"
                   className="bg-green-900/30 text-green-400 border-green-700"
                 >
-                  {lang.name}
+                  {lang.language.name}
                 </Badge>
               ))}
             </div>

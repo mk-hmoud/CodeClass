@@ -34,6 +34,7 @@ import {
   createClassroom,
   deleteClassroom,
   getClassrooms,
+  toggleClassroomStatus,
 } from "@/services/ClassroomService";
 
 const ClassroomsSection = () => {
@@ -105,25 +106,32 @@ const ClassroomsSection = () => {
     }
   };
 
-  const handleArchiveClassroom = (classroom: Classroom) => {
-    setClassrooms(
-      classrooms.map((c) =>
-        c.id === classroom.id ? { ...c, active: !c.active } : c
-      )
-    );
-    toast.success(
-      `Classroom "${classroom.name}" ${
-        classroom.active ? "archived" : "restored"
-      }`
-    );
+  const handleArchiveClassroom = async (classroom: Classroom) => {
+    try {
+      const newStatus = await toggleClassroomStatus(classroom.id);
+      setClassrooms((cls) =>
+        cls.map((c) =>
+          c.id === classroom.id ? { ...c, status: newStatus } : c
+        )
+      );
+
+      toast.success(
+        `Classroom "${classroom.name}" ${
+          newStatus === "archived" ? "archived" : "restored"
+        }`
+      );
+    } catch (err) {
+      toast.error("Unable to update classroom status");
+      console.error(err);
+    }
   };
 
   const filteredClassrooms = classrooms
     .filter(
       (classroom) =>
         activeTab === "all" ||
-        (activeTab === "active" && classroom.active) ||
-        (activeTab === "archived" && !classroom.active)
+        (activeTab === "active" && classroom.status === "active") ||
+        (activeTab === "archived" && classroom.status === "archived")
     )
     .filter(
       (classroom) =>
@@ -228,7 +236,7 @@ const ClassroomsSection = () => {
             <Card
               key={classroom.id}
               className={`bg-[#0d1224] border-gray-700 hover:border-[#00b7ff] transition-colors ${
-                !classroom.active ? "opacity-80" : ""
+                classroom.status === "active" ? "opacity-80" : ""
               }`}
             >
               <CardHeader
@@ -239,7 +247,7 @@ const ClassroomsSection = () => {
               >
                 <div className="flex justify-between items-start">
                   <CardTitle className="text-white">{classroom.name}</CardTitle>
-                  {!classroom.active && (
+                  {classroom.status === "archived" && (
                     <Badge
                       variant="outline"
                       className="bg-gray-800 text-gray-400 border-gray-600"
@@ -299,7 +307,7 @@ const ClassroomsSection = () => {
                     <DropdownMenuItem
                       onClick={() => handleArchiveClassroom(classroom)}
                     >
-                      {classroom.active
+                      {classroom.status === "active"
                         ? "Archive Classroom"
                         : "Restore Classroom"}
                     </DropdownMenuItem>

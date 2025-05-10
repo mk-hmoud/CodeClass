@@ -25,6 +25,7 @@ export interface Classroom {
     name: string;
     code?: string | null;
     instructor?: string;
+    status?: 'active' | 'archived';
     students_num?: number;
     students?: ClassroomStudent[];
     assignments_num?: number;

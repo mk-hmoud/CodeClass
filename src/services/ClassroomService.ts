@@ -59,3 +59,8 @@ export const joinClassroom = (code: string) => {
 export const deleteClassroom = (classroomId: number) => {
     return apiClient.delete(`/classrooms/${classroomId}`);
 };
+
+export async function toggleClassroomStatus(classroomId: number) {
+  const res = await apiClient.post(`/classrooms/${classroomId}/toggle-status`);
+  return res.data.data.status as "active" | "archived";
+}

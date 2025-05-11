@@ -1,4 +1,4 @@
-import pool from '../../config/db';
+import pool from '../../../config/db';
 import dotenv from 'dotenv';
 import { 
   SubmissionCompletedEvent,
@@ -13,9 +13,9 @@ import {
   ErrorPattern,
   SubmissionTimelineEntry,
   SubmissionTrendEntry
-} from './events/types';
-import { TestResult } from '../../types';
-import { statisticsEventEmitter } from './events/emitter';
+} from './types';
+import { TestResult } from '../../../types';
+import { statisticsEventEmitter } from './emitter';
 
 dotenv.config();
 

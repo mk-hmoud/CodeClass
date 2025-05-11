@@ -18,6 +18,12 @@ CREATE TYPE grading_method_enum AS ENUM (
   'Hybrid'
 );
 
+CREATE TYPE grading_status_enum AS ENUM (
+  'pending', 
+  'system graded', 
+  'graded'
+);
+
 CREATE TABLE languages (
   language_id SERIAL PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
@@ -65,6 +71,9 @@ CREATE TABLE classrooms (
   classroom_name VARCHAR(255) NOT NULL,
   classroom_code VARCHAR(50) NOT NULL UNIQUE,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  status          VARCHAR(20) NOT NULL
+    CHECK (status IN ('active', 'archived'))
+    DEFAULT 'active'
   FOREIGN KEY (instructor_id) REFERENCES instructors(instructor_id) ON DELETE CASCADE
 );
 
@@ -139,7 +148,10 @@ CREATE TABLE submissions (
   submitted_at    TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   passed_tests    INT,
   total_tests     INT,
-  score           NUMERIC(5,2),
+  grading_status grading_status_enum NOT NULL DEFAULT 'pending',
+  auto_score NUMERIC(5,2), -- system score
+  manual_score NUMERIC(5,2), -- instructor score
+  final_score NUMERIC(5,2),
   status          VARCHAR(20) NOT NULL
     CHECK (status IN ('queued','running','completed','error'))
     DEFAULT 'queued'
@@ -286,3 +298,75 @@ CREATE INDEX idx_test_case_stats_assignment_id ON assignment_test_case_stats(ass
 CREATE INDEX idx_error_patterns_assignment_id ON assignment_error_patterns(assignment_id);
 CREATE INDEX idx_submission_timeline_assignment_id ON assignment_submission_timeline(assignment_id);
 CREATE INDEX idx_submission_trend_assignment_id ON assignment_submission_trend(assignment_id);
+
+CREATE TABLE classroom_statistics (
+  stat_id SERIAL PRIMARY KEY,
+  classroom_id INT NOT NULL,
+  snapshot_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  total_students INT NOT NULL DEFAULT 0,
+  active_students INT NOT NULL DEFAULT 0,
+  active_student_rate NUMERIC(5,2),
+  total_submissions INT NOT NULL DEFAULT 0,
+  submissions_per_student NUMERIC(5,2),
+  avg_assignment_score NUMERIC(5,2),
+  median_assignment_score NUMERIC(5,2),
+  plagiarism_rate NUMERIC(5,2),
+  avg_similarity NUMERIC(5,2),
+  max_similarity NUMERIC(5,2),
+  runtime_error_rate NUMERIC(5,2),
+  assignment_completion_rate NUMERIC(5,2),
+  dropoff_rate NUMERIC(5,2),
+  FOREIGN KEY (classroom_id) REFERENCES classrooms(classroom_id) ON DELETE CASCADE,
+  UNIQUE (classroom_id, snapshot_time)
+);
+
+CREATE TABLE classroom_score_distribution (
+  distribution_id SERIAL PRIMARY KEY,
+  classroom_id INT NOT NULL,
+  snapshot_time TIMESTAMPTZ NOT NULL,
+  bucket_start INT NOT NULL,
+  bucket_end INT NOT NULL,
+  count INT NOT NULL DEFAULT 0,
+  FOREIGN KEY (classroom_id) REFERENCES classrooms(classroom_id) ON DELETE CASCADE,
+  UNIQUE (classroom_id, snapshot_time, bucket_start)
+);
+
+CREATE TABLE classroom_submission_timeline (
+  timeline_id SERIAL PRIMARY KEY,
+  classroom_id INT NOT NULL,
+  snapshot_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  submission_day INT NOT NULL, -- 0-6, sunday to sat
+  submission_hour INT NOT NULL, -- 0-23
+  submission_count INT NOT NULL DEFAULT 0,
+  FOREIGN KEY (classroom_id) REFERENCES classrooms(classroom_id) ON DELETE CASCADE,
+  UNIQUE (classroom_id, snapshot_time, submission_day, submission_hour)
+);
+
+CREATE TABLE classroom_language_usage (
+  usage_id SERIAL PRIMARY KEY,
+  classroom_id INT NOT NULL,
+  language_id INT NOT NULL,
+  snapshot_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  submission_count INT NOT NULL DEFAULT 0,
+  FOREIGN KEY (classroom_id) REFERENCES classrooms(classroom_id) ON DELETE CASCADE,
+  FOREIGN KEY (language_id) REFERENCES languages(language_id) ON DELETE CASCADE,
+  UNIQUE (classroom_id, language_id, snapshot_time)
+);
+
+CREATE TABLE classroom_student_improvement (
+  improvement_id SERIAL PRIMARY KEY,
+  classroom_id INT NOT NULL,
+  snapshot_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  improved_significantly INT NOT NULL DEFAULT 0, -- improvement by 10+ points
+  improved_moderately INT NOT NULL DEFAULT 0,   -- improvement by 0-10 points
+  stayed_flat INT NOT NULL DEFAULT 0,           -- no change
+  declined INT NOT NULL DEFAULT 0,              -- negative change
+  FOREIGN KEY (classroom_id) REFERENCES classrooms(classroom_id) ON DELETE CASCADE,
+  UNIQUE (classroom_id, snapshot_time)
+);
+
+CREATE INDEX idx_classroom_statistics_classroom_id ON classroom_statistics(classroom_id);
+CREATE INDEX idx_classroom_score_distribution_classroom_id ON classroom_score_distribution(classroom_id);
+CREATE INDEX idx_classroom_submission_timeline_classroom_id ON classroom_submission_timeline(classroom_id);
+CREATE INDEX idx_classroom_language_usage_classroom_id ON classroom_language_usage(classroom_id);
+CREATE INDEX idx_classroom_student_improvement_classroom_id ON classroom_student_improvement(classroom_id);

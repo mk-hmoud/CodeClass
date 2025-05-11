@@ -171,6 +171,7 @@ export const getInstructorClassrooms = async (
         c.classroom_id AS id,
         c.classroom_name AS name,
         c.classroom_code AS code,
+        c.status AS status,
         COALESCE(e.student_count, 0) AS students,
         COALESCE(a.assignment_count, 0) AS assignments
       FROM classrooms c
@@ -264,4 +265,19 @@ export const joinClassroom = async (studentId: number, code: string): Promise<vo
     logMessage(functionName, `Error in joinClassroom: ${error}`);
     throw error;
   }
+};
+
+export const toggleClassroomStatus = async (classroomId: number): Promise<'active' | 'archived'> => {
+  const { rows } = await pool.query< { new_status: 'active' | 'archived' } >(`
+    UPDATE classrooms
+      SET status = CASE WHEN status = 'active' THEN 'archived' ELSE 'active' END
+    WHERE classroom_id = $1
+    RETURNING status AS new_status
+  `, [classroomId]);
+
+  if (!rows.length) {
+    throw new Error("Classroom not found");
+  }
+
+  return rows[0].new_status;
 };

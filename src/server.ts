@@ -7,7 +7,7 @@ import AuthRoutes from './routes/AuthRoutes';
 import JudgeRoutes from './routes/JudgeRoutes';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { AssignmentStatisticsService } from './services/statistics/AssignmentStatistics';
+import { AssignmentStatisticsService } from './services/statistics/AssignmentAnlaysis/AssignmentStatistics';
 
 // Load environment variables
 dotenv.config();

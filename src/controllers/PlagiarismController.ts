@@ -1,6 +1,6 @@
 import axios from "axios";
 import { isPlagiarismEnabled, processPlagiarismResults, storeFingerprint } from "../models/PlagiarismModel";
-import { getSubmissionById, getSubmissionsByAssignment } from "../models/SubmissionModel";
+import { getSubmissionById, getSubmissionsFingerprintsByAssignment } from "../models/SubmissionModel";
 
 const PLAGIARISM_URL = process.env.PLAGIARISM_URL || 'http://localhost:8001'
 
@@ -56,7 +56,7 @@ export async function runPlagiarismCheck(submissionId: number): Promise<void> {
     }
     
     logMessage(fn, `Loading existing fingerprints for assignment ${assignment_id}`);
-    const existingSubs = await getSubmissionsByAssignment(assignment_id, submissionId);
+    const existingSubs = await getSubmissionsFingerprintsByAssignment(assignment_id, submissionId);
     logMessage(fn, `Found ${existingSubs.length} prior submissions to compare against`);
     
     if (existingSubs.length === 0) {

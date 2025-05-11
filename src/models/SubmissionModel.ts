@@ -1,5 +1,5 @@
 import pool from "../config/db";
-import { SubmissionRecord } from "../types";
+import { FullSubmission, PlagiarismReport, SubmissionRecord, SubmissionResult } from "../types";
 
 const logMessage = (functionName: string, message: string): void => {
   const timestamp = new Date().toISOString();
@@ -113,8 +113,8 @@ export const createSubmission = async ({
   };
   
 
-export const getSubmissionsByAssignment = async (assignmentId: number, excludeSubmissionId?: number): Promise<any[]> => {
-  const functionName = "getSubmissionsByAssignment";
+export const getSubmissionsFingerprintsByAssignment = async (assignmentId: number, excludeSubmissionId?: number): Promise<any[]> => {
+  const functionName = "getSubmissionsFingerprintsByAssignment";
   try {
     logMessage(functionName, `Fetching submissions with fingerprints for assignment ${assignmentId}`);
     
@@ -186,5 +186,93 @@ export async function updateSubmissionStatus(
     });
 
     throw new Error(`Failed to update submission status: ${errorMessage}`);
+  }
+}
+
+
+export async function getSubmissionsByAssignment(
+  assignmentId: number
+): Promise<FullSubmission[]> {
+  const fn = "getSubmissionsByAssignment";
+  logMessage(fn, `Fetching submissions for assignment ${assignmentId}`);
+  const client = await pool.connect();
+  try {
+    const { rows: subs } = await client.query(
+      `SELECT 
+         submission_id, student_id, assignment_id,
+         language_id, code, submitted_at,
+         passed_tests, total_tests, grading_status,
+         auto_score, manual_score, final_score
+       FROM submissions
+       WHERE assignment_id = $1
+       ORDER BY submitted_at DESC`,
+      [assignmentId]
+    );
+    const submissionIds = subs.map(r => r.submission_id);
+    if (submissionIds.length === 0) return [];
+
+    const { rows: resultsRows } = await client.query(
+      `SELECT submission_id, test_case_id, passed,
+              actual_output, execution_time_ms, memory_usage_kb, error_message
+       FROM submission_results
+       WHERE submission_id = ANY($1)`,
+      [submissionIds]
+    );
+
+    const { rows: plagRows } = await client.query(
+      `SELECT report_id, submission_id, compared_submission, similarity, checked_at
+       FROM plagiarism_reports
+       WHERE submission_id = ANY($1)`,
+      [submissionIds]
+    );
+
+    const resultsMap = new Map<number, SubmissionResult[]>();
+    for (const r of resultsRows) {
+      const arr = resultsMap.get(r.submission_id) ?? [];
+      arr.push({
+        testCaseId:      r.test_case_id,
+        passed:          r.passed,
+        actualOutput:    r.actual_output,
+        executionTimeMs: r.execution_time_ms,
+        memoryUsageKb:   r.memory_usage_kb,
+        errorMessage:    r.error_message
+      });
+      resultsMap.set(r.submission_id, arr);
+    }
+
+    const plagMap = new Map<number, PlagiarismReport[]>();
+    for (const p of plagRows) {
+      const arr = plagMap.get(p.submission_id) ?? [];
+      arr.push({
+        reportId:           p.report_id,
+        submissionId:       p.submission_id,
+        comparedSubmission: p.compared_submission,
+        similarity:         Number(p.similarity),
+        checkedAt:          p.checked_at.toISOString()
+      });
+      plagMap.set(p.submission_id, arr);
+    }
+
+    return subs.map(row => ({
+      submissionId:      row.submission_id,
+      studentId:         row.student_id,
+      assignmentId:      row.assignment_id,
+      languageId:        row.language_id,
+      code:              row.code,
+      submittedAt:       row.submitted_at.toISOString(),
+      passedTests:       row.passed_tests,
+      totalTests:        row.total_tests,
+      gradingStatus:   row.grading_status,
+      autoScore:       row.auto_score !== null ? Number(row.auto_score) : null,
+      manualScore:     row.manual_score !== null ? Number(row.manual_score) : null,
+      finalScore:      row.final_score !== null ? Number(row.final_score) : null,
+      results:           resultsMap.get(row.submission_id) || [],
+      plagiarismReports: plagMap.get(row.submission_id) || []
+    }));
+  } catch (err) {
+    logMessage(fn, `Error fetching submissions: ${err}`);
+    throw err;
+  } finally {
+    client.release();
   }
 }

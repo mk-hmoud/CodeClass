@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { createAssignment, getAssignments, getAssignmentById, deleteAssignment, getRemainingAttempts, getAssignmentForStudent } from '../models/AssignmentModel';
 import { getInstructorByUserId } from '../models/InstructorModel';
+import { getSubmissionsByAssignment } from '../models/SubmissionModel';
 
 const logMessage = (functionName: string, message: string): void => {
   const timestamp = new Date().toISOString();
@@ -30,22 +31,39 @@ export const createAssignmentController = async (req: Request, res: Response): P
 
 export const getAssignmentByIdController = async (req: Request, res: Response): Promise<void> => {
   const functionName = 'getAssignmentByIdController';
+  
   try {
     const assignmentId = Number(req.params.assignmentId);
     logMessage(functionName, `Received request to fetch assignment ID: ${assignmentId}`);
-
+    
     let assignment;
+    let submissions = null;
+    
     if (req.user?.role === "student") {
       assignment = await getAssignmentForStudent(assignmentId);
     } else {
       assignment = await getAssignmentById(assignmentId);
+      
+      if (req.user?.role === "instructor") {
+        submissions = await getSubmissionsByAssignment(assignmentId);
+      }
     }
-
+    
     logMessage(functionName, `Fetched assignment ID: ${assignmentId}`);
-    res.status(200).json({ success: true, data: assignment });
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        assignment,
+        submissions: submissions
+      }
+    });
   } catch (error) {
     logMessage(functionName, `Error fetching assignment: ${error}`);
-    res.status(500).json({ success: false, message: 'Failed to fetch assignment' });
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch assignment'
+    });
   }
 };
 

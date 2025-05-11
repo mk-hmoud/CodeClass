@@ -7,7 +7,8 @@ import {
   getStudentClassrooms, 
   assignAssignment, 
   deleteClassroom,
-  joinClassroom
+  joinClassroom,
+  toggleClassroomStatus
 } from '../models/ClassroomModel';
 import { getInstructorByUserId, getInstructorIdByClassroom, Instructor } from '../models/InstructorModel';
 import { getStudentByUserId, Student } from '../models/StudentModel'; 
@@ -232,5 +233,19 @@ export const joinClassroomController = async (req: Request, res: Response): Prom
       res.status(500).json({ success: false, message: 'Failed to join classroom' });
     }
     return;
+  }
+};
+
+export const toggleClassroomStatusController = async (req: Request, res: Response) => {
+  const fn = 'toggleClassroomStatus';
+  try {
+    const classroomId = Number(req.params.classId);
+    logMessage(fn, `Toggling status for classroom ${classroomId}`);
+    const newStatus = await toggleClassroomStatus(classroomId);
+    logMessage(fn, `Classroom ${classroomId} is now ${newStatus}`);
+    res.json({ success: true, data: { classroomId, status: newStatus } });
+  } catch (err) {
+    logMessage(fn, `Error toggling: ${err}`);
+    res.status(500).json({ success: false, message: 'Failed to toggle classroom status' });
   }
 };

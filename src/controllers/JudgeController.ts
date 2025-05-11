@@ -6,8 +6,8 @@ import { JudgeVerdict, TestCase, TestResult } from '../types';
 import { getAssignmentTestCases } from '../models/ProblemModel';
 import { createSubmission, getSubmissionById, updateSubmissionStatus } from '../models/SubmissionModel';
 import { runPlagiarismCheck } from './PlagiarismController';
-import { statisticsEventEmitter } from '../services/statistics/events/emitter';
-import { SubmissionCompletedEvent, SubmissionCreatedEvent } from '../services/statistics/events/types';
+import { statisticsEventEmitter } from '../services/statistics/AssignmentAnlaysis/emitter';
+import { SubmissionCompletedEvent, SubmissionCreatedEvent } from '../services/statistics/AssignmentAnlaysis/types';
 
 const logMessage = (functionName: string, message: string): void => {
   const timestamp = new Date().toISOString();

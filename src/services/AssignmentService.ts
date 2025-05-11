@@ -13,14 +13,14 @@ export const createAssignment = async (assignmentData: any): Promise<Assignment>
 
 export const getAssignmentById = async (
   assignmentId: number
-): Promise<Assignment | null> => {
+): Promise<any> => {
   try {
     const response = await apiClient.get(`/assignments/${assignmentId}`, {
       headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
     });
-    const assignmentData = response.data.data as Assignment;
-    return assignmentData;
-  } catch (error: any) {
+    return response.data.data;
+  } catch (error) {
+    console.error("Error fetching assignment:", error);
     return null;
   }
 };

@@ -21,13 +21,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import AuthenticatedNav from "@/components/AuthenticatedNav";
 import OverviewTab from "@/components/instructor/assignment/view/OverviewTab";
 import ProblemTab from "@/components/instructor/assignment/view/ProblemTab";
 import SubmissionsTab from "@/components/instructor/assignment/view/SubmissionsTab";
 import ExportTab from "@/components/instructor/assignment/view/ExportTab";
 import { getAssignmentById } from "@/services/AssignmentService";
 import { Assignment } from "@/types/Assignment";
+import { FullSubmission } from "@/types/Submission";
 
 const InstructorAssignment: React.FC = () => {
   const { assignmentId } = useParams<{ assignmentId: string }>();
@@ -35,14 +35,21 @@ const InstructorAssignment: React.FC = () => {
   const [activeTab, setActiveTab] = useState("overview");
 
   const [assignment, setAssignment] = useState<Assignment | null>(null);
+  const [submissions, setSubmissions] = useState<FullSubmission[]>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { classroomId } = useParams();
   useEffect(() => {
+    console.log("HI", assignmentId);
     if (!assignmentId) return;
     setLoading(true);
     getAssignmentById(+assignmentId)
-      .then(setAssignment)
+      .then((raw) => {
+        if (!raw) throw new Error("Not found");
+        console.log(raw);
+        setAssignment(raw.assignment);
+        setSubmissions(raw.submissions);
+      })
       .catch((err) => {
         console.error(err);
         setError("Failed to load assignment");
@@ -233,10 +240,24 @@ const InstructorAssignment: React.FC = () => {
             ) : null}
           </TabsContent>
 
-          <TabsContent value="submissions"></TabsContent>
+          <TabsContent value="submissions">
+            {loading ? (
+              <div>Loading submissions…</div>
+            ) : error ? (
+              <div className="text-red-500">{error}</div>
+            ) : assignment ? (
+              <SubmissionsTab
+                submissions={submissions}
+                formatDate={formatDate}
+                assignmentTitle={assignment.title}
+                assignmentDescription={assignment.description}
+                gradingType={assignment.grading_method}
+              />
+            ) : null}
+          </TabsContent>
 
           <TabsContent value="export">
-            <ExportTab assignment={assignment!} students={studentSubmissions} />
+            <ExportTab assignment={assignment!} students={submissions} />
           </TabsContent>
         </Tabs>
       </div>

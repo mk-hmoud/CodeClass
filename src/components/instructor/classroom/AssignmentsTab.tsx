@@ -55,7 +55,7 @@ const AssignmentsTab: React.FC<AssignmentsTabProps> = ({
 
   const handleViewAssignment = (assignmentId: number) => {
     navigate(
-      `/instructor/classrooms/${classroom.id}/assignments/${assignmentId}`
+      `/instructor/classrooms/${classroom.id}/assignments/${assignmentId}/view`
     );
   };
 

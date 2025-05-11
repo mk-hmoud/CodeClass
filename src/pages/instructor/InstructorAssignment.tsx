@@ -37,7 +37,7 @@ const InstructorAssignment: React.FC = () => {
   const [assignment, setAssignment] = useState<Assignment | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
+  const { classroomId } = useParams();
   useEffect(() => {
     if (!assignmentId) return;
     setLoading(true);
@@ -59,11 +59,13 @@ const InstructorAssignment: React.FC = () => {
   };
 
   const handleEdit = () => {
-    navigate(`/instructor/edit-assignment/${assignmentId}`);
+    //navigate(`/instructor/edit-assignment/${assignmentId}`);
   };
 
   const handleStats = () => {
-    navigate(`/instructor/assignment-statistics?assignmentId=${assignmentId}`);
+    navigate(
+      `/instructor/classrooms/${classroomId}/assignments/${assignmentId}/analytics`
+    );
   };
 
   const formatDate = (d?: Date | string | number | null) => {
@@ -136,7 +138,18 @@ const InstructorAssignment: React.FC = () => {
               </div>
             )}
           </div>
-
+          <Button
+            onClick={() =>
+              navigate(
+                `/instructor/classrooms/${classroomId}/assignments/${assignmentId}/analytics`
+              )
+            }
+            variant="outline"
+            className="flex gap-2 items-center"
+          >
+            <BarChart size={16} className="mr-2" />
+            <span>Analytics</span>
+          </Button>
           {/* Actions menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

@@ -1,5 +1,5 @@
 import apiClient from './APIclient';
-import { Assignment } from '../types/Assignment';
+import { Assignment, AssignmentAnalyticsPayload } from '../types/Assignment';
 
 export const createAssignment = async (assignmentData: any): Promise<Assignment> => {
   try {
@@ -53,3 +53,19 @@ export async function getRemainingAttempts(assignmentId: number): Promise<number
   );
   return data.data.remainingAttempts;
 }
+
+export const getAssignmentAnalytics = async (
+  assignmentId: string | number
+): Promise<AssignmentAnalyticsPayload> => {
+  try {
+    const response = await apiClient.get<{
+      data: AssignmentAnalyticsPayload;
+    }>(`/assignments/${assignmentId}/analytics`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+    });
+    return response.data.data;
+  } catch (error) {
+    console.error("Error fetching assignment analytics:", error);
+    throw error;
+  }
+};

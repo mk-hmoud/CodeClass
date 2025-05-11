@@ -14,6 +14,7 @@ import InstructorDashboard from "./pages/instructor/InstructorDashboard";
 import InstructorClassroom from "./pages/instructor/InstructorClassroom";
 import ClassroomAnalytics from "./pages/instructor/ClassroomAnalytics";
 import InstructorAssignment from "./pages/instructor/InstructorAssignment";
+import AssignmentAnalytics from "./pages/instructor/AssignmentAnalytics";
 import ProblemCreation from "./pages/instructor/ProblemCreation";
 import AssignmentCreation from "./pages/instructor/AssignmentCreation";
 
@@ -45,10 +46,10 @@ const App = () => (
               <Route path="view" element={<InstructorClassroom />} />
               <Route path="assignments">
                 <Route path="create" element={<AssignmentCreation />} />
-                <Route
-                  path=":assignmentId"
-                  element={<InstructorAssignment />}
-                />
+                <Route path=":assignmentId">
+                  <Route path="view" element={<InstructorAssignment />} />
+                  <Route path="analytics" element={<AssignmentAnalytics />} />
+                </Route>
               </Route>
               <Route path="analytics" element={<ClassroomAnalytics />} />
             </Route>

@@ -39,3 +39,88 @@ export interface AssignmentCreationData {
     initial_code?: string;
   }>;
 }
+
+export interface AssignmentAnalyticsPayload {
+  totalSubmissions: number;
+  distinctSubmitters: number;
+  averageScore: number;
+  medianScore: number;
+
+  scoreDistribution: Array<{
+    range: string;
+    count: number;
+    color: string;
+  }>;
+
+  attemptsPerStudent: {
+    average: number;
+    median: number;
+    max: number;
+    distribution: Array<{
+      attempts: string;
+      count: number;
+    }>;
+  };
+
+  submissionTimeline: Array<{
+    day: string;
+    hour: string;
+    value: number;
+  }>;
+
+  averageRuntime: number;
+
+  runtimeDistribution: {
+    min: number;
+    q1: number;
+    median: number;
+    q3: number;
+    max: number;
+  };
+
+  testPassRates: {
+    public: number;
+    private: number;
+  };
+
+  mostMissedTests: Array<{
+    id: string;
+    description: string;
+    failRate: number;
+  }>;
+
+  commonErrorPatterns: Array<{
+    type: string;
+    count: number;
+  }>;
+
+  plagiarism: {
+    rate: number;
+    maxSimilarity: number;
+    averageSimilarity: number;
+  };
+
+  runtimeErrors: {
+    count: number;
+    percentage: number;
+    types: Array<{
+      type: string;
+      count: number;
+    }>;
+  };
+
+  slowestTestCases: Array<{
+    id: string;
+    description: string;
+    avgRuntime: number;
+  }>;
+
+  submissionTrend: Array<{
+    date: string;
+    count: number;
+  }>;
+
+  assignmentTitle?: string;
+  dueDate?: Date;
+  points?: number;
+}

@@ -9,6 +9,7 @@ import { runPlagiarismCheck } from './PlagiarismController';
 import { statisticsEventEmitter } from '../services/statistics/AssignmentAnlaysis/emitter';
 import { SubmissionCompletedEvent, SubmissionCreatedEvent } from '../services/statistics/AssignmentAnlaysis/types';
 import { getRemainingAttempts, getSubmissionAttemptCount } from '../models/AssignmentModel';
+import { calculateGrade } from '../services/grading/Grader';
 
 const logMessage = (functionName: string, message: string): void => {
   const timestamp = new Date().toISOString();
@@ -391,6 +392,26 @@ export const getSubmitStatusHandler = async (
     runPlagiarismCheck(submissionId);
 
     const submission = await getSubmissionById(submissionId);
+
+        try {
+          const gradeResult = await calculateGrade(
+            submissionId,
+            testResults,
+            {
+              passedTests: passedPublic + passedPrivate,
+              totalTests: publicTests.length + privateTests.length,
+              privatePassedTests: passedPrivate,
+              privateTotalTests: privateTests.length,
+              averageRuntime: avgRuntime
+            },
+            submission.assignment_id
+          );
+          
+          logMessage(fn, `Grade calculated for submission ${submissionId}: ${gradeResult.autoScore}`);
+          
+        } catch (gradeError) {
+          logMessage(fn, `Error calculating grade: ${gradeError}`);
+        }
 
     console.log( submission);
     console.log( submission.assignment_id);

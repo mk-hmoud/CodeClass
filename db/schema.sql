@@ -146,6 +146,7 @@ CREATE TABLE submissions (
   language_id     INT NOT NULL REFERENCES languages(language_id) ON DELETE CASCADE,
   code            TEXT NOT NULL,
   submitted_at    TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  --is_main         BOOLEAN NOT NULL DEFAULT TRUE
   passed_tests    INT,
   total_tests     INT,
   grading_status grading_status_enum NOT NULL DEFAULT 'pending',
@@ -370,3 +371,13 @@ CREATE INDEX idx_classroom_score_distribution_classroom_id ON classroom_score_di
 CREATE INDEX idx_classroom_submission_timeline_classroom_id ON classroom_submission_timeline(classroom_id);
 CREATE INDEX idx_classroom_language_usage_classroom_id ON classroom_language_usage(classroom_id);
 CREATE INDEX idx_classroom_student_improvement_classroom_id ON classroom_student_improvement(classroom_id);
+
+CREATE TABLE submission_attempts (
+  attempt_id SERIAL PRIMARY KEY,
+  student_id INT NOT NULL REFERENCES students(student_id) ON DELETE CASCADE,
+  assignment_id INT NOT NULL REFERENCES assignments(assignment_id) ON DELETE CASCADE,
+  submitted_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (student_id, assignment_id, submitted_at)
+);
+
+CREATE INDEX idx_submission_attempts ON submission_attempts(student_id, assignment_id);

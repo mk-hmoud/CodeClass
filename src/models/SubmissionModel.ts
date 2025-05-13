@@ -68,6 +68,40 @@ export const createSubmission = async ({
         }
         logMessage(functionName, `Submission limit not reached.`);
 
+        logMessage(functionName, `Deleting previous submissions for student ${studentId} and assignment ${assignmentId}`);
+        const deleteResult = await pool.query(
+          `DELETE FROM submissions 
+          WHERE student_id = $1 AND assignment_id = $2
+          RETURNING submission_id`,
+          [studentId, assignmentId]
+        );
+        const haveDeleted = deleteResult.rowCount ?? 0;
+        if (haveDeleted > 0) {
+          const deletedIds = deleteResult.rows.map(row => row.submission_id).join(', ');
+          logMessage(functionName, `Deleted previous submissions with IDs: ${deletedIds}`);
+        } else {
+          logMessage(functionName, `No previous submissions found to delete`);
+        }
+        /*
+        logMessage(functionName, `Setting previous submissions as non-main for student ${studentId} and assignment ${assignmentId}`);
+        const updateResult = await pool.query(
+          `UPDATE submissions 
+           SET is_main = FALSE
+           WHERE student_id = $1 AND assignment_id = $2 AND is_main = TRUE
+           RETURNING submission_id`,
+          [studentId, assignmentId]
+        );
+
+        const updatedCount = updateResult.rowCount ?? 0;
+        
+        if (updatedCount > 0) {
+          const updatedIds = updateResult.rows.map(row => row.submission_id).join(', ');
+          logMessage(functionName, `Updated previous main submissions to non-main: ${updatedIds}`);
+        } else {
+          logMessage(functionName, `No previous main submissions found to update`);
+        }
+
+        */
 
         logMessage(functionName, `Inserting new submission record.`);
 

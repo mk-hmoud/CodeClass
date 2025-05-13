@@ -8,6 +8,7 @@ import { createSubmission, getSubmissionById, updateSubmissionStatus } from '../
 import { runPlagiarismCheck } from './PlagiarismController';
 import { statisticsEventEmitter } from '../services/statistics/AssignmentAnlaysis/emitter';
 import { SubmissionCompletedEvent, SubmissionCreatedEvent } from '../services/statistics/AssignmentAnlaysis/types';
+import { getRemainingAttempts, getSubmissionAttemptCount } from '../models/AssignmentModel';
 
 const logMessage = (functionName: string, message: string): void => {
   const timestamp = new Date().toISOString();
@@ -192,6 +193,22 @@ export const submitHandler = async (req: Request, res: Response): Promise<void> 
     return;
   }
 
+  try {
+    const remainingAttempts = await getRemainingAttempts(assignmentId, studentId);
+    logMessage(functionName, `Student ${studentId} has ${remainingAttempts} attempts remaining for assignment ${assignmentId}`);
+    
+    if (remainingAttempts <= 0) {
+      logMessage(functionName, `Student ${studentId} has no remaining attempts for assignment ${assignmentId}`);
+      res.status(403).json({ 
+        success: false, 
+        message: 'Maximum submission attempts reached for this assignment' 
+      });
+      return;
+    }
+  } catch (err) {
+    logMessage(functionName, `Error checking remaining attempts: ${err}`);
+  }
+
   let submissionId: number;
   try {
     submissionId = await createSubmission({
@@ -249,10 +266,19 @@ export const submitHandler = async (req: Request, res: Response): Promise<void> 
     return;
   }
 
+  let attemptCount = 0;
+  try {
+    attemptCount = await getSubmissionAttemptCount(assignmentId, studentId);
+  } catch (err) {
+    logMessage(functionName, `Error getting attempt count: ${err}`);
+  }
+
   res.status(202).json({
     submissionId,
     job_id: submissionId,
     status_url: `/api/judge/status/${submissionId}`,
+    attemptCount,
+    attemptHistory: `/api/submissions/attempts/${assignmentId}` // Endpoint to retrieve attempt history
   });
 }
 

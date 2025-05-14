@@ -1,3 +1,5 @@
+import { JudgeVerdict } from "./TestCase";
+
 export interface SubmissionResult {
     testCaseId: number;
     passed: boolean;
@@ -28,7 +30,7 @@ export interface SubmissionResult {
     autoScore?: number | null;
     manualScore?: number | null;
     finalScore?: number | null;
-    results: SubmissionResult[];
+    verdict: JudgeVerdict;
     plagiarismReports: PlagiarismReport[];
     studentName?: string;
     feedback?: string;

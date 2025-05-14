@@ -41,10 +41,8 @@ const StudentAssignment = () => {
       if (!assignmentId) return;
       setLoading(true);
       try {
-        const fetchedAssignment = await getAssignmentById(
-          parseInt(assignmentId, 10)
-        );
-        setAssignment(fetchedAssignment);
+        const raw = await getAssignmentById(parseInt(assignmentId, 10));
+        setAssignment(raw.assignment);
 
         const attempts = await getRemainingAttempts(parseInt(assignmentId, 10));
         setRemainingAttempts(attempts);

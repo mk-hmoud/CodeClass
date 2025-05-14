@@ -4,7 +4,7 @@ import { nanoid } from 'nanoid';
 import redisClient from '../config/redis';
 import { JudgeVerdict, TestCase, TestResult } from '../types';
 import { getAssignmentTestCases } from '../models/ProblemModel';
-import { createSubmission, getSubmissionById, updateSubmissionStatus } from '../models/SubmissionModel';
+import { createSubmission, getSubmissionById, saveSubmissionResults, updateSubmissionStatus } from '../models/SubmissionModel';
 import { runPlagiarismCheck } from './PlagiarismController';
 import { statisticsEventEmitter } from '../services/statistics/AssignmentAnlaysis/emitter';
 import { SubmissionCompletedEvent, SubmissionCreatedEvent } from '../services/statistics/AssignmentAnlaysis/types';
@@ -387,6 +387,7 @@ export const getSubmitStatusHandler = async (
 
     await updateSubmissionStatus(submissionId, "completed");
     console.log(verdict);
+    await saveSubmissionResults(submissionId, testResults);
     res.status(200).json(verdict);
 
     runPlagiarismCheck(submissionId);

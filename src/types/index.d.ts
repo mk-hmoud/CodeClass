@@ -188,7 +188,7 @@ export interface FullSubmission {
   autoScore?: number | null;
   manualScore?: number | null;
   finalScore?: number | null;
-  results: SubmissionResult[];
+  verdict: JudgeVerdict;
   plagiarismReports: PlagiarismReport[];
   studentName?: string;
   feedback?: string;

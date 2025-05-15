@@ -484,50 +484,81 @@ export async function getRemainingAttempts(
   studentId: number
 ): Promise<number> {
   const functionName = "getRemainingAttempts";
-  logMessage(functionName, `Checking remaining attempts for assignment ${assignmentId} and student ${studentId}`);
-  
+  logMessage(
+    functionName,
+    `Checking remaining attempts for assignment ${assignmentId} and student ${studentId}`
+  );
+
   try {
-    logMessage(functionName, `Getting max submission attempts for assignment ${assignmentId}`);
-    const assignRes = await pool.query<{
-      max_submissions: number | null;
-    }>(
-      `SELECT max_submissions
-       FROM assignments
-       WHERE assignment_id = $1`,
+    logMessage(
+      functionName,
+      `Getting max submission attempts for assignment ${assignmentId}`
+    );
+    const assignRes = await pool.query<{ max_submissions: number | null }>(
+      `
+      SELECT max_submissions
+      FROM assignments
+      WHERE assignment_id = $1
+      `,
       [assignmentId]
     );
-    
+
     if (assignRes.rowCount === 0) {
-      logMessage(functionName, `Assignment ${assignmentId} not found`);
+      logMessage(
+        functionName,
+        `Assignment ${assignmentId} not found`
+      );
       throw new Error("Assignment not found");
     }
-    
-    const maxAttempts = assignRes.rows[0].max_submissions as number;
-    logMessage(functionName, `Max attempts for assignment ${assignmentId}: ${maxAttempts === null ? 'Unlimited' : maxAttempts}`);
-    
+
+    const maxAttempts = assignRes.rows[0].max_submissions;
+    logMessage(
+      functionName,
+      `Max attempts for assignment ${assignmentId}: ${
+        maxAttempts === null ? "Unlimited" : maxAttempts
+      }`
+    );
+
     if (maxAttempts === null) {
-      logMessage(functionName, `Returning unlimited attempts (Infinity) for assignment ${assignmentId}`);
+      logMessage(
+        functionName,
+        `Returning unlimited attempts (Infinity) for assignment ${assignmentId}`
+      );
       return Infinity;
     }
-    
-    logMessage(functionName, `Counting submission attempts for assignment ${assignmentId} and student ${studentId}`);
+
+    logMessage(
+      functionName,
+      `Counting submission attempts in submission_attempts for assignment ${assignmentId} and student ${studentId}`
+    );
     const countRes = await pool.query<{ cnt: string }>(
-      `SELECT COUNT(*) AS cnt
-       FROM submission_attempts
-       WHERE assignment_id = $1
-       AND student_id = $2`,
+      `
+      SELECT COUNT(*) AS cnt
+      FROM submission_attempts
+      WHERE assignment_id = $1
+        AND student_id = $2
+      `,
       [assignmentId, studentId]
     );
-    
+
     const used = parseInt(countRes.rows[0].cnt, 10);
-    logMessage(functionName, `Used attempts for assignment ${assignmentId} by student ${studentId}: ${used}`);
-    
+    logMessage(
+      functionName,
+      `Used attempts for assignment ${assignmentId} by student ${studentId}: ${used}`
+    );
+
     const remaining = Math.max(0, maxAttempts - used);
-    logMessage(functionName, `Remaining attempts calculated: ${remaining}`);
-    
+    logMessage(
+      functionName,
+      `Remaining attempts calculated: ${remaining}`
+    );
+
     return remaining;
   } catch (error) {
-    logMessage(functionName, `Error in ${functionName} for assignment ${assignmentId}, student ${studentId}: ${error}`);
+    logMessage(
+      functionName,
+      `Error in ${functionName} for assignment ${assignmentId}, student ${studentId}: ${error}`
+    );
     throw error;
   }
 }

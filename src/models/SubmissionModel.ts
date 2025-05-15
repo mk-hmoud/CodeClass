@@ -83,6 +83,14 @@ export const createSubmission = async ({
         const submissionId = insertRes.rows[0].submission_id;
         logMessage(functionName, `New submission created with ID: ${submissionId}.`);
 
+        await pool.query(
+          `INSERT INTO submission_attempts
+          (student_id, assignment_id)
+          VALUES ($1, $2)`,
+          [studentId, assignmentId]
+        );
+
+        logMessage(functionName, `Inserted into submission_attempts`);
         logMessage(functionName, `Returning submission ID ${submissionId}.`);
         return submissionId;
 

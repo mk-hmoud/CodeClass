@@ -74,13 +74,11 @@ const ClassroomsSection = () => {
     }
     setIsSubmitting(true);
     try {
-      const newClassroom = await createClassroom({ name: newClassroomName });
-      setClassrooms([...classrooms, newClassroom]);
+      await createClassroom({ name: newClassroomName });
+      await fetchClassrooms();
       setNewClassroomName("");
       setOpen(false);
-      toast.success(
-        `Classroom "${newClassroom.name}" created with code: ${newClassroom.code}`
-      );
+      toast.success(`Classroom "${newClassroomName}" created successfully`);
     } catch (error) {
       toast.error("Failed to create classroom");
     } finally {
@@ -277,7 +275,7 @@ const ClassroomsSection = () => {
                   </div>
                   <div className="flex items-center gap-1">
                     <BookOpen size={16} />
-                    <span>{classroom.assignments_num} problems</span>
+                    <span>{classroom.assignments.length} problems</span>
                   </div>
                 </div>
               </CardContent>

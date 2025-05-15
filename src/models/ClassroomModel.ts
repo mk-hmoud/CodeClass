@@ -1,6 +1,6 @@
 import pool from "../config/db";
 import { Classroom, ClassroomStudent, Assignment } from "../types";
-import { getAssignmentsForClassroom } from "./AssignmentModel";
+import { getAssignmentsForClassroom, getAssignmentsForStudentClassroom } from "./AssignmentModel";
 
 const logMessage = (functionName: string, message: string): void => {
   const timestamp = new Date().toISOString();
@@ -93,33 +93,45 @@ export const getInstructorClassroomById = async (classroomId: number): Promise<C
   }
 };
 
-export const getStudentClassroomById = async (classroomId: number): Promise<Classroom> => {
-  const functionName = "getStudentClassroomById";
+export const getStudentClassroomById = async (
+  classroomId: number,
+  studentId: number
+): Promise<Classroom> => {
   try {
-    logMessage(functionName, `Fetching student classroom with ID: ${classroomId}`);
     const classroomRes = await pool.query(
-      `SELECT classroom_id AS id, classroom_name AS name, classroom_code AS code, created_at 
-       FROM classrooms 
-       WHERE classroom_id = $1`,
-      [classroomId]
+      `SELECT 
+        c.classroom_id AS id,
+        c.classroom_name AS name,
+        c.classroom_code AS code,
+        c.created_at,
+        COUNT(a.assignment_id) AS "totalAssignments",
+        COUNT(s.submission_id) AS "completedAssignments"
+       FROM classrooms c
+       LEFT JOIN assignments a ON c.classroom_id = a.classroom_id
+       LEFT JOIN submissions s 
+         ON a.assignment_id = s.assignment_id 
+         AND s.student_id = $2
+       WHERE c.classroom_id = $1
+       GROUP BY c.classroom_id`,
+      [classroomId, studentId]
     );
+
     if (classroomRes.rowCount === 0) throw new Error("Classroom not found");
+    
     const classroomData = classroomRes.rows[0];
+    const assignments = await getAssignmentsForStudentClassroom(classroomId, studentId);
 
-    const assignments: Assignment[] = await getAssignmentsForClassroom(classroomId);
-
-    const studentClassroom: Classroom = {
+    return {
       id: classroomData.id,
       name: classroomData.name,
       code: classroomData.code,
-      assignments: assignments,
       created_at: classroomData.created_at,
+      assignments: assignments,
+      totalAssignments: parseInt(classroomData.totalAssignments),
+      completedAssignments: parseInt(classroomData.completedAssignments)
     };
-
-    logMessage(functionName, "Student classroom fetched successfully.");
-    return studentClassroom;
   } catch (error) {
-    logMessage(functionName, `Error: ${error}`);
+    console.error("Error fetching classroom:", error);
     throw error;
   }
 };

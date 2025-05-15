@@ -95,7 +95,7 @@ export const getClassroomByIdController = async (req: Request, res: Response): P
     if (role === "instructor") {
       classroom = await getInstructorClassroomById(classroomId);
     } else if (role === "student") {
-      classroom = await getStudentClassroomById(classroomId);
+      classroom = await getStudentClassroomById(classroomId, userId);
     } else {
       throw new Error("Invalid user role");
     }

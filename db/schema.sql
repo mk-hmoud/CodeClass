@@ -382,3 +382,17 @@ CREATE TABLE submission_attempts (
 );
 
 CREATE INDEX idx_submission_attempts ON submission_attempts(student_id, assignment_id);
+
+CREATE OR REPLACE VIEW assignments_with_status AS
+SELECT
+  a.*,
+
+  CASE
+    WHEN a.publish_date IS NOT NULL
+      AND a.publish_date >  NOW()           THEN 'not_published'
+    WHEN a.due_date     IS NOT NULL
+      AND a.due_date     <  NOW()           THEN 'expired'
+    ELSE 'active'
+  END AS status
+
+FROM assignments a;

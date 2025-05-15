@@ -109,7 +109,7 @@ export const getAssignmentById = async (
   try {
     logMessage(fn, `Fetching assignment ${assignmentId}`);
     const assignmentQuery = `
-      SELECT
+SELECT
         a.assignment_id,
         a.classroom_id,
         a.problem_id,
@@ -121,14 +121,15 @@ export const getAssignmentById = async (
         a.assigned_at,
         a.publish_date,
         a.due_date,
+        a.status,                     
         p.title AS problem_title,
         p.description AS problem_description,
         p.category,
-        COALESCE(p.prerequisites, '') AS prerequisites,
-        COALESCE(p.learning_outcomes, '') AS learning_outcomes,
-        COALESCE(p.tags, '') AS tags,
+        COALESCE(p.prerequisites, '')   AS prerequisites,
+        COALESCE(p.learning_outcomes,'') AS learning_outcomes,
+        COALESCE(p.tags, '')            AS tags,
         p.created_at AS problem_created_at
-      FROM assignments a
+      FROM assignments_with_status a 
       JOIN problems p
         ON a.problem_id = p.problem_id
       WHERE a.assignment_id = $1
@@ -200,6 +201,7 @@ export const getAssignmentById = async (
       due_date: row.due_date ? new Date(row.due_date) : undefined,
       languages,
       completed: false,
+      status:       row.status as "not_published"|"active"|"expired",
 
       problem: {
         problemId: row.problem_id,
@@ -267,7 +269,6 @@ export const deleteAssignment = async (assignmentId: number): Promise<void> => {
   }
 };
 
-
 export async function getAssignmentsForClassroom(classroomId: number): Promise<Assignment[]> {
   const query = `
     SELECT 
@@ -284,6 +285,7 @@ export async function getAssignmentsForClassroom(classroomId: number): Promise<A
       to_char(a.assigned_at, 'YYYY-MM-DD"T"HH24:MI:SSZ') AS "assignedAt",
       to_char(a.publish_date, 'YYYY-MM-DD"T"HH24:MI:SSZ') AS "publishDate",
       to_char(a.due_date, 'YYYY-MM-DD"T"HH24:MI:SSZ') AS "dueDate",
+      a.status AS "status",
       json_build_object(
         'problemId', p.problem_id,
         'instructorId', p.instructor_id,
@@ -322,7 +324,7 @@ export async function getAssignmentsForClassroom(classroomId: number): Promise<A
         JOIN languages l ON alp.language_id = l.language_id
         WHERE alp.assignment_id = a.assignment_id
       ) AS languages
-    FROM assignments a
+    FROM assignments_with_status a 
     JOIN problems p ON a.problem_id = p.problem_id
     WHERE a.classroom_id = $1;
   `;
@@ -331,6 +333,82 @@ export async function getAssignmentsForClassroom(classroomId: number): Promise<A
     return result.rows as Assignment[];
   } catch (error) {
     console.error("Error fetching assignments for classroom:", error);
+    throw error;
+  }
+}
+
+export async function getAssignmentsForStudentClassroom(
+  classroomId: number,
+  studentId: number
+): Promise<Assignment[]> {
+  const query = `
+    SELECT 
+      a.assignment_id AS "assignmentId",
+      a.classroom_id AS "classroomId",
+      a.problem_id AS "problemId",
+      a.title,
+      a.description,
+      a.difficulty_level AS "difficultyLevel",
+      a.points,
+      a.grading_method AS "gradingMethod",
+      a.max_submissions AS "submissionAttempts",
+      a.plagiarism_detection AS "plagiarismDetection",
+      to_char(a.assigned_at, 'YYYY-MM-DD"T"HH24:MI:SSZ') AS "assignedAt",
+      to_char(a.publish_date, 'YYYY-MM-DD"T"HH24:MI:SSZ') AS "publishDate",
+      to_char(a.due_date, 'YYYY-MM-DD"T"HH24:MI:SSZ') AS "dueDate",
+      a.status AS "status",
+      EXISTS (
+        SELECT 1 FROM submissions s
+        WHERE s.assignment_id = a.assignment_id
+        AND s.student_id = $2
+      ) AS "submitted",
+      json_build_object(
+        'problemId', p.problem_id,
+        'instructorId', p.instructor_id,
+        'title', p.title,
+        'description', p.description,
+        'category', p.category,
+        'prerequisites', p.prerequisites,
+        'learning_outcomes', p.learning_outcomes,
+        'tags', p.tags,
+        'created_at', p.created_at,
+        'testCases', (
+           SELECT COALESCE(json_agg(
+             json_build_object(
+               'testCaseId', ptc.test_case_id,
+               'input', ptc.input,
+               'expectedOutput', ptc.expected_output,
+               'isPublic', ptc.is_public
+             )
+           ), '[]'::json)
+           FROM problem_test_cases ptc
+           WHERE ptc.problem_id = p.problem_id
+        )
+      ) AS problem,
+      (
+        SELECT COALESCE(json_agg(
+          json_build_object(
+            'pairId', alp.pair_id,
+            'assignmentId', alp.assignment_id,
+            'languageId', alp.language_id,
+            'initial_code', alp.initial_code,
+            'name', l.name,
+            'version', l.version
+          )
+        ), '[]'::json)
+        FROM assignment_languages_pairs alp
+        JOIN languages l ON alp.language_id = l.language_id
+        WHERE alp.assignment_id = a.assignment_id
+      ) AS languages
+    FROM assignments_with_status a 
+    JOIN problems p ON a.problem_id = p.problem_id
+    WHERE a.classroom_id = $1;
+  `;
+  try {
+    const result = await pool.query(query, [classroomId, studentId]);
+    return result.rows as Assignment[];
+  } catch (error) {
+    console.error("Error fetching assignments:", error);
     throw error;
   }
 }
@@ -347,6 +425,7 @@ export const getAssignments = async (instructorId: number): Promise<Assignment[]
         a.description,
         to_char(a.created_at, 'YYYY-MM-DD"T"HH24:MI:SSZ') AS created_at,
         to_char(a.updated_at, 'YYYY-MM-DD"T"HH24:MI:SSZ') AS updated_at,
+        a.status AS status,
         json_build_object(
           'category', am.category,
           'difficulty_level', am.difficulty_level,
@@ -385,7 +464,7 @@ export const getAssignments = async (instructorId: number): Promise<Assignment[]
           FROM assignment_test_cases atc
           WHERE atc.assignment_id = a.assignment_id
         ) AS test_cases
-      FROM assignments a
+      FROM assignments_with_status a
       LEFT JOIN assignment_metadata am ON a.assignment_id = am.assignment_id
       LEFT JOIN assignment_config ac ON a.assignment_id = ac.assignment_id
       JOIN instructor_assignments ia ON a.assignment_id = ia.assignment_id

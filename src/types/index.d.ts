@@ -61,6 +61,8 @@ export interface ProblemCreationData {
   testCases: TestCase[];
 }
 
+export type AssignmentStatus = 'not_published' | 'active' | 'expired';
+
 export interface Assignment {
   assignmentId: number;
   classroomId: number;
@@ -75,10 +77,12 @@ export interface Assignment {
   assigned_at: Date;
   publish_date?: Date;
   due_date?: Date;
+  status: ASsignmentStatus;
   languages?: AssignmentLanguage[];
   submissions?: number;
   avgScore?: number;
   completed?: boolean;
+  submitted?: boolean;
 }
 
 export interface AssignmentCreationData{

@@ -42,8 +42,14 @@ const StudentAssignment = () => {
       setLoading(true);
       try {
         const raw = await getAssignmentById(parseInt(assignmentId, 10));
-        setAssignment(raw.assignment);
-
+        const transformedAssignment = {
+          ...raw.assignment,
+          dueDate: raw.assignment.due_date,
+          publishDate: raw.assignment.publish_date,
+          due_date: undefined,
+          publish_date: undefined,
+        };
+        setAssignment(transformedAssignment);
         const attempts = await getRemainingAttempts(parseInt(assignmentId, 10));
         setRemainingAttempts(attempts);
       } catch (error) {
@@ -318,21 +324,24 @@ const StudentAssignment = () => {
                     </div>
                   </div>
                 </TabsContent>
-
                 <TabsContent
                   value="prerequisites"
                   className="p-6 flex-1 overflow-y-auto m-0"
                 >
                   <h3 className="text-xl font-semibold mb-4">Prerequisites</h3>
-                  <div className="space-y-4">
-                    <div className="border border-gray-700 rounded-lg p-4 bg-[#0c121f]">
-                      <ul className="list-disc pl-5 space-y-2">
-                        {prereqList.map((prereq, idx) => (
-                          <li key={idx}>{prereq}</li>
-                        ))}
-                      </ul>
+                  {prereqList.length > 0 ? (
+                    <div className="space-y-4">
+                      <div className="border border-gray-700 rounded-lg p-4 bg-[#0c121f]">
+                        <ul className="list-disc pl-5 space-y-2">
+                          {prereqList.map((prereq, idx) => (
+                            <li key={idx}>{prereq}</li>
+                          ))}
+                        </ul>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <p className="text-gray-400 italic">No prerequisites.</p>
+                  )}
                 </TabsContent>
 
                 <TabsContent
@@ -342,21 +351,27 @@ const StudentAssignment = () => {
                   <h3 className="text-xl font-semibold mb-4">
                     Learning Outcomes
                   </h3>
-                  <div className="space-y-4">
-                    <div className="border border-gray-700 rounded-lg p-4 bg-[#0c121f]">
-                      <ul className="list-disc pl-5 space-y-2">
-                        {outcomeList.map((outcome, idx) => (
-                          <li key={idx} className="flex items-start gap-2">
-                            <GraduationCap
-                              size={16}
-                              className="mt-1 flex-shrink-0"
-                            />
-                            <span>{outcome}</span>
-                          </li>
-                        ))}
-                      </ul>
+                  {outcomeList.length > 0 ? (
+                    <div className="space-y-4">
+                      <div className="border border-gray-700 rounded-lg p-4 bg-[#0c121f]">
+                        <ul className="list-disc pl-5 space-y-2">
+                          {outcomeList.map((outcome, idx) => (
+                            <li key={idx} className="flex items-start gap-2">
+                              <GraduationCap
+                                size={16}
+                                className="mt-1 flex-shrink-0"
+                              />
+                              <span>{outcome}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <p className="text-gray-400 italic">
+                      No learning outcomes.
+                    </p>
+                  )}
                 </TabsContent>
               </Tabs>
             </Card>

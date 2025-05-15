@@ -47,6 +47,17 @@ export const getAssignments = async (): Promise<Assignment[]> => {
   }
 };
 
+export const getUpcomingDeadlines = async (hours: number = 24): Promise<Assignment[]> => {
+  try {
+    const response = await apiClient.get(`/assignments/upcoming-deadlines?hours=${hours}`);
+    
+    return response.data.data;
+  } catch (error) {
+    console.error(`Failed to fetch upcoming deadlines within ${hours} hours:`, error);
+    return [];
+  }
+};
+
 export async function getRemainingAttempts(assignmentId: number): Promise<number> {
   const { data } = await apiClient.get<{ data: { remainingAttempts: number } }>(
     `/assignments/${assignmentId}/remaining-attempts`

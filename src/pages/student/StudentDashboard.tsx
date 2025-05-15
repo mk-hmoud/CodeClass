@@ -37,30 +37,7 @@ import CodeEditorBase from "@/components/editors/CodeEditorBase";
 import { Classroom } from "../../types/Classroom";
 import { getClassrooms } from "../../services/ClassroomService";
 import { joinClassroom } from "../../services/ClassroomService";
-
-const upcomingDeadlines = [
-  {
-    id: "p1",
-    title: "Binary Search Tree Implementation",
-    course: "Advanced Algorithms",
-    dueDate: "2023-06-10",
-    status: "Not Started",
-  },
-  {
-    id: "p2",
-    title: "Responsive Layout Challenge",
-    course: "Web Development",
-    dueDate: "2023-06-12",
-    status: "In Progress",
-  },
-  {
-    id: "p3",
-    title: "Dynamic Programming assignment",
-    course: "Advanced Algorithms",
-    dueDate: "2023-06-15",
-    status: "Not Started",
-  },
-];
+import { getUpcomingDeadlines } from "../../services/AssignmentService";
 
 const lastOpenedAssignment = {
   id: "a1",
@@ -72,9 +49,11 @@ const lastOpenedAssignment = {
 
 const StudentDashboard = () => {
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
+  const [upcomingDeadlines, setUpcomingDeadlines] = useState<any[]>([]);
   const [classCode, setClassCode] = useState("");
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [deadlinesLoading, setDeadlinesLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const navigate = useNavigate();
 
@@ -91,7 +70,22 @@ const StudentDashboard = () => {
         setLoading(false);
       }
     };
+
+    const fetchUpcomingDeadlines = async () => {
+      try {
+        setDeadlinesLoading(true);
+        const deadlines = await getUpcomingDeadlines(24);
+        setUpcomingDeadlines(deadlines);
+      } catch (error) {
+        toast.error("Failed to load upcoming deadlines");
+        console.error("Error fetching deadlines:", error);
+      } finally {
+        setDeadlinesLoading(false);
+      }
+    };
+
     fetchClassrooms();
+    fetchUpcomingDeadlines();
   }, []);
 
   const uncompletedAssignments = classrooms.reduce((total, classroom) => {
@@ -100,10 +94,6 @@ const StudentDashboard = () => {
     );
     return total + (classroom.assignments_num - completedCount);
   }, 0);
-
-  const sortedDeadlines = [...upcomingDeadlines].sort(
-    (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
-  );
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -114,8 +104,8 @@ const StudentDashboard = () => {
 
     let badgeVariant: "default" | "destructive" | "outline" | "secondary" =
       "default";
-    if (diffDays <= 3) badgeVariant = "destructive";
-    else if (diffDays <= 7) badgeVariant = "secondary";
+    if (diffDays <= 0) badgeVariant = "destructive";
+    else if (diffDays <= 1) badgeVariant = "secondary";
 
     return {
       formatted: new Intl.DateTimeFormat("en-US", {
@@ -162,6 +152,10 @@ const StudentDashboard = () => {
     if (lastOpenedAssignment) {
       navigate(`/code-editor/${lastOpenedAssignment.id}`);
     }
+  };
+
+  const handleAssignmentClick = (assignmentId) => {
+    navigate(`/`);
   };
 
   return (
@@ -227,7 +221,9 @@ const StudentDashboard = () => {
             </div>
             <div>
               <p className="text-gray-400 text-sm">Upcoming Deadlines</p>
-              <p className="text-xl font-semibold">{sortedDeadlines.length}</p>
+              <p className="text-xl font-semibold">
+                {upcomingDeadlines.length}
+              </p>
             </div>
           </div>
         </div>
@@ -266,24 +262,33 @@ const StudentDashboard = () => {
         <div className="bg-[#0d1224] border border-gray-800 rounded-lg p-6 mb-8 shadow-lg">
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
             <Clock size={20} className="text-amber-400" />
-            Approaching Deadlines
+            Approaching Deadlines (24h)
           </h2>
 
-          {sortedDeadlines.length > 0 ? (
+          {deadlinesLoading ? (
+            <div className="flex justify-center py-8">
+              <div className="animate-pulse text-gray-400">
+                Loading deadlines...
+              </div>
+            </div>
+          ) : upcomingDeadlines.length > 0 ? (
             <div className="space-y-4">
-              {sortedDeadlines.map((deadline) => {
+              {upcomingDeadlines.map((deadline) => {
                 const date = formatDate(deadline.dueDate);
 
                 return (
                   <div
                     key={deadline.id}
-                    className="bg-[#0c121f] border border-gray-700 rounded-lg p-4 hover:border-blue-500 transition-colors"
+                    className="bg-[#0c121f] border border-gray-700 rounded-lg p-4 hover:border-blue-500 transition-colors cursor-pointer"
+                    onClick={() => handleAssignmentClick(deadline.id)}
                   >
                     <div className="flex justify-between items-start mb-1">
                       <h3 className="font-medium">{deadline.title}</h3>
                       <Badge variant={date.badgeVariant} className="ml-2">
                         {date.daysLeft <= 0
                           ? "Due today"
+                          : date.daysLeft < 1
+                          ? "Due in hours"
                           : `${date.daysLeft} days left`}
                       </Badge>
                     </div>
@@ -308,7 +313,7 @@ const StudentDashboard = () => {
           ) : (
             <div className="text-center py-8 text-gray-400">
               <Calendar className="mx-auto mb-2 opacity-40" />
-              <p>No upcoming deadlines</p>
+              <p>No upcoming deadlines in the next 24 hours</p>
             </div>
           )}
         </div>
@@ -361,6 +366,7 @@ const StudentDashboard = () => {
                 >
                   View Classroom
                 </Button>
+                {/*
                 <Button
                   variant="outline"
                   size="icon"
@@ -372,6 +378,7 @@ const StudentDashboard = () => {
                 >
                   <BarChart size={16} />
                 </Button>
+                */}
               </CardFooter>
             </Card>
           ))}
@@ -382,7 +389,3 @@ const StudentDashboard = () => {
 };
 
 export default StudentDashboard;
-
-function setLoading(arg0: boolean) {
-  throw new Error("Function not implemented.");
-}

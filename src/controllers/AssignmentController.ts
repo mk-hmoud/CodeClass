@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { createAssignment, getAssignments, getAssignmentById, deleteAssignment, getRemainingAttempts, getAssignmentForStudent } from '../models/AssignmentModel';
+import { createAssignment, getAssignments, getAssignmentById, deleteAssignment, getRemainingAttempts, getAssignmentForStudent, getUpcomingDeadlines } from '../models/AssignmentModel';
 import { getInstructorByUserId } from '../models/InstructorModel';
 import { getSubmissionsByAssignment } from '../models/SubmissionModel';
 
@@ -158,5 +158,28 @@ export const getRemainingAttemptsController = async (
         res.status(500).json({ success: false, message: "Could not fetch remaining attempts" });
         logMessage(fn, 'Sent 500 response.');
      }
+  }
+};
+
+export const getUpcomingDeadlinesController = async (req: Request, res: Response): Promise<void> => {
+  const functionName = 'getUpcomingDeadlinesController';
+  try {
+    logMessage(functionName, 'Received request to get upcoming deadlines.');
+    
+    const hours = req.query.hours ? parseInt(req.query.hours as string) : 24;
+    
+    if (!req.user?.id) {
+      logMessage(functionName, 'User not authenticated');
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    const assignments = await getUpcomingDeadlines(req.user.id, hours);
+    
+    logMessage(functionName, `Found ${assignments.length} upcoming assignments within ${hours} hours`);
+    res.status(200).json({ success: true, data: assignments });
+  } catch (error) {
+    logMessage(functionName, `Error fetching upcoming deadlines: ${error}`);
+    res.status(500).json({ success: false, message: 'Failed to fetch upcoming deadlines' });
   }
 };

@@ -20,6 +20,7 @@ export interface Assignment {
   avgScore?: number;
   completed?: boolean;
   status?: "active" | "expired";
+  submitted?: boolean;
 }
 
 

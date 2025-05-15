@@ -90,16 +90,19 @@ const StudentAssignment = () => {
   const outcomeList = splitList(p.learning_outcomes, ";");
 
   // format date for display
-  const formatDate = (date) => {
+  function formatDate(dateInput: string | number | undefined): string {
+    if (dateInput == null) return "N/A";
+    const d = new Date(dateInput);
+    if (Number.isNaN(d.getTime())) return "N/A";
+
     return new Intl.DateTimeFormat("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-    }).format(date);
-  };
-
+    }).format(d);
+  }
   const handleStartCoding = () => {
     navigate(
       `/student/classrooms/${classroomId}/assignments/${assignmentId}/solve`,
@@ -291,18 +294,6 @@ const StudentAssignment = () => {
                     >
                       Learning Outcomes
                     </TabsTrigger>
-                    <TabsTrigger
-                      value="hints"
-                      className="data-[state=active]:bg-[#123651]"
-                    >
-                      Hints
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="discussion"
-                      className="data-[state=active]:bg-[#123651]"
-                    >
-                      Discussion
-                    </TabsTrigger>
                   </TabsList>
                 </div>
 
@@ -367,57 +358,9 @@ const StudentAssignment = () => {
                     </div>
                   </div>
                 </TabsContent>
-
-                <TabsContent
-                  value="hints"
-                  className="p-6 flex-1 overflow-y-auto m-0"
-                >
-                  <h3 className="text-xl font-semibold mb-4">Hints</h3>
-                  {/*
-                  <div className="space-y-4">
-                    {assignment?.problem?.hints?.map((hint, idx) => (
-                      <div
-                        key={idx}
-                        className="border border-gray-700 rounded-lg p-4 bg-[#0c121f]"
-                      >
-                        <h4 className="font-medium mb-2">Hint {idx + 1}:</h4>
-                        <p>{hint}</p>
-                      </div>
-                    ))}
-                  </div>
-                  */}
-                  <p>No hints</p>
-                </TabsContent>
-
-                <TabsContent
-                  value="discussion"
-                  className="p-6 flex-1 overflow-y-auto m-0"
-                >
-                  <h3 className="text-xl font-semibold mb-4">Discussion</h3>
-                  <div className="bg-[#0c121f] border border-gray-700 rounded-lg p-4 mb-4">
-                    <p className="text-gray-400 mb-2">
-                      No discussions yet for this problem.
-                    </p>
-                    <Button variant="outline" className="gap-2">
-                      <MessageSquare size={16} />
-                      Start a Discussion
-                    </Button>
-                  </div>
-                </TabsContent>
               </Tabs>
             </Card>
           </div>
-        </div>
-
-        <div className="mt-6 flex justify-between">
-          <Button variant="outline" className="gap-2">
-            <ArrowLeft size={16} />
-            Previous Problem
-          </Button>
-          <Button variant="outline" className="gap-2">
-            Next Problem
-            <ArrowRight size={16} />
-          </Button>
         </div>
       </div>
     </div>

@@ -100,6 +100,18 @@ const CodeEditorPage = () => {
     }
   }, [assignmentId, supportedLanguages]);
 
+  useEffect(() => {
+    if (!assignmentId) return;
+    (async () => {
+      try {
+        const attempts = await getRemainingAttempts(Number(assignmentId));
+        setRemainingAttempts(attempts);
+      } catch (err) {
+        console.error("Error fetching remaining attempts:", err);
+      }
+    })();
+  }, [assignmentId]);
+
   const handleSaveCode = () => {
     try {
       const success = saveCodeDraft(

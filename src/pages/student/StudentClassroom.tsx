@@ -38,7 +38,7 @@ const StudentClassroom: React.FC = () => {
   const totalAssignments = useParams();
 
   const getButtonClass = (assignment: Assignment): string => {
-    if (assignment.completed) {
+    if (assignment.submitted) {
       return "bg-green-500/20 text-green-400 hover:bg-green-500/30";
     }
     const isActive = assignment.dueDate
@@ -51,7 +51,7 @@ const StudentClassroom: React.FC = () => {
   };
 
   const getCardBorderClass = (assignment: Assignment): string => {
-    if (assignment.completed) {
+    if (assignment.submitted) {
       return "border-green-500/50";
     }
     const isActive = assignment.dueDate
@@ -64,7 +64,7 @@ const StudentClassroom: React.FC = () => {
   };
 
   const getStatusBadge = (assignment: Assignment) => {
-    if (assignment.completed) {
+    if (assignment.submitted) {
       return (
         <Badge className="bg-green-900/40 text-green-400 border border-green-700">
           Completed
@@ -183,7 +183,7 @@ const StudentClassroom: React.FC = () => {
   };
 
   const getButtonContent = (assignment: Assignment) => {
-    if (assignment.completed) {
+    if (assignment.submitted) {
       return (
         <>
           <FileText size={16} className="mr-2" />
@@ -358,7 +358,7 @@ const StudentClassroom: React.FC = () => {
                       const isExpired =
                         assignment.dueDate &&
                         getDaysRemaining(assignment.dueDate.toString()) <= 0 &&
-                        !assignment.completed;
+                        !assignment.submitted;
 
                       return (
                         <Card
@@ -373,7 +373,7 @@ const StudentClassroom: React.FC = () => {
                             }`}
                           >
                             <CardTitle className="text-white flex items-center gap-2">
-                              {assignment.completed ? (
+                              {assignment.submitted ? (
                                 <CheckCircle
                                   className="text-green-500"
                                   size={16}
@@ -422,7 +422,7 @@ const StudentClassroom: React.FC = () => {
                               </div>
                             </div>
 
-                            {assignment.completed && (
+                            {assignment.submitted && (
                               <div className="bg-green-900/20 border border-green-700 rounded-md p-3 mb-3">
                                 <div className="flex justify-between items-center">
                                   <span className="text-sm text-green-400">
@@ -463,7 +463,7 @@ const StudentClassroom: React.FC = () => {
                               </div>
                             )}
 
-                            {!assignment.completed &&
+                            {!assignment.submitted &&
                               !isExpired &&
                               assignment.dueDate && (
                                 <div className="flex items-center gap-2 text-sm text-gray-400 mb-3">
@@ -493,7 +493,7 @@ const StudentClassroom: React.FC = () => {
                                 assignment
                               )}`}
                               variant={
-                                assignment.completed || isExpired
+                                assignment.submitted || isExpired
                                   ? "outline"
                                   : "default"
                               }

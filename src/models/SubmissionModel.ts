@@ -74,7 +74,7 @@ export const createSubmission = async ({
 
         const insertRes = await pool.query<{ submission_id: number }>( 
           `INSERT INTO submissions
-             (student_id, assignment_id, language_id, code, status) -- Added 'status' column assuming it exists
+             (student_id, assignment_id, language_id, code, status)
            VALUES ($1,$2,$3,$4, $5)
            RETURNING submission_id`,
           [studentId, assignmentId, languageId, code, 'queued']

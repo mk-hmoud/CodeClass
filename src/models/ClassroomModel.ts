@@ -199,36 +199,79 @@ export const getInstructorClassrooms = async (
 export const getStudentClassrooms = async (
   studentId: number
 ): Promise<Classroom[]> => {
-  const functionName = "getStudentClassrooms";
+  const fn = "getStudentClassrooms";
   try {
-    logMessage(functionName, `Fetching student classrooms for studentId ${studentId}.`);
+    logMessage(fn, `Fetching student classrooms for studentId ${studentId}.`);
+
     const query = `
       SELECT 
-        c.classroom_id AS id,
-        c.classroom_name AS name,
-        c.classroom_code AS code,
+        c.classroom_id                    AS id,
+        c.classroom_name                  AS name,
+        c.classroom_code                  AS code,
         (u.first_name || ' ' || COALESCE(u.last_name, '')) AS instructor,
-        COALESCE(a.assignment_count, 0) AS assignments
+
+        COALESCE(a.assignment_count, 0)            AS "totalAssignments",
+        COALESCE(sa.submitted_assignment_count, 0) AS "completedAssignments",
+        COALESCE(a.assignment_count, 0)
+          - COALESCE(sa.submitted_assignment_count, 0) AS "uncompletedAssignments",
+
+        CASE 
+          WHEN COALESCE(a.assignment_count, 0) = 0 THEN 0
+          ELSE ROUND(
+            COALESCE(sa.submitted_assignment_count, 0)::numeric
+            * 100
+            / a.assignment_count
+          ) 
+        END AS "completion"
+
       FROM classrooms c
-      JOIN classroom_enrollments ce ON c.classroom_id = ce.classroom_id
-      JOIN instructors i ON c.instructor_id = i.instructor_id
-      JOIN users u ON i.user_id = u.user_id
+      JOIN classroom_enrollments ce 
+        ON c.classroom_id = ce.classroom_id
+      JOIN instructors i 
+        ON c.instructor_id = i.instructor_id
+      JOIN users u 
+        ON i.user_id = u.user_id
+
       LEFT JOIN (
-        SELECT classroom_id, COUNT(*) AS assignment_count
+        SELECT 
+          classroom_id, 
+          COUNT(*) AS assignment_count
         FROM assignments
         GROUP BY classroom_id
-      ) a ON c.classroom_id = a.classroom_id
+      ) a 
+        ON c.classroom_id = a.classroom_id
+
+      LEFT JOIN (
+        SELECT 
+          a.classroom_id,
+          COUNT(DISTINCT a.assignment_id) AS submitted_assignment_count
+        FROM assignments a
+        JOIN submissions s 
+          ON a.assignment_id = s.assignment_id
+         AND s.student_id = $1
+        GROUP BY a.classroom_id
+      ) sa 
+        ON c.classroom_id = sa.classroom_id
+
       WHERE ce.student_id = $1
-      GROUP BY c.classroom_id, u.first_name, u.last_name, c.classroom_code, c.classroom_name, a.assignment_count;
+
+      ORDER BY c.classroom_name;
     `;
+
     const result = await pool.query(query, [studentId]);
-    logMessage(functionName, `Fetched ${result.rows.length} student classrooms.`);
-    return result.rows as Classroom[];
+    logMessage(fn, `Fetched ${result.rows.length} student classrooms.`);
+
+    return result.rows as unknown as Classroom[];
   } catch (error) {
-    logMessage(functionName, `Failed to fetch student classrooms for studentId ${studentId}: ${error}`);
+    logMessage(
+      fn,
+      `Failed to fetch student classrooms for studentId ${studentId}: ${error}`
+    );
     return [];
   }
 };
+
+
 
 
 export const joinClassroom = async (studentId: number, code: string): Promise<void> => {

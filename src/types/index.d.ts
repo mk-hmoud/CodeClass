@@ -27,6 +27,9 @@ export interface Classroom {
   status?: 'active' | 'archived';
   students?: ClassroomStudent[];
   assignments?: Assignment[];
+  totalAssignments?: number;
+  completedAssignments?:   number;
+  uncompletedAssignments?: number;
   announcements?: Announcement[];
   discussions?: Discussion[];
   active?: boolean;

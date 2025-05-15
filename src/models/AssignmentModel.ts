@@ -480,63 +480,76 @@ export async function getSubmissionAttemptCount(
   }
 }
 
-export const getUpcomingDeadlines = async (userId: number, hours: number = 24): Promise<any[]> => {
+export const getUpcomingDeadlines = async (
+  studentId: number,
+  hours: number = 24
+): Promise<any[]> => {
   const fn = "getUpcomingDeadlines";
   try {
-    logMessage(fn, `Getting assignments with deadlines within ${hours} hours for user ${userId}`);
-    
-    const currentDate = new Date();
-    
-    const deadlineThreshold = new Date();
-    deadlineThreshold.setHours(deadlineThreshold.getHours() + hours);
-    
+    logMessage(fn, `Getting assignments with deadlines within ${hours}h for student ${studentId}`);
+
+    const now = new Date();
+    const threshold = new Date(now);
+    threshold.setHours(threshold.getHours() + hours);
+
     const query = `
-      SELECT a.assignment_id, a.title, a.description, a.due_date, a.points,
-             a.difficulty_level, a.max_submissions, c.name as course,
-             p.submission_count
+      SELECT
+        a.assignment_id,
+        a.title,
+        a.due_date,
+        a.points,
+        a.difficulty_level,
+        a.max_submissions,
+        c.classroom_name   AS course,
+        COALESCE(p.submission_count, 0) AS submission_count
       FROM assignments a
-      JOIN classrooms c ON a.classroom_id = c.classroom_id
-      JOIN student_classroom_relationships scr ON c.classroom_id = scr.classroom_id
+      JOIN classrooms c
+        ON a.classroom_id = c.classroom_id
+      JOIN classroom_enrollments ce
+        ON c.classroom_id = ce.classroom_id
       LEFT JOIN (
-          SELECT assignment_id, COUNT(*) as submission_count
-          FROM submissions
-          WHERE user_id = $1
-          GROUP BY assignment_id
-      ) p ON a.assignment_id = p.assignment_id
-      WHERE scr.student_id = $1
-      AND a.due_date > $2
-      AND a.due_date <= $3
+        SELECT
+          assignment_id,
+          COUNT(*) AS submission_count
+        FROM submissions
+        WHERE student_id = $1
+        GROUP BY assignment_id
+      ) p
+        ON a.assignment_id = p.assignment_id
+      WHERE
+        ce.student_id = $1
+        AND a.due_date > $2
+        AND a.due_date <= $3
       ORDER BY a.due_date ASC
     `;
-    
-    const result = await pool.query(query, [userId, currentDate, deadlineThreshold]);
-    
-    const assignments = result.rows.map(row => {
+
+    const result = await pool.query(query, [
+      studentId,
+      now,
+      threshold,
+    ]);
+
+    const upcoming = result.rows.map((row) => {
       let status = "Not Started";
-      
-      if (row.submission_count) {
-        if (row.max_submissions && row.submission_count >= row.max_submissions) {
-          status = "Completed";
-        } else {
-          status = "In Progress";
-        }
+      const count = Number(row.submission_count);
+      if (count > 0) {
+        status = count >= row.max_submissions ? "Completed" : "In Progress";
       }
-      
       return {
-        id: row.assignment_id,
-        title: row.title,
-        course: row.course,
-        dueDate: row.due_date,
+        id:         row.assignment_id,
+        title:      row.title,
+        course:     row.course,
+        dueDate:    row.due_date,
         status,
-        points: row.points,
-        difficulty: row.difficulty_level
+        points:     row.points,
+        difficulty: row.difficulty_level,
       };
     });
-    
-    logMessage(fn, `Found ${assignments.length} upcoming assignments`);
-    return assignments;
-  } catch (error) {
-    logMessage(fn, `Error getting upcoming deadlines: ${error instanceof Error ? error.message : String(error)}`);
-    throw error;
+
+    logMessage(fn, `Found ${upcoming.length} upcoming assignments`);
+    return upcoming;
+  } catch (err: any) {
+    logMessage(fn, `Error getting upcoming deadlines: ${err.message || err}`);
+    throw err;
   }
 };

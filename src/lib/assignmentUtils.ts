@@ -1,5 +1,13 @@
 import { z } from "zod";
 
+export const LANGUAGE_LABELS: Record<string, string> = {
+  cpp: "C++",
+  c: "C",
+  python: "Python",
+  javascript: "Javascript",
+  typescript: "Typescript",
+};
+
 export const languageDefaultCode: Record<string, string> = {
   python: `# Your code here\n\ndef solution():\n    # Implement your solution here\n    pass\n\n# Test your solution\nprint(solution())`,
   javascript: `// Your code here\n\nfunction solution() {\n    // Implement your solution here\n    return null;\n}\n\n// Test your solution\nconsole.log(solution());`,

@@ -8,7 +8,6 @@ import {
   ArrowLeft,
   Clock,
   Check,
-  ArrowRight,
   MessageSquare,
   BookOpen,
   Calendar,
@@ -24,9 +23,7 @@ import {
 } from "@/services/AssignmentService";
 import { toast } from "sonner";
 import { Assignment } from "@/types/Assignment";
-import { Problem } from "@/types/Problem";
-import { AssignmentLanguage } from "@/types/Language";
-import { TestCase } from "@/types/TestCase";
+import { LANGUAGE_LABELS } from "@/lib/assignmentUtils";
 
 const StudentAssignment = () => {
   const { classroomId, assignmentId } = useParams();
@@ -204,41 +201,48 @@ const StudentAssignment = () => {
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-2">
-                    <h3 className="text-sm font-semibold text-gray-400">
-                      Tags
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {tagList.map((tag, idx) => (
-                        <Badge
-                          key={idx}
-                          variant="outline"
-                          className="bg-purple-900/30 text-purple-400 border-purple-700"
-                        >
-                          <Tag size={12} className="mr-1" />
-                          {tag}
-                        </Badge>
-                      ))}
+                  {tagList.length > 0 && (
+                    <div className="flex flex-col gap-2">
+                      <h3 className="text-sm font-semibold text-gray-400">
+                        Tags
+                      </h3>
+                      <div className="flex flex-wrap gap-2">
+                        {tagList.map((tag, idx) => (
+                          <Badge
+                            key={idx}
+                            variant="outline"
+                            className="bg-purple-900/30 text-purple-400 border-purple-700"
+                          >
+                            <Tag size={12} className="mr-1" />
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className="flex flex-col gap-2">
                     <h3 className="text-sm font-semibold text-gray-400">
                       Languages Allowed
                     </h3>
                     <div className="flex flex-wrap gap-2">
-                      {assignment?.languages?.map((alang, idx) => (
-                        <Badge
-                          key={idx}
-                          variant="outline"
-                          className="bg-green-900/30 text-green-400 border-green-700"
-                        >
-                          <Code size={12} className="mr-1" />
-                          {alang.language.name}
-                          {alang.language.version &&
-                            ` ${alang.language.version}`}
-                        </Badge>
-                      ))}
+                      {assignment.languages.map((alang, idx) => {
+                        const raw = alang.language.name.toLowerCase();
+                        const label =
+                          LANGUAGE_LABELS[raw] ?? alang.language.name;
+                        return (
+                          <Badge
+                            key={idx}
+                            variant="outline"
+                            className="bg-green-900/30 text-green-400 border-green-700"
+                          >
+                            <Code size={12} className="mr-1" />
+                            {label}
+                            {alang.language.version &&
+                              ` ${alang.language.version}`}
+                          </Badge>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -308,17 +312,16 @@ const StudentAssignment = () => {
                   className="p-6 flex-1 overflow-y-auto m-0"
                 >
                   <div>
-                    <p>{assignment?.description}</p>
                     <strong>You will be solving the following problem</strong>
                   </div>
                   <div className="space-y-4 mt-5">
                     <div>
-                      <h3 className="text-xl font-semibold mb-4">Title</h3>
-                      <p>{assignment?.problem?.description}</p>
+                      <h3 className="text-xl font-semibold mb-4">Title:</h3>
+                      <p>{assignment?.problem?.title}</p>
                     </div>
                     <div>
                       <h3 className="text-xl font-semibold mb-4">
-                        Description
+                        Description:
                       </h3>
                       <p>{assignment?.problem?.description}</p>
                     </div>

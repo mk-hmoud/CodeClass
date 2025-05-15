@@ -35,7 +35,9 @@ export const calculateGrade = async (
         logMessage(fn, `Assignment ${assignmentId} not found!`);
         throw new Error(`Assignment ${assignmentId} not found`);
       }
-      logMessage(fn, `Assignment ${assignmentId} found (grading_method=${assignment.grading_method}, points=${assignment.points})`);
+      
+      const maxPoints = assignment.points || 100;
+      logMessage(fn, `Assignment ${assignmentId} found (grading_method=${assignment.grading_method}, points=${maxPoints})`);
   
       // weights
       const weights = {
@@ -100,10 +102,13 @@ export const calculateGrade = async (
       const weightedPerformanceScore = performanceScore * weights.performance;
       logMessage(fn, `Weighted performance = ${performanceScore} * ${weights.performance} = ${weightedPerformanceScore.toFixed(2)}`);
   
-      let finalScore = weightedTestScore + weightedPerformanceScore;
-      finalScore = Math.max(0, Math.min(100, finalScore));
-      finalScore = Math.round(finalScore * 100) / 100;
-      logMessage(fn, `Combined finalScore (clamped, rounded) = ${finalScore}`);
+      let percentageScore = weightedTestScore + weightedPerformanceScore;
+      percentageScore = Math.max(0, Math.min(100, percentageScore));
+      
+      let finalScore = (percentageScore / 100) * maxPoints;
+      finalScore = Math.round(finalScore * 100) / 100; 
+      
+      logMessage(fn, `Calculated ${percentageScore}% of ${maxPoints} points = ${finalScore}`);
   
       let gradingStatus: 'system graded' | 'graded' | 'pending' = 'pending';
       if (assignment.grading_method === 'Automatic') gradingStatus = 'graded';
@@ -187,5 +192,108 @@ async function updateSubmissionScore(
   } catch (error) {
     logMessage('updateSubmissionScore', `Error updating submission score: ${error}`);
     throw error;
+  }
+}
+
+interface UpdateManualGradeParams {
+  submissionId: number;
+  manualScore: number;
+  feedback?: string | null;
+}
+
+export async function updateManualGrade({
+  submissionId,
+  manualScore,
+  feedback,
+}: UpdateManualGradeParams) {
+  const fn = "updateManualGrade";
+  const log = (message: string) => logMessage(fn, message);
+  
+  log(`Starting update for submission ${submissionId}`);
+  log(`Params: manualScore=${manualScore}, feedback=${feedback?.substring(0, 50)}`);
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const subRes = await client.query(`
+      SELECT 
+        s.submission_id, 
+        s.assignment_id, 
+        s.auto_score, 
+        a.grading_method, 
+        a.points
+      FROM submissions s
+      JOIN assignments a ON s.assignment_id = a.assignment_id
+      WHERE s.submission_id = $1
+      FOR UPDATE
+    `, [submissionId]);
+
+    if (subRes.rowCount === 0) {
+      throw new Error(`Submission ${submissionId} not found`);
+    }
+
+    const row = subRes.rows[0];
+    const assignment_id = row.assignment_id;
+    const grading_method = row.grading_method;
+    const maxPoints = row.points || 100;
+    
+    const auto_score = row.auto_score !== null ? parseFloat(row.auto_score) : null;
+    
+    log(`Found submission with assignment ${assignment_id} (grading method: ${grading_method}, max points: ${maxPoints})`);
+    log(`Auto score: ${auto_score}, Manual score: ${manualScore}`);
+
+    if (manualScore < 0 || manualScore > maxPoints) {
+      throw new Error(`Manual score must be between 0 and ${maxPoints}`);
+    }
+
+    if (!['Hybrid', 'Manual'].includes(grading_method)) {
+      throw new Error(`Manual grading not allowed for ${grading_method} assignments`);
+    }
+
+    let finalScore: number;
+    switch (grading_method) {
+      case 'Hybrid':
+        if (auto_score === null) {
+          throw new Error("Cannot grade Hybrid submission without system score");
+        }
+        
+        log(`Hybrid grading: auto_score=${auto_score}, manualScore=${manualScore}`);
+        finalScore = (auto_score + manualScore) / 2;
+        finalScore = Number(finalScore.toFixed(2)); 
+        log(`Final score calculation: (${auto_score} + ${manualScore}) / 2 = ${finalScore}`);
+        break;
+      
+      case 'Manual':
+        finalScore = Number(manualScore.toFixed(2));
+        log(`Manual grading: manualScore=${manualScore}, finalScore=${finalScore}`);
+        break;
+
+      default:
+        throw new Error(`Unhandled grading method: ${grading_method}`);
+    }
+
+    log(`Calculated final score: ${finalScore}`);
+
+    const updRes = await client.query(`
+      UPDATE submissions
+      SET manual_score = $1,
+          final_score = $2,
+          feedback = $3,
+          grading_status = 'graded'
+      WHERE submission_id = $4
+      RETURNING submission_id, final_score, feedback, grading_status
+    `, [manualScore, finalScore, feedback, submissionId]);
+
+    await client.query('COMMIT');
+    log(`Successfully updated submission ${submissionId}`);
+
+    return updRes.rows[0];
+  } catch (error) {
+    await client.query('ROLLBACK');
+    log(`Error updating grade: ${error}`);
+    throw error;
+  } finally {
+    client.release();
   }
 }

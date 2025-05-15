@@ -228,16 +228,33 @@ export async function getSubmissionsByAssignment(
     }
     
     const { rows: subs } = await client.query(
-      `SELECT
-        submission_id, student_id, assignment_id,
-        language_id, code, submitted_at,
-        passed_tests, total_tests, grading_status,
-        auto_score, manual_score, final_score, status
-      FROM submissions
-      WHERE assignment_id = $1
-      ORDER BY submitted_at DESC`,
+      `
+      SELECT
+        s.submission_id,
+        s.student_id,
+        s.assignment_id,
+        s.language_id,
+        s.code,
+        s.submitted_at,
+        s.passed_tests,
+        s.total_tests,
+        s.grading_status,
+        s.auto_score,
+        s.manual_score,
+        s.final_score,
+        s.status,
+        s.feedback,
+        u.first_name  AS "firstName",
+        u.last_name   AS "lastName"
+      FROM submissions s
+      JOIN students st ON s.student_id = st.student_id
+      JOIN users    u  ON st.user_id    = u.user_id
+      WHERE s.assignment_id = $1
+      ORDER BY s.submitted_at DESC
+      `,
       [assignmentId]
     );
+
     const submissionIds = subs.map(r => r.submission_id);
     if (submissionIds.length === 0) return [];
     
@@ -347,6 +364,7 @@ export async function getSubmissionsByAssignment(
     return subs.map(row => ({
       submissionId: row.submission_id,
       studentId: row.student_id,
+      studentName: `${row.firstName} ${row.lastName}`,
       assignmentId: row.assignment_id,
       languageId: row.language_id,
       code: row.code,

@@ -178,6 +178,7 @@ export interface PlagiarismReport {
 export interface FullSubmission {
   submissionId: number;
   studentId: number;
+  studentName: string;
   assignmentId: number;
   languageId: number;
   code: string;

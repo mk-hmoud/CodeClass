@@ -153,6 +153,7 @@ CREATE TABLE submissions (
   auto_score NUMERIC(5,2), -- system score
   manual_score NUMERIC(5,2), -- instructor score
   final_score NUMERIC(5,2),
+  feedback TEXT,
   status          VARCHAR(20) NOT NULL
     CHECK (status IN ('queued','running','completed','error'))
     DEFAULT 'queued'

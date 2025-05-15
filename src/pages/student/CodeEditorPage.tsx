@@ -8,6 +8,7 @@ import {
   Copy,
   CheckCircle,
   XCircle,
+  Save,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,11 @@ import {
 } from "@/services/JudgeService";
 import { getRemainingAttempts } from "@/services/AssignmentService";
 import { Progress } from "@radix-ui/react-progress";
+import {
+  getCodeDraft,
+  removeCodeDraft,
+  saveCodeDraft,
+} from "@/utils/CodeDraftManager";
 
 const POLL_INTERVAL = 1000;
 
@@ -78,17 +84,42 @@ const CodeEditorPage = () => {
   const [remainingAttempts, setRemainingAttempts] = useState(0);
 
   useEffect(() => {
-    const fetchAttempts = async () => {
-      if (!assignmentId) return;
-      const attempts = await getRemainingAttempts(+assignmentId);
-      if (attempts === null) {
-        setRemainingAttempts(Infinity);
-      } else {
-        setRemainingAttempts(attempts);
+    if (assignmentId) {
+      const savedDraft = getCodeDraft(assignmentId);
+      if (savedDraft) {
+        const langIndex = supportedLanguages.findIndex(
+          (lang) => lang === savedDraft.language
+        );
+        if (langIndex !== -1) {
+          setSelectedLanguage(savedDraft.language);
+          setCode(savedDraft.code);
+          setActiveTabIndex(langIndex);
+          toast.info("Loaded your previously saved draft");
+        }
       }
-    };
-    fetchAttempts();
-  }, [assignmentId]);
+    }
+  }, [assignmentId, supportedLanguages]);
+
+  const handleSaveCode = () => {
+    try {
+      const success = saveCodeDraft(
+        assignmentId,
+        code,
+        selectedLanguage,
+        assignment.due_date ? new Date(assignment.due_date) : null,
+        assignment.title
+      );
+
+      if (success) {
+        toast.success("Code saved successfully");
+      } else {
+        toast.error("Failed to save code");
+      }
+    } catch (error) {
+      toast.error("Failed to save code");
+      console.error("Save error:", error);
+    }
+  };
 
   const handleRunCode = async (src: string) => {
     setIsRunning(true);
@@ -187,7 +218,7 @@ const CodeEditorPage = () => {
         statusData.metrics
       ) {
         setSubmitVerdict(statusData);
-
+        removeCodeDraft(assignmentId);
         const privatePassed = statusData.metrics.privatePassedTests || 0;
         const privateTotal = statusData.metrics.privateTestsTotal || 0;
 
@@ -480,16 +511,28 @@ const CodeEditorPage = () => {
 
   return (
     <div className="h-screen flex flex-col bg-background">
-      <div className="flex items-center px-4 py-2 border-b">
+      <div className="flex items-center justify-between px-4 py-2 border-b">
+        <div className="flex items-center">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={goBackToAssignment}
+            className="mr-2"
+          >
+            <ArrowLeft size={20} />
+          </Button>
+
+          <h1 className="text-xl font-semibold">{assignment.title}</h1>
+        </div>
+
         <Button
-          variant="ghost"
-          size="icon"
-          onClick={goBackToAssignment}
-          className="mr-2"
+          variant="outline"
+          onClick={handleSaveCode}
+          className="flex items-center gap-1"
         >
-          <ArrowLeft size={20} />
+          <Save size={16} />
+          Save
         </Button>
-        <h1 className="text-xl font-semibold">{assignment.title}</h1>
       </div>
 
       <div className="flex-1 overflow-hidden">

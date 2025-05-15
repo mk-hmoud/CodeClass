@@ -38,14 +38,7 @@ import { Classroom } from "../../types/Classroom";
 import { getClassrooms } from "../../services/ClassroomService";
 import { joinClassroom } from "../../services/ClassroomService";
 import { getUpcomingDeadlines } from "../../services/AssignmentService";
-
-const lastOpenedAssignment = {
-  id: "a1",
-  title: "Binary Search Tree Implementation",
-  course: "Advanced Algorithms",
-  code: "function insertNode(root, value) {\n  if (root === null) {\n    return { value, left: null, right: null };\n  }\n\n  if (value < root.value) {\n    root.left = insertNode(root.left, value);\n  } else if (value > root.value) {\n    root.right = insertNode(root.right, value);\n  }\n\n  return root;\n}",
-  language: "javascript",
-};
+import { getAllCodeDrafts } from "@/utils/CodeDraftManager";
 
 const StudentDashboard = () => {
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
@@ -55,6 +48,7 @@ const StudentDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [deadlinesLoading, setDeadlinesLoading] = useState(true);
   const [joining, setJoining] = useState(false);
+  const [savedDrafts, setSavedDrafts] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -62,13 +56,20 @@ const StudentDashboard = () => {
       try {
         setLoading(true);
         const fetchedClassrooms = await getClassrooms();
+        console.log(fetchedClassrooms);
         setClassrooms(fetchedClassrooms);
+        const drafts = getAllCodeDrafts();
+        setSavedDrafts(drafts);
       } catch (error) {
         toast.error("Failed to load classrooms");
         console.error("Error fetching classrooms:", error);
       } finally {
         setLoading(false);
       }
+    };
+
+    const handleContinueAssignment = (assignmentId) => {
+      //navigate(`/student/classrooms/${classroomId}/assignments/${assignmentId}/editor`);
     };
 
     const fetchUpcomingDeadlines = async () => {
@@ -88,12 +89,10 @@ const StudentDashboard = () => {
     fetchUpcomingDeadlines();
   }, []);
 
-  const uncompletedAssignments = classrooms.reduce((total, classroom) => {
-    const completedCount = Math.floor(
-      classroom.assignments_num * (classroom.completion / 100)
-    );
-    return total + (classroom.assignments_num - completedCount);
-  }, 0);
+  const uncompletedAssignments = classrooms.reduce(
+    (total, c) => total + Number(c.uncompletedAssignments || 0),
+    0
+  );
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -144,14 +143,10 @@ const StudentDashboard = () => {
     navigate(`/student/classrooms/${classroomId}/view`);
   };
 
-  const handleViewStatistics = (classroomId) => {
-    navigate(`/student/statistics/${classroomId}`);
-  };
-
-  const handleContinueAssignment = () => {
-    if (lastOpenedAssignment) {
-      navigate(`/code-editor/${lastOpenedAssignment.id}`);
-    }
+  const handleContinueAssignment = (assignmentId: any) => {
+    //if (lastOpenedAssignment) {
+    //  navigate(`/code-editor/${lastOpenedAssignment.id}`);
+    //}
   };
 
   const handleAssignmentClick = (assignmentId) => {
@@ -227,146 +222,156 @@ const StudentDashboard = () => {
             </div>
           </div>
         </div>
+        <div className="space-y-8">
+          {savedDrafts.length > 0 && (
+            <div className="mt-8">
+              <h2 className="text-xl font-semibold mb-4">Your Saved Work</h2>
 
-        {/* Quick Resume Section */}
-        {lastOpenedAssignment && (
-          <div className="bg-[#0d1224] border border-gray-800 rounded-lg p-6 mb-8 shadow-lg">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-              <Code size={20} className="text-blue-400" />
-              Continue Working
-            </h2>
-            <div className="mb-3">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="font-medium text-lg">
-                    {lastOpenedAssignment.title}
-                  </h3>
-                  <p className="text-sm text-gray-400">
-                    Course: {lastOpenedAssignment.course}
-                  </p>
-                </div>
-                <Button onClick={handleContinueAssignment}>
-                  Continue Assignment
-                </Button>
-              </div>
-            </div>
-            <div className="bg-[#0c121f] border border-gray-700 rounded-lg overflow-hidden h-[200px]">
-              <CodeEditorBase
-                defaultLanguage={lastOpenedAssignment.language}
-                defaultValue={lastOpenedAssignment.code}
-              />
-            </div>
-          </div>
-        )}
-
-        <div className="bg-[#0d1224] border border-gray-800 rounded-lg p-6 mb-8 shadow-lg">
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <Clock size={20} className="text-amber-400" />
-            Approaching Deadlines (24h)
-          </h2>
-
-          {deadlinesLoading ? (
-            <div className="flex justify-center py-8">
-              <div className="animate-pulse text-gray-400">
-                Loading deadlines...
-              </div>
-            </div>
-          ) : upcomingDeadlines.length > 0 ? (
-            <div className="space-y-4">
-              {upcomingDeadlines.map((deadline) => {
-                const date = formatDate(deadline.dueDate);
-
-                return (
+              <div className="space-y-6">
+                {savedDrafts.map((draft) => (
                   <div
-                    key={deadline.id}
-                    className="bg-[#0c121f] border border-gray-700 rounded-lg p-4 hover:border-blue-500 transition-colors cursor-pointer"
-                    onClick={() => handleAssignmentClick(deadline.id)}
+                    key={draft.assignmentId}
+                    className="bg-[#0d1224] border border-gray-800 rounded-lg p-6 shadow-lg"
                   >
-                    <div className="flex justify-between items-start mb-1">
-                      <h3 className="font-medium">{deadline.title}</h3>
-                      <Badge variant={date.badgeVariant} className="ml-2">
-                        {date.daysLeft <= 0
-                          ? "Due today"
-                          : date.daysLeft < 1
-                          ? "Due in hours"
-                          : `${date.daysLeft} days left`}
-                      </Badge>
+                    <div className="mb-3">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="font-medium text-lg">
+                            {draft.assignmentTitle}
+                          </h3>
+                          <p className="text-sm text-gray-400">
+                            Last saved:{" "}
+                            {new Date(draft.lastSaved).toLocaleString()}
+                          </p>
+                        </div>
+                        <Button
+                          onClick={() =>
+                            handleContinueAssignment(draft.assignmentId)
+                          }
+                        >
+                          Continue Assignment
+                        </Button>
+                      </div>
                     </div>
-                    <p className="text-sm text-gray-400 mb-2">
-                      Course: {deadline.course}
-                    </p>
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-gray-500">
-                        Due: {date.formatted}
-                      </span>
-                      <Badge
-                        variant="outline"
-                        className="bg-gray-800 text-gray-300"
-                      >
-                        {deadline.status}
-                      </Badge>
+                    <div className="bg-[#0c121f] border border-gray-700 rounded-lg overflow-hidden h-[200px]">
+                      <CodeEditorBase
+                        defaultLanguage={draft.language}
+                        defaultValue={draft.code}
+                      />
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-400">
-              <Calendar className="mx-auto mb-2 opacity-40" />
-              <p>No upcoming deadlines in the next 24 hours</p>
+                ))}
+              </div>
             </div>
           )}
-        </div>
+          <div className="bg-[#0d1224] border border-gray-800 rounded-lg p-6 mb-8 shadow-lg">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <Clock size={20} className="text-amber-400" />
+              Approaching Deadlines (24h)
+            </h2>
 
-        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-          <BookOpen size={20} />
-          My Classrooms
-        </h2>
+            {deadlinesLoading ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-pulse text-gray-400">
+                  Loading deadlines...
+                </div>
+              </div>
+            ) : upcomingDeadlines.length > 0 ? (
+              <div className="space-y-4">
+                {upcomingDeadlines.map((deadline) => {
+                  const date = formatDate(deadline.dueDate);
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {classrooms.map((classroom) => (
-            <Card
-              key={classroom.id}
-              className="bg-[#0d1224] border-gray-700 hover:border-[#00b7ff] transition-colors cursor-pointer"
-              onClick={() => handleClassroomClick(classroom.id)}
-            >
-              <CardHeader>
-                <CardTitle className="text-white">{classroom.name}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-400 mb-4">
-                  Instructor: {classroom.instructor}
-                </p>
-                <div className="flex justify-between text-sm text-gray-400">
-                  <div className="flex items-center gap-1">
-                    <BookOpen size={16} />
-                    <span>{classroom.assignments_num} assignments</span>
+                  return (
+                    <div
+                      key={deadline.id}
+                      className="bg-[#0c121f] border border-gray-700 rounded-lg p-4 hover:border-blue-500 transition-colors cursor-pointer"
+                      onClick={() => handleAssignmentClick(deadline.id)}
+                    >
+                      <div className="flex justify-between items-start mb-1">
+                        <h3 className="font-medium">{deadline.title}</h3>
+                        <Badge variant={date.badgeVariant} className="ml-2">
+                          {date.daysLeft <= 0
+                            ? "Due today"
+                            : date.daysLeft < 1
+                            ? "Due in hours"
+                            : `${date.daysLeft} days left`}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-gray-400 mb-2">
+                        Course: {deadline.course}
+                      </p>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-gray-500">
+                          Due: {date.formatted}
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className="bg-gray-800 text-gray-300"
+                        >
+                          {deadline.status}
+                        </Badge>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-400">
+                <Calendar className="mx-auto mb-2 opacity-40" />
+                <p>No upcoming deadlines in the next 24 hours</p>
+              </div>
+            )}
+          </div>
+
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <BookOpen size={20} />
+            My Classrooms
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {classrooms.map((classroom) => (
+              <Card
+                key={classroom.id}
+                className="bg-[#0d1224] border-gray-700 hover:border-[#00b7ff] transition-colors cursor-pointer"
+                onClick={() => handleClassroomClick(classroom.id)}
+              >
+                <CardHeader>
+                  <CardTitle className="text-white">{classroom.name}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-400 mb-4">
+                    Instructor: {classroom.instructor}
+                  </p>
+                  <div className="flex justify-between text-sm text-gray-400">
+                    <div className="flex items-center gap-1">
+                      <BookOpen size={16} />
+                      <span>{classroom.totalAssignments} Assignments</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Calendar size={16} />
+                      <span>Active</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Calendar size={16} />
-                    <span>Active</span>
+                  <div className="mt-4">
+                    <Progress value={classroom.completion} className="h-2" />
                   </div>
-                </div>
-                <div className="mt-4">
-                  <Progress value={classroom.completion} className="h-2" />
-                </div>
-                <div className="mt-1 text-right text-xs text-gray-400">
-                  {classroom.completion}% complete
-                </div>
-              </CardContent>
-              <Separator className="bg-gray-800" />
-              <CardFooter className="pt-4 flex gap-2">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleClassroomClick(classroom.id);
-                  }}
-                >
-                  View Classroom
-                </Button>
-                {/*
+                  <div className="mt-1 text-right text-xs text-gray-400">
+                    {classroom.completion}% complete
+                  </div>
+                </CardContent>
+                <Separator className="bg-gray-800" />
+                <CardFooter className="pt-4 flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleClassroomClick(classroom.id);
+                    }}
+                  >
+                    View Classroom
+                  </Button>
+                  {/*
                 <Button
                   variant="outline"
                   size="icon"
@@ -379,9 +384,10 @@ const StudentDashboard = () => {
                   <BarChart size={16} />
                 </Button>
                 */}
-              </CardFooter>
-            </Card>
-          ))}
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
         </div>
       </div>
     </div>

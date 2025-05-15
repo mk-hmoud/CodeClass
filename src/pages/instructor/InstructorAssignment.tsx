@@ -247,6 +247,7 @@ const InstructorAssignment: React.FC = () => {
               <div className="text-red-500">{error}</div>
             ) : assignment ? (
               <SubmissionsTab
+                assignmentScore={assignment.points}
                 submissions={submissions}
                 formatDate={formatDate}
                 assignmentTitle={assignment.title}

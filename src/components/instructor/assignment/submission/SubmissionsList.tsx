@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FullSubmission } from "@/types/Submission";
 
 interface SubmissionsListProps {
+  assignmentScore: number;
   gradingType: "Automatic" | "Manual" | "Hybrid";
   submissions: FullSubmission[];
   onViewSubmission: (submissionId: number) => void;
@@ -15,6 +16,7 @@ interface SubmissionsListProps {
 }
 
 const SubmissionsList: React.FC<SubmissionsListProps> = ({
+  assignmentScore,
   gradingType,
   submissions,
   onViewSubmission,
@@ -145,7 +147,7 @@ const SubmissionsList: React.FC<SubmissionsListProps> = ({
                         {getStatusBadge(submission.gradingStatus)}
                         {getDisplayScore(submission) !== null && (
                           <span className="font-bold">
-                            {getDisplayScore(submission)}/100
+                            {getDisplayScore(submission)}/{assignmentScore}
                           </span>
                         )}
                       </div>

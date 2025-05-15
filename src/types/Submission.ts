@@ -32,7 +32,7 @@ export interface SubmissionResult {
     finalScore?: number | null;
     verdict: JudgeVerdict;
     plagiarismReports: PlagiarismReport[];
-    studentName?: string;
+    studentName: string;
     feedback?: string;
   }
   

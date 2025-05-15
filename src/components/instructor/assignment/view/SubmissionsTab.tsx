@@ -9,6 +9,7 @@ interface SubmissionsTabProps {
   formatDate: (dateString: string | null) => string;
   assignmentTitle?: string;
   assignmentDescription?: string;
+  assignmentScore: number;
   gradingType: "Automatic" | "Manual" | "Hybrid";
 }
 
@@ -17,6 +18,7 @@ const SubmissionsTab: React.FC<SubmissionsTabProps> = ({
   formatDate,
   assignmentTitle = "Assignment",
   assignmentDescription,
+  assignmentScore,
   gradingType = "Automatic",
 }) => {
   const [viewMode, setViewMode] = useState<"list" | "details">("list");
@@ -78,6 +80,7 @@ const SubmissionsTab: React.FC<SubmissionsTabProps> = ({
   if (viewMode === "details" && selectedSubmission) {
     return (
       <SubmissionDetailsView
+        assignmentScore={assignmentScore}
         submission={selectedSubmission}
         gradingType={gradingType}
         onBack={handleBackToList}
@@ -88,6 +91,7 @@ const SubmissionsTab: React.FC<SubmissionsTabProps> = ({
 
   return (
     <SubmissionsList
+      assignmentScore={assignmentScore}
       gradingType={gradingType}
       submissions={submissions}
       onViewSubmission={handleViewSubmission}

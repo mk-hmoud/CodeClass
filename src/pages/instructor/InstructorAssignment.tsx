@@ -136,11 +136,11 @@ const InstructorAssignment: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-1">
                   <Calendar size={14} />
-                  <span>Published: {formatDate(assignment.publish_date)}</span>
+                  <span>Published: {formatDate(assignment.publishDate)}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Clock size={14} />
-                  <span>Due: {formatDate(assignment.due_date)}</span>
+                  <span>Due: {formatDate(assignment.dueDate)}</span>
                 </div>
               </div>
             )}

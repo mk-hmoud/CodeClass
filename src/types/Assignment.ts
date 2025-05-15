@@ -13,12 +13,13 @@ export interface Assignment {
   max_submissions?: number;
   plagiarism_detection: boolean;
   assigned_at: Date;
-  publish_date?: Date;
-  due_date?: Date;
+  publishDate?: Date;
+  dueDate?: Date;
   languages?: AssignmentLanguage[];
   submissions?: number;
   avgScore?: number;
   completed?: boolean;
+  status?: "active" | "expired";
 }
 
 

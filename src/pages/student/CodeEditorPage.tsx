@@ -106,7 +106,7 @@ const CodeEditorPage = () => {
         assignmentId,
         code,
         selectedLanguage,
-        assignment.due_date ? new Date(assignment.due_date) : null,
+        assignment.dueDate ? new Date(assignment.dueDate) : null,
         assignment.title
       );
 

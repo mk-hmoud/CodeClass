@@ -70,8 +70,8 @@ const StudentAssignment = () => {
     return null;
   }
 
-  const publishDate = new Date(assignment.publish_date).getTime();
-  const dueDate = new Date(assignment.due_date).getTime();
+  const publishDate = new Date(assignment.publishDate).getTime();
+  const dueDate = new Date(assignment.dueDate).getTime();
   const timeLeft = Math.floor(
     Math.abs(Date.now() - dueDate) / (1000 * 60 * 60 * 24)
   );

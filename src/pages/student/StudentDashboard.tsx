@@ -139,8 +139,10 @@ const StudentDashboard = () => {
     }
   };
 
-  const handleClassroomClick = (classroomId) => {
-    navigate(`/student/classrooms/${classroomId}/view`);
+  const handleClassroomClick = (classroomId, classroom) => {
+    navigate(`/student/classrooms/${classroomId}/view`, {
+      state: classroom.totalAssignments,
+    });
   };
 
   const handleContinueAssignment = (assignmentId: any) => {
@@ -333,7 +335,7 @@ const StudentDashboard = () => {
               <Card
                 key={classroom.id}
                 className="bg-[#0d1224] border-gray-700 hover:border-[#00b7ff] transition-colors cursor-pointer"
-                onClick={() => handleClassroomClick(classroom.id)}
+                onClick={() => handleClassroomClick(classroom.id, classroom)}
               >
                 <CardHeader>
                   <CardTitle className="text-white">{classroom.name}</CardTitle>
@@ -366,7 +368,7 @@ const StudentDashboard = () => {
                     className="flex-1"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleClassroomClick(classroom.id);
+                      handleClassroomClick(classroom.id, classroom);
                     }}
                   >
                     View Classroom

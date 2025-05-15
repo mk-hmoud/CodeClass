@@ -9,6 +9,9 @@ import {
   CheckCircle,
   XCircle,
   Save,
+  FileCode,
+  Clock,
+  AlertTriangle,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -17,6 +20,13 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
+import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import CodeEditor from "@/components/CodeEditor";
 
 import "@/lib/monacoConfig"; // Import the centralized Monaco config
@@ -353,8 +363,11 @@ const CodeEditorPage = () => {
         <>
           <div className="space-y-4">
             {typeof averageRuntime === "number" && (
-              <div className="text-sm text-muted-foreground">
-                Average runtime: <strong>{averageRuntime} ms</strong>
+              <div className="text-sm text-muted-foreground flex items-center gap-1">
+                <Clock size={14} />
+                <span>
+                  Average runtime: <strong>{averageRuntime} ms</strong>
+                </span>
               </div>
             )}
             <div className="space-y-2">
@@ -365,7 +378,11 @@ const CodeEditorPage = () => {
                 .map((result, idx) => (
                   <div
                     key={result.testCaseId ?? idx}
-                    className="p-3 rounded-md border"
+                    className={`p-3 rounded-md border transition-colors ${
+                      result.status === "passed"
+                        ? "border-l-green-500 border-l-4"
+                        : "border-l-red-500 border-l-4"
+                    }`}
                   >
                     <div className="flex items-center gap-2">
                       {result.status === "passed" ? (
@@ -379,14 +396,16 @@ const CodeEditorPage = () => {
                         {result.status === "passed" ? "Passed" : "Failed"}
                       </span>
 
-                      <span className="ml-auto text-muted-foreground">
+                      <span className="ml-auto text-muted-foreground flex items-center gap-1">
+                        <Clock size={12} />
                         {result.executionTime}ms
                       </span>
                     </div>
 
                     {result.status === "error" && result.errorMessage && (
-                      <div className="mt-2 text-sm text-red-500">
-                        Error: {result.errorMessage}
+                      <div className="mt-2 text-sm text-red-500 flex items-start gap-1">
+                        <AlertTriangle size={14} className="mt-0.5" />
+                        <span>{result.errorMessage}</span>
                       </div>
                     )}
                   </div>
@@ -413,7 +432,11 @@ const CodeEditorPage = () => {
                         submitVerdict.metrics.privateTestsTotal) *
                       100
                     }
-                    className="h-1"
+                    className="h-2 bg-gray-100"
+                    style={{
+                      background:
+                        "linear-gradient(to right, #10b981 0%, #10b981 var(--value), #e5e7eb var(--value), #e5e7eb 100%)",
+                    }}
                   />
                 </div>
               </div>
@@ -425,26 +448,26 @@ const CodeEditorPage = () => {
 
     return (
       <>
-        <div className="mb-2 flex flex-wrap gap-2">
+        <div className="mb-3 flex flex-wrap gap-2">
           {publicTestCases.map((testCase, idx) => (
             <button
               key={testCase.testCaseId}
               onClick={() => handleTestCaseClick(testCase.testCaseId)}
-              className={`px-3 py-1 rounded-md text-sm flex items-center ${
+              className={`px-3 py-1.5 rounded-md text-sm flex items-center gap-1.5 transition-colors ${
                 activeTestCaseId === testCase.testCaseId
-                  ? "bg-primary/10 text-primary"
-                  : "hover:bg-muted"
+                  ? "bg-primary/10 text-primary border border-primary/30"
+                  : "hover:bg-muted border border-transparent hover:border-gray-200"
               }`}
             >
-              {testResults.length > 0 && (
-                <span className="mr-1.5">
-                  {testResults.find((r) => r.testCaseId === testCase.testCaseId)
-                    ?.status === "passed" ? (
-                    <CheckCircle className="h-3 w-3 text-green-500" />
-                  ) : (
-                    <XCircle className="h-3 w-3 text-red-500" />
-                  )}
-                </span>
+              {testResults.length > 0 ? (
+                testResults.find((r) => r.testCaseId === testCase.testCaseId)
+                  ?.status === "passed" ? (
+                  <CheckCircle className="h-3.5 w-3.5 text-green-500" />
+                ) : (
+                  <XCircle className="h-3.5 w-3.5 text-red-500" />
+                )
+              ) : (
+                <div className="h-3.5 w-3.5 rounded-full border border-gray-300"></div>
               )}
               Case {idx + 1}
             </button>
@@ -486,23 +509,36 @@ const CodeEditorPage = () => {
                 </div>
 
                 <div
-                  className={`text-sm ${
+                  className={`text-sm flex items-center gap-1.5 ${
                     activeTestResult.status === "passed"
-                      ? "text-green-500"
-                      : "text-red-500"
+                      ? "text-green-600"
+                      : "text-red-600"
                   }`}
                 >
-                  {activeTestResult.status === "passed"
-                    ? "Accepted"
-                    : activeTestResult.status === "error"
-                    ? `Error: ${
-                        activeTestResult.errorMessage || "Unknown error"
-                      }`
-                    : activeTestResult.status === "timeout"
-                    ? "Time Limit Exceeded"
-                    : "Wrong Answer"}{" "}
-                  {activeTestResult.executionTime !== undefined &&
-                    `| Runtime: ${activeTestResult.executionTime}ms`}
+                  {activeTestResult.status === "passed" ? (
+                    <CheckCircle size={16} className="text-green-600" />
+                  ) : (
+                    <XCircle size={16} className="text-red-600" />
+                  )}
+
+                  <span>
+                    {activeTestResult.status === "passed"
+                      ? "Accepted"
+                      : activeTestResult.status === "error"
+                      ? `Error: ${
+                          activeTestResult.errorMessage || "Unknown error"
+                        }`
+                      : activeTestResult.status === "timeout"
+                      ? "Time Limit Exceeded"
+                      : "Wrong Answer"}
+                  </span>
+
+                  {activeTestResult.executionTime !== undefined && (
+                    <span className="text-gray-500 ml-1 flex items-center gap-1">
+                      <Clock size={14} />
+                      {activeTestResult.executionTime}ms
+                    </span>
+                  )}
                 </div>
               </>
             )}
@@ -511,6 +547,7 @@ const CodeEditorPage = () => {
       </>
     );
   };
+
   // not scrollable for a full-height layout
   useEffect(() => {
     document.body.style.overflow = "hidden";
@@ -520,6 +557,44 @@ const CodeEditorPage = () => {
       document.documentElement.style.overflow = "";
     };
   }, []);
+
+  const formatAttemptsDisplay = () => {
+    if (!isFinite(remainingAttempts)) {
+      return (
+        <Badge
+          variant="outline"
+          className="font-normal flex items-center gap-1 py-1 px-2"
+        >
+          <FileCode size={14} />
+          <span>Unlimited Attempts</span>
+        </Badge>
+      );
+    } else if (remainingAttempts > 0) {
+      return (
+        <Badge
+          variant="outline"
+          className={`font-normal flex items-center gap-1 py-1 px-2 ${
+            remainingAttempts <= 2 ? "bg-amber-50" : ""
+          }`}
+        >
+          <FileCode size={14} />
+          <span>
+            {remainingAttempts} Attempt{remainingAttempts !== 1 ? "s" : ""}
+          </span>
+        </Badge>
+      );
+    } else {
+      return (
+        <Badge
+          variant="destructive"
+          className="font-normal flex items-center gap-1 py-1 px-2"
+        >
+          <AlertTriangle size={14} />
+          <span>No Attempts Left</span>
+        </Badge>
+      );
+    }
+  };
 
   return (
     <div className="h-screen flex flex-col bg-background">
@@ -535,16 +610,35 @@ const CodeEditorPage = () => {
           </Button>
 
           <h1 className="text-xl font-semibold">{assignment.title}</h1>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="ml-4">{formatAttemptsDisplay()}</div>
+              </TooltipTrigger>
+              <TooltipContent>
+                {!isFinite(remainingAttempts)
+                  ? "You have unlimited submission attempts"
+                  : remainingAttempts > 0
+                  ? `You have ${remainingAttempts} submission attempt${
+                      remainingAttempts !== 1 ? "s" : ""
+                    } remaining`
+                  : "You have no submission attempts remaining"}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
 
-        <Button
-          variant="outline"
-          onClick={handleSaveCode}
-          className="flex items-center gap-1"
-        >
-          <Save size={16} />
-          Save
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={handleSaveCode}
+            className="flex items-center gap-1.5"
+          >
+            <Save size={16} />
+            Save
+          </Button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-hidden">
@@ -553,20 +647,14 @@ const CodeEditorPage = () => {
             <ResizablePanelGroup direction="vertical">
               <ResizablePanel defaultSize={70} minSize={30}>
                 <div className="h-full overflow-y-auto p-6">
-                  <div>
-                    <p>{assignment?.description}</p>
-                    <strong>You will be solving the following problem</strong>
-                  </div>
-                  <div className="space-y-4 mt-5">
+                  <div className="space-y-4">
                     <div>
-                      <h3 className="text-xl font-semibold mb-4">Title</h3>
-                      <p>{assignment?.problem?.description}</p>
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-semibold mb-4">
+                      <h3 className="text-xl font-semibold mb-4 pb-2 border-b">
                         Description
                       </h3>
-                      <p>{assignment?.problem?.description}</p>
+                      <div className="prose max-w-none">
+                        <p>{assignment?.problem?.description}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -575,13 +663,22 @@ const CodeEditorPage = () => {
               <ResizablePanel defaultSize={30} minSize={20}>
                 <div className="h-full overflow-hidden flex flex-col">
                   {/* Header with count */}
-                  <div className="p-2 border-b flex items-center justify-between">
-                    <div className="flex items-center space-x-1 text-sm">
-                      <span className="font-semibold">Testcases</span>
+                  <div className="p-3 border-b flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <span className="font-semibold">Test Cases</span>
                       {testResults.length > 0 && (
-                        <span className="text-muted-foreground">
-                          | {testsPassed} / {totalTests} passed
-                        </span>
+                        <Badge
+                          variant={
+                            testsPassed === totalTests ? "outline" : "secondary"
+                          }
+                          className={`ml-2 ${
+                            testsPassed === totalTests
+                              ? "bg-green-50 text-green-700 hover:bg-green-50"
+                              : ""
+                          }`}
+                        >
+                          {testsPassed} / {totalTests} passed
+                        </Badge>
                       )}
                     </div>
                   </div>
@@ -608,28 +705,6 @@ const CodeEditorPage = () => {
                 onLanguageChange={handleLanguageChange}
                 language={selectedLanguage}
               />
-              <div className="border-t">
-                {!isFinite(remainingAttempts) ? (
-                  <Alert className="m-2">
-                    <AlertDescription>
-                      Unlimited submission attempts
-                    </AlertDescription>
-                  </Alert>
-                ) : remainingAttempts > 0 ? (
-                  <Alert className="m-2">
-                    <AlertDescription>
-                      You have {remainingAttempts} submission attempt
-                      {remainingAttempts !== 1 ? "s" : ""} remaining
-                    </AlertDescription>
-                  </Alert>
-                ) : (
-                  <Alert variant="destructive" className="m-2">
-                    <AlertDescription>
-                      You have no submission attempts remaining
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </div>
             </div>
           </ResizablePanel>
         </ResizablePanelGroup>

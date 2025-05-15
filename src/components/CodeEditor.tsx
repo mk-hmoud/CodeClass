@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { LANGUAGE_LABELS } from "@/lib/assignmentUtils";
 
 interface CodeEditorProps {
   defaultLanguage: string;
@@ -131,7 +132,8 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
             <SelectContent>
               {supportedLanguages.map((lang) => (
                 <SelectItem key={lang} value={lang}>
-                  {lang.charAt(0).toUpperCase() + lang.slice(1)}
+                  {LANGUAGE_LABELS[lang] ??
+                    lang.charAt(0).toUpperCase() + lang.slice(1)}
                 </SelectItem>
               ))}
             </SelectContent>

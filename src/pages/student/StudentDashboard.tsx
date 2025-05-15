@@ -330,66 +330,77 @@ const StudentDashboard = () => {
             My Classrooms
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {classrooms.map((classroom) => (
-              <Card
-                key={classroom.id}
-                className="bg-[#0d1224] border-gray-700 hover:border-[#00b7ff] transition-colors cursor-pointer"
-                onClick={() => handleClassroomClick(classroom.id, classroom)}
-              >
-                <CardHeader>
-                  <CardTitle className="text-white">{classroom.name}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-400 mb-4">
-                    Instructor: {classroom.instructor}
-                  </p>
-                  <div className="flex justify-between text-sm text-gray-400">
-                    <div className="flex items-center gap-1">
-                      <BookOpen size={16} />
-                      <span>{classroom.totalAssignments} Assignments</span>
+          {classrooms.length === 0 ? (
+            <div className="text-center py-16 bg-[#0c121f] border border-gray-700 rounded-lg">
+              <BookOpen className="mx-auto mb-4 text-gray-500" size={48} />
+              <p className="text-gray-400 mb-2">
+                You haven’t joined any classrooms yet.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {classrooms.map((classroom) => (
+                <Card
+                  key={classroom.id}
+                  className="bg-[#0d1224] border-gray-700 hover:border-[#00b7ff] transition-colors cursor-pointer"
+                  onClick={() => handleClassroomClick(classroom.id, classroom)}
+                >
+                  <CardHeader>
+                    <CardTitle className="text-white">
+                      {classroom.name}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-gray-400 mb-4">
+                      Instructor: {classroom.instructor}
+                    </p>
+                    <div className="flex justify-between text-sm text-gray-400">
+                      <div className="flex items-center gap-1">
+                        <BookOpen size={16} />
+                        <span>{classroom.totalAssignments} Assignments</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Calendar size={16} />
+                        <span>Active</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Calendar size={16} />
-                      <span>Active</span>
+                    <div className="mt-4">
+                      <Progress value={classroom.completion} className="h-2" />
                     </div>
-                  </div>
-                  <div className="mt-4">
-                    <Progress value={classroom.completion} className="h-2" />
-                  </div>
-                  <div className="mt-1 text-right text-xs text-gray-400">
-                    {classroom.completion}% complete
-                  </div>
-                </CardContent>
-                <Separator className="bg-gray-800" />
-                <CardFooter className="pt-4 flex gap-2">
+                    <div className="mt-1 text-right text-xs text-gray-400">
+                      {classroom.completion}% complete
+                    </div>
+                  </CardContent>
+                  <Separator className="bg-gray-800" />
+                  <CardFooter className="pt-4 flex gap-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleClassroomClick(classroom.id, classroom);
+                      }}
+                    >
+                      View Classroom
+                    </Button>
+                    {/*
                   <Button
                     variant="outline"
-                    className="flex-1"
+                    size="icon"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleClassroomClick(classroom.id, classroom);
+                      handleViewStatistics(classroom.id);
                     }}
+                    title="View Statistics"
                   >
-                    View Classroom
+                    <BarChart size={16} />
                   </Button>
-                  {/*
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleViewStatistics(classroom.id);
-                  }}
-                  title="View Statistics"
-                >
-                  <BarChart size={16} />
-                </Button>
-                */}
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
+                  */}
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

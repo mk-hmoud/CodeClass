@@ -75,10 +75,31 @@ const StudentAssignment = () => {
 
   const publishDate = new Date(assignment.publishDate).getTime();
   const dueDate = new Date(assignment.dueDate).getTime();
-  const timeLeft = Math.floor(
-    Math.abs(Date.now() - dueDate) / (1000 * 60 * 60 * 24)
-  );
-  const timeLeftString = timeLeft > 1 ? `${timeLeft} days` : `${timeLeft} day`;
+  const now = new Date();
+  const diffMs = dueDate - now.getTime();
+
+  const timeLeftDays = diffMs / (1000 * 60 * 60 * 24);
+
+  let timeLeftString;
+
+  if (timeLeftDays <= 0) {
+    timeLeftString = "Expired";
+  } else if (timeLeftDays < 1) {
+    const hoursLeft = Math.ceil(timeLeftDays * 24);
+    if (hoursLeft === 1) {
+      timeLeftString = "1 hour";
+    } else {
+      timeLeftString = `${hoursLeft} hours`;
+    }
+  } else {
+    const daysLeft = Math.ceil(timeLeftDays);
+    if (daysLeft === 1) {
+      timeLeftString = "1 day";
+    } else {
+      timeLeftString = `${daysLeft} days`;
+    }
+  }
+
   const p = assignment.problem;
   const splitList = (value?: string, delimiter = ";") =>
     value

@@ -31,6 +31,7 @@ import { deleteAssignment } from "@/services/AssignmentService";
 import { Classroom } from "../../../types/Classroom";
 import { Assignment } from "../../../types/Assignment";
 import { toast } from "sonner";
+import { getClassroomById } from "@/services/ClassroomService";
 
 interface AssignmentsTabProps {
   classroom: Classroom;
@@ -119,14 +120,13 @@ const AssignmentsTab: React.FC<AssignmentsTabProps> = ({
                   <TableHead>Title</TableHead>
                   <TableHead>Due Date</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Submission Rate</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {classroom.assignments.map((assignment) => {
-                  const dueDateObj = assignment.due_date
-                    ? new Date(assignment.due_date)
+                  const dueDateObj = assignment.dueDate
+                    ? new Date(assignment.dueDate)
                     : null;
                   const formattedDue = dueDateObj
                     ? formatDate(dueDateObj.toISOString())
@@ -154,7 +154,6 @@ const AssignmentsTab: React.FC<AssignmentsTabProps> = ({
                         )}
                       </TableCell>
                       <TableCell>{getStatusBadge(statusKey)}</TableCell>
-                      <TableCell>{assignment.submissions ?? 0}%</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button

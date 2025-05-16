@@ -162,11 +162,6 @@ const InstructorClassroom = () => {
               </svg>
             </Button>
             <h1 className="text-3xl font-bold">{classroom.name}</h1>
-            {classroom.active ? (
-              <Badge variant="default">Active</Badge>
-            ) : (
-              <Badge variant="secondary">Archived</Badge>
-            )}
           </div>
 
           <div className="flex gap-4 text-sm">

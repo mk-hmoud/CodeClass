@@ -41,7 +41,6 @@ interface Student {
   email: string;
   status: string;
   lastActive: string;
-  completionRate: number;
 }
 
 interface StudentsTabProps {
@@ -91,7 +90,6 @@ const StudentsTab: React.FC<StudentsTabProps> = ({
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Completion Rate</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -102,12 +100,24 @@ const StudentsTab: React.FC<StudentsTabProps> = ({
                       {student.name}
                     </TableCell>
                     <TableCell>{student.email}</TableCell>
-                    <TableCell>{student.completionRate}%</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" title="Send Email">
-                          <Mail size={16} />
-                        </Button>
+                        <a
+                          href={`mailto:${student.email}`}
+                          className="hover:no-underline"
+                          title="Send Email"
+                        >
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="Send Email"
+                            onClick={() =>
+                              (window.location.href = `mailto:${student.email}`)
+                            }
+                          >
+                            <Mail size={16} />
+                          </Button>
+                        </a>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon">

@@ -12,7 +12,8 @@ export interface TestResult {
   expectedOutput?: string;
   executionTime?: number;
   status: 'passed' | 'failed' | 'error' | 'timeout' | 'runtime_error';
-  errorType?: string;            
+  errorType?: string;   
+  error?: string;         
   errorMessage?: string;
   fullError?: string;
   isPublic?: boolean;
@@ -22,7 +23,8 @@ export type JudgeStatus =
   | 'pending'
   | 'compile_error'
   | 'completed'
-  | 'system_error';
+  | 'system_error'
+  | 'syntax_error';
 
 export interface JudgeVerdict {
   status: JudgeStatus;

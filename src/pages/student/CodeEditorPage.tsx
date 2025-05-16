@@ -402,6 +402,13 @@ const CodeEditorPage = () => {
                       </span>
                     </div>
 
+                    {result.status !== "passed" && result.errorType && (
+                      <div className="mt-2 text-sm text-red-500 flex items-start gap-1">
+                        <AlertTriangle size={14} className="mt-0.5" />
+                        <span>{result.errorType}</span>
+                      </div>
+                    )}
+
                     {result.status === "error" && result.errorMessage && (
                       <div className="mt-2 text-sm text-red-500 flex items-start gap-1">
                         <AlertTriangle size={14} className="mt-0.5" />
@@ -494,7 +501,11 @@ const CodeEditorPage = () => {
                   </div>
 
                   <div className="bg-muted p-2 rounded-md whitespace-pre-wrap font-mono text-sm">
-                    {activeTestResult.actual}
+                    {activeTestResult.actual || (
+                      <span className="text-red-500 italic">
+                        No output (execution error)
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -524,6 +535,10 @@ const CodeEditorPage = () => {
                   <span>
                     {activeTestResult.status === "passed"
                       ? "Accepted"
+                      : activeTestResult.status === "runtime_error"
+                      ? `Runtime Error: ${
+                          activeTestResult.errorType || "Unknown error"
+                        }`
                       : activeTestResult.status === "error"
                       ? `Error: ${
                           activeTestResult.errorMessage || "Unknown error"
@@ -540,6 +555,24 @@ const CodeEditorPage = () => {
                     </span>
                   )}
                 </div>
+
+                {activeTestResult.status === "runtime_error" &&
+                  activeTestResult.errorType && (
+                    <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
+                      <h4 className="text-sm font-medium text-red-700 mb-1 flex items-center gap-1.5">
+                        <AlertTriangle size={14} />
+                        Runtime Error Details
+                      </h4>
+                      <div className="bg-red-100 p-2 rounded text-red-900 font-mono text-xs whitespace-pre-wrap">
+                        {activeTestResult.error}
+                        {activeTestResult.fullError && (
+                          <div className="mt-2 pt-2 border-t border-red-200">
+                            {activeTestResult.fullError}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
               </>
             )}
           </div>

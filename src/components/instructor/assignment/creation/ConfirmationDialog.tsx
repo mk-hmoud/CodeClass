@@ -8,14 +8,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { format } from "date-fns";
-import { FormValues } from "@/lib/assignmentUtils";
+import { format, formatDate } from "date-fns";
+import { FormValues, LANGUAGE_LABELS } from "@/lib/assignmentUtils";
 
 interface ConfirmationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   formData: FormValues | null;
   onConfirm: () => void;
+  problemTitle?: string | null;
 }
 
 const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
@@ -23,6 +24,7 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
   onOpenChange,
   formData,
   onConfirm,
+  problemTitle,
 }) => {
   if (!formData) return null;
 
@@ -41,15 +43,20 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
             <h3 className="font-semibold">Basic Information</h3>
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div className="text-gray-400">Problem:</div>
+              <div>{problemTitle}</div>
 
-              <div className="text-gray-400">Title:</div>
-              <div>{formData.title || "Using problem title"}</div>
+              <div className="col-span-2 pl-4 space-y-1">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="text-gray-400">Title:</div>
+                  <div>{formData.title || "Using problem title"}</div>
 
-              <div className="text-gray-400">Description:</div>
-              <div>
-                {formData.description
-                  ? "Custom description"
-                  : "Using problem description"}
+                  <div className="text-gray-400">Description:</div>
+                  <div>
+                    {formData.description
+                      ? "Custom description"
+                      : "Using problem description"}
+                  </div>
+                </div>
               </div>
 
               <div className="text-gray-400">Difficulty:</div>
@@ -110,7 +117,7 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
                   key={lang}
                   className="bg-primary/20 text-primary text-xs px-2 py-1 rounded-full"
                 >
-                  {lang}
+                  {LANGUAGE_LABELS[lang]}
                 </span>
               ))}
             </div>

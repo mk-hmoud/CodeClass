@@ -27,6 +27,7 @@ import AssignmentCodeEditor from "@/components/editors/AssignmentCodeEditor";
 import ConfirmationDialog from "@/components/instructor/assignment/creation/ConfirmationDialog";
 import {
   FormValues,
+  LANGUAGE_LABELS,
   formSchema,
   languageDefaultCode,
 } from "@/lib/assignmentUtils";
@@ -272,7 +273,7 @@ const CreateAssignmentPage: React.FC = () => {
                             {selectedLanguages.includes(lang.name) && (
                               <Check size={16} className="text-primary mr-2" />
                             )}
-                            <span>{lang.name}</span>
+                            <span>{LANGUAGE_LABELS[lang.name]}</span>
                           </div>
                         ))}
                       </div>
@@ -303,7 +304,7 @@ const CreateAssignmentPage: React.FC = () => {
                   <div className="space-y-4">
                     {selectedLanguages.map((language) => (
                       <div key={language} className="space-y-2">
-                        <Label>{language}</Label>
+                        <Label>{LANGUAGE_LABELS[language]}</Label>
                         <AssignmentCodeEditor
                           language={language}
                           value={codeByLanguage[language] || ""}
@@ -339,6 +340,7 @@ const CreateAssignmentPage: React.FC = () => {
         open={showConfirmDialog}
         onOpenChange={setShowConfirmDialog}
         formData={formData}
+        problemTitle={selectedProblem?.title}
         onConfirm={handleConfirmCreate}
       />
     </div>

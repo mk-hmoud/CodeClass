@@ -341,71 +341,77 @@ export async function getAssignmentsForStudentClassroom(
   classroomId: number,
   studentId: number
 ): Promise<Assignment[]> {
-  const query = `
-    SELECT 
-      a.assignment_id AS "assignmentId",
-      a.classroom_id AS "classroomId",
-      a.problem_id AS "problemId",
-      a.title,
-      a.description,
-      a.difficulty_level AS "difficultyLevel",
-      a.points,
-      a.grading_method AS "gradingMethod",
-      a.max_submissions AS "submissionAttempts",
-      a.plagiarism_detection AS "plagiarismDetection",
-      to_char(a.assigned_at, 'YYYY-MM-DD"T"HH24:MI:SSZ') AS "assignedAt",
-      to_char(a.publish_date, 'YYYY-MM-DD"T"HH24:MI:SSZ') AS "publishDate",
-      to_char(a.due_date, 'YYYY-MM-DD"T"HH24:MI:SSZ') AS "dueDate",
-      a.status AS "status",
-      EXISTS (
-        SELECT 1 FROM submissions s
-        WHERE s.assignment_id = a.assignment_id
-        AND s.student_id = $2
-      ) AS "submitted",
-      json_build_object(
-        'problemId', p.problem_id,
-        'instructorId', p.instructor_id,
-        'title', p.title,
-        'description', p.description,
-        'category', p.category,
-        'prerequisites', p.prerequisites,
-        'learning_outcomes', p.learning_outcomes,
-        'tags', p.tags,
-        'created_at', p.created_at,
-        'testCases', (
-           SELECT COALESCE(json_agg(
-             json_build_object(
-               'testCaseId', ptc.test_case_id,
-               'input', ptc.input,
-               'expectedOutput', ptc.expected_output,
-               'isPublic', ptc.is_public
-             )
-           ), '[]'::json)
-           FROM problem_test_cases ptc
-           WHERE ptc.problem_id = p.problem_id
-        )
-      ) AS problem,
-      (
-        SELECT COALESCE(json_agg(
-          json_build_object(
-            'pairId', alp.pair_id,
-            'assignmentId', alp.assignment_id,
-            'languageId', alp.language_id,
-            'initial_code', alp.initial_code,
-            'name', l.name,
-            'version', l.version
-          )
-        ), '[]'::json)
-        FROM assignment_languages_pairs alp
-        JOIN languages l ON alp.language_id = l.language_id
-        WHERE alp.assignment_id = a.assignment_id
-      ) AS languages
-    FROM assignments_with_status a 
-    JOIN problems p ON a.problem_id = p.problem_id
-    WHERE a.classroom_id = $1;
-  `;
+  const fn = "getAssignmentsForStudentClassroom";
   try {
+      logMessage(fn, `Fetching assignments for student ${studentId} in classroom ${classroomId}`);
+    
+      const query = `
+      SELECT 
+        a.assignment_id AS "assignmentId",
+        a.classroom_id AS "classroomId",
+        a.problem_id AS "problemId",
+        a.title,
+        a.description,
+        a.difficulty_level AS "difficultyLevel",
+        a.points,
+        a.grading_method AS "gradingMethod",
+        a.max_submissions AS "submissionAttempts",
+        a.plagiarism_detection AS "plagiarismDetection",
+        to_char(a.assigned_at, 'YYYY-MM-DD"T"HH24:MI:SSZ') AS "assignedAt",
+        to_char(a.publish_date, 'YYYY-MM-DD"T"HH24:MI:SSZ') AS "publishDate",
+        to_char(a.due_date, 'YYYY-MM-DD"T"HH24:MI:SSZ') AS "dueDate",
+        a.status AS "status",
+        EXISTS (
+          SELECT 1 FROM submission_attempts sa
+          WHERE sa.assignment_id = a.assignment_id
+          AND sa.student_id = $2
+        ) AS "submitted",
+        json_build_object(
+          'problemId', p.problem_id,
+          'instructorId', p.instructor_id,
+          'title', p.title,
+          'description', p.description,
+          'category', p.category,
+          'prerequisites', p.prerequisites,
+          'learning_outcomes', p.learning_outcomes,
+          'tags', p.tags,
+          'created_at', p.created_at,
+          'testCases', (
+            SELECT COALESCE(json_agg(
+              json_build_object(
+                'testCaseId', ptc.test_case_id,
+                'input', ptc.input,
+                'expectedOutput', ptc.expected_output,
+                'isPublic', ptc.is_public
+              )
+            ), '[]'::json)
+            FROM problem_test_cases ptc
+            WHERE ptc.problem_id = p.problem_id
+          )
+        ) AS problem,
+        (
+          SELECT COALESCE(json_agg(
+            json_build_object(
+              'pairId', alp.pair_id,
+              'assignmentId', alp.assignment_id,
+              'languageId', alp.language_id,
+              'initial_code', alp.initial_code,
+              'name', l.name,
+              'version', l.version
+            )
+          ), '[]'::json)
+          FROM assignment_languages_pairs alp
+          JOIN languages l ON alp.language_id = l.language_id
+          WHERE alp.assignment_id = a.assignment_id
+        ) AS languages
+      FROM assignments_with_status a 
+      JOIN problems p ON a.problem_id = p.problem_id
+      WHERE a.classroom_id = $1;
+    `;
+    logMessage(fn, `Executing assignments query for classroom ${classroomId}`);
     const result = await pool.query(query, [classroomId, studentId]);
+    logMessage(fn, `Found ${result.rowCount} assignments for student ${studentId} ${result.rows[0]}`);
+    
     return result.rows as Assignment[];
   } catch (error) {
     console.error("Error fetching assignments:", error);
@@ -610,26 +616,23 @@ export const getUpcomingDeadlines = async (
         a.points,
         a.difficulty_level,
         a.max_submissions,
-        c.classroom_name   AS course,
-        COALESCE(p.submission_count, 0) AS submission_count
+        c.classroom_name AS course
       FROM assignments a
       JOIN classrooms c
         ON a.classroom_id = c.classroom_id
       JOIN classroom_enrollments ce
         ON c.classroom_id = ce.classroom_id
-      LEFT JOIN (
-        SELECT
-          assignment_id,
-          COUNT(*) AS submission_count
-        FROM submissions
-        WHERE student_id = $1
-        GROUP BY assignment_id
-      ) p
-        ON a.assignment_id = p.assignment_id
       WHERE
         ce.student_id = $1
         AND a.due_date > $2
         AND a.due_date <= $3
+        AND NOT EXISTS (
+          SELECT 1
+          FROM submission_attempts sa
+          WHERE
+            sa.student_id = $1
+            AND sa.assignment_id = a.assignment_id
+        )
       ORDER BY a.due_date ASC
     `;
 
@@ -639,22 +642,15 @@ export const getUpcomingDeadlines = async (
       threshold,
     ]);
 
-    const upcoming = result.rows.map((row) => {
-      let status = "Not Started";
-      const count = Number(row.submission_count);
-      if (count > 0) {
-        status = count >= row.max_submissions ? "Completed" : "In Progress";
-      }
-      return {
-        id:         row.assignment_id,
-        title:      row.title,
-        course:     row.course,
-        dueDate:    row.due_date,
-        status,
-        points:     row.points,
-        difficulty: row.difficulty_level,
-      };
-    });
+    const upcoming = result.rows.map((row) => ({
+      id:         row.assignment_id,
+      title:      row.title,
+      course:     row.course,
+      dueDate:    row.due_date,
+      status:     "Not Started",
+      points:     row.points,
+      difficulty: row.difficulty_level,
+    }));
 
     logMessage(fn, `Found ${upcoming.length} upcoming assignments`);
     return upcoming;

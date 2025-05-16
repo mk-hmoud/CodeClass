@@ -87,15 +87,14 @@ export const getClassroomByIdController = async (req: Request, res: Response): P
       return;
     }
     
-    const userId = req.user.id;
     const role = req.user.role;
-    logMessage(functionName, `User ID ${userId} has role: ${role}`);
+    logMessage(functionName, `User ID ${req.user.id} has role: ${role}`);
 
     let classroom;
     if (role === "instructor") {
       classroom = await getInstructorClassroomById(classroomId);
     } else if (role === "student") {
-      classroom = await getStudentClassroomById(classroomId, userId);
+      classroom = await getStudentClassroomById(classroomId, req.user.role_id);
     } else {
       throw new Error("Invalid user role");
     }
@@ -118,7 +117,6 @@ export const getClassroomsController = async (req: Request, res: Response): Prom
       return;
     }
 
-    const userId = req.user.id;
     const role = req.user.role;
     logMessage(functionName, `User's role is ${req.user.role} has role id: ${req.user.role_id}`);
 

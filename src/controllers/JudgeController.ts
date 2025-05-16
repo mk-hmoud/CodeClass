@@ -103,6 +103,7 @@ export const getRunStatusHandler = async (req: Request, res: Response): Promise<
     const parsedData = JSON.parse(raw);
     
     if (parsedData.status === 'compile_error') {
+      logMessage('getRunStatus', `No valid test results found in data: ${JSON.stringify(parsedData)}`);
       const verdict: JudgeVerdict = {
         status: 'compile_error',
         error: {

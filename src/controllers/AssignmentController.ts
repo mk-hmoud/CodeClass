@@ -174,7 +174,7 @@ export const getUpcomingDeadlinesController = async (req: Request, res: Response
       return;
     }
 
-    const assignments = await getUpcomingDeadlines(req.user.id, hours);
+    const assignments = await getUpcomingDeadlines(req.user.role_id, hours);
     
     logMessage(functionName, `Found ${assignments.length} upcoming assignments within ${hours} hours`);
     res.status(200).json({ success: true, data: assignments });

@@ -50,16 +50,15 @@ export const createClassroom = async (
 };
 
 export const getInstructorClassroomById = async (classroomId: number): Promise<Classroom> => {
-  const functionName = "getInstructorClassroomById";
+  const fn = "getInstructorClassroomById";
   try {
-    logMessage(functionName, `Fetching instructor classroom with ID: ${classroomId}`);
+    logMessage(fn, `Fetching instructor classroom with ID: ${classroomId}`);
     const classroomRes = await pool.query(
       `SELECT classroom_id AS id, classroom_name AS name, classroom_code AS code, created_at 
        FROM classrooms 
        WHERE classroom_id = $1`,
       [classroomId]
     );
-    if (classroomRes.rowCount === 0) throw new Error("Classroom not found");
     const classroomData = classroomRes.rows[0];
 
     const studentsRes = await pool.query(
@@ -72,23 +71,20 @@ export const getInstructorClassroomById = async (classroomId: number): Promise<C
     );
     const students: ClassroomStudent[] = studentsRes.rows;
 
+    logMessage(fn, `Fetching assignments for classroom ${classroomId}`);
     const assignments: Assignment[] = await getAssignmentsForClassroom(classroomId);
+    logMessage(fn, `Found ${assignments.length} assignments in classroom ${classroomId}`);
 
     const instructorClassroom: Classroom = {
-      id: classroomData.id,
-      name: classroomData.name,
-      code: classroomData.code,
-      instructor: null,
-      students: students,
-      assignments: assignments,
-      active: true,
-      created_at: classroomData.created_at,
+      ...classroomData,
+      students: studentsRes.rows,
+      assignments,
     };
 
-    logMessage(functionName, "Instructor classroom fetched successfully.");
+    logMessage(fn, `Successfully fetched instructor classroom ${classroomId}`);
     return instructorClassroom;
   } catch (error) {
-    logMessage(functionName, `Error: ${error}`);
+    logMessage(fn, `Error: ${error}`);
     throw error;
   }
 };
@@ -97,7 +93,11 @@ export const getStudentClassroomById = async (
   classroomId: number,
   studentId: number
 ): Promise<Classroom> => {
+  const fn = "getStudentClassroomById";
   try {
+    logMessage(fn, `Fetching classroom ${classroomId} for student ${studentId}`);
+    
+    logMessage(fn, `Executing main classroom query`);
     const classroomRes = await pool.query(
       `SELECT 
         c.classroom_id AS id,
@@ -112,21 +112,24 @@ export const getStudentClassroomById = async (
          ON a.assignment_id = s.assignment_id 
          AND s.student_id = $2
        WHERE c.classroom_id = $1
-       GROUP BY c.classroom_id`,
+       GROUP BY c.classroom_id, c.classroom_name, c.classroom_code, c.created_at`, 
       [classroomId, studentId]
     );
 
-    if (classroomRes.rowCount === 0) throw new Error("Classroom not found");
+    if (classroomRes.rowCount === 0) {
+      logMessage(fn, `Classroom ${classroomId} not found for student ${studentId}`);
+      throw new Error("Classroom not found");
+    }
     
+    logMessage(fn, `Found classroom ${classroomId}, fetching assignments`);
     const classroomData = classroomRes.rows[0];
     const assignments = await getAssignmentsForStudentClassroom(classroomId, studentId);
-
+    
+    logMessage(fn, `Completed fetching ${assignments.length} assignments for classroom ${classroomId}`);
+    
     return {
-      id: classroomData.id,
-      name: classroomData.name,
-      code: classroomData.code,
-      created_at: classroomData.created_at,
-      assignments: assignments,
+      ...classroomData,
+      assignments,
       totalAssignments: parseInt(classroomData.totalAssignments),
       completedAssignments: parseInt(classroomData.completedAssignments)
     };

@@ -26,6 +26,16 @@ def normalize_output(output: str) -> str:
     """Standardize output formatting"""
     return '\n'.join(line.rstrip() for line in output.strip().splitlines())
 
+def parse_input_args(input_str: str):
+    """Parse input string into arguments list"""
+    if not input_str:
+        return []
+    
+    if ',' in input_str:
+        return [arg.strip() for arg in input_str.split(',') if arg.strip()]
+    else:
+        return [arg for arg in input_str.split() if arg]
+
 def main():
     try:
         data = json.load(sys.stdin)
@@ -39,34 +49,64 @@ def main():
         code_file = Path(tmpdir) / 'submission.py'
         code_file.write_text(data['code'])
         
+        syntax_check = subprocess.run(
+            ['python3', '-m', 'py_compile', str(code_file)],
+            capture_output=True,
+            text=True
+        )
+        
+        if syntax_check.returncode != 0:
+            error_msg = normalize_output(syntax_check.stderr)
+            print(json.dumps({
+                "status": "compile_error",
+                "error": {
+                    "errorType": "COMPILATION_FAILED",
+                    "errorMessage": error_msg.split('\n')[0] if error_msg else "Syntax error in Python code",
+                    "fullError": error_msg
+                }
+            }))
+            return
+            
+        passed_tests = 0
+        total_runtime = 0
+        
         for idx, tc in enumerate(data.get('testCases', [])):
+            test_id = tc.get('testCaseId', str(idx))
+            expected_output = normalize_output(tc.get('expectedOutput', ''))
+            input_str = tc.get('input', '')
+            is_public = tc.get('isPublic', True)
+            
+            args = parse_input_args(input_str)
+            
             result = {
-                "testCaseId": tc.get('testCaseId', idx),
-                "input": tc.get('input', ''),
-                "expectedOutput": tc.get('expectedOutput', ''),
-                "status": "unknown",
-                "executionTime": 0
+                "testCaseId": test_id,
+                "input": args,
+                "expectedOutput": expected_output,
+                "isPublic": is_public,
+                "status": None,
+                "actual": None,
+                "error": None,
+                "executionTime": None
             }
             
             try:
                 start_time = time.monotonic()
                 
-                # Parse input arguments safely
-                args = shlex.split(tc.get('input', ''))
-                
                 process = subprocess.run(
                     ['python3', str(code_file)] + args,
-                    input=tc.get('stdin', ''),
                     capture_output=True,
                     text=True,
-                    timeout=tc.get('timeout', 5),
+                    timeout=5,
                     preexec_fn=set_limits
                 )
                 
                 elapsed = time.monotonic() - start_time
-                result["executionTime"] = int(elapsed * 1000)
-                result["actual"] = normalize_output(process.stdout)
-                result["memoryUsage"] = process.maxrss // 1024 if hasattr(process, 'maxrss') else 0
+                execution_time = int(elapsed * 1000)
+                result["executionTime"] = execution_time
+                total_runtime += execution_time
+                
+                actual_output = normalize_output(process.stdout)
+                result["actual"] = actual_output
 
                 if process.returncode != 0:
                     result["status"] = "runtime_error"
@@ -79,40 +119,55 @@ def main():
                         result["errorType"] = "TIMEOUT"
                     elif "SyntaxError" in error_msg:
                         result["errorType"] = "SYNTAX_ERROR"
-                    elif "ImportError" in error_msg:
+                    elif "ImportError" in error_msg or "ModuleNotFoundError" in error_msg:
                         result["errorType"] = "IMPORT_RESTRICTED"
+                    elif "ZeroDivisionError" in error_msg:
+                        result["errorType"] = "DIVISION_BY_ZERO"
+                    elif "IndexError" in error_msg:
+                        result["errorType"] = "INDEX_ERROR"
+                    elif "TypeError" in error_msg:
+                        result["errorType"] = "TYPE_ERROR"
                     else:
                         result["errorType"] = "RUNTIME_ERROR"
                         
                     result["error"] = error_msg
+                    result["fullError"] = error_msg
                 else:
-                    result["status"] = "passed" if (
-                        normalize_output(process.stdout) == normalize_output(tc['expectedOutput'])
-                    ) else "failed"
+                    if actual_output == expected_output:
+                        result["status"] = "passed"
+                        passed_tests += 1
+                    else:
+                        result["status"] = "failed"
+                        result["error"] = f"Expected: '{expected_output}', Got: '{actual_output}'"
 
             except subprocess.TimeoutExpired:
                 result.update({
                     "status": "timeout",
                     "errorType": "EXECUTION_TIMEOUT",
-                    "error": f"Exceeded {tc.get('timeout', 5)}s limit"
+                    "error": "Execution timed out after 5 seconds",
+                    "executionTime": 5000 
                 })
             except Exception as e:
                 result.update({
-                    "status": "system_error",
-                    "errorType": "JUDGE_ERROR",
+                    "status": "error",
+                    "errorType": "EXECUTION_EXCEPTION",
                     "error": str(e)
                 })
 
             results.append(result)
+        
+        total_tests = len(results)
+        average_runtime = total_runtime // total_tests if total_tests > 0 else 0
 
-    print(json.dumps({
-        "status": "completed",
-        "testResults": results,
-        "metrics": {
-            "maxMemoryKB": max(r.get('memoryUsage', 0) for r in results),
-            "totalTimeMS": sum(r.get('executionTime', 0) for r in results)
-        }
-    }))
+        print(json.dumps({
+            "status": "completed",
+            "testResults": results,
+            "metrics": {
+                "passedTests": passed_tests,
+                "totalTests": total_tests,
+                "averageRuntime": average_runtime
+            }
+        }))
 
 if __name__ == '__main__':
     main()

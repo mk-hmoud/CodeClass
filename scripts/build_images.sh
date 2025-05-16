@@ -10,8 +10,6 @@ echo "Building all judge Docker images…"
 echo "Building C/C++ runner"
 cd "${DOCKER_BASE}/c\cpp"
 docker build \
-  --pull \
-  --no-cache \
   -t judge-cpp:latest \
   .
 
@@ -19,17 +17,13 @@ docker build \
 echo "Building JavaScript/TypeScript runner"
 cd "${DOCKER_BASE}/javascript\typescript"
 docker build \
-  --pull \
-  --no-cache \
   -t judge-js:latest \
   .
 
 # Python 
-echo "🔨 Building Python runner"
+echo "Building Python runner"
 cd "${DOCKER_BASE}/python"
 docker build \
-  --pull \
-  --no-cache \
   -t judge-py:latest \
   .
 

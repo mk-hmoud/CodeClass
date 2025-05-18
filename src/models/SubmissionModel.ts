@@ -151,51 +151,52 @@ export const getSubmissionsFingerprintsByAssignment = async (assignmentId: numbe
   }
 };
 
-export async function updateSubmissionStatus(
+export function updateSubmissionStatus(
   submissionId: number,
   status: string
 ): Promise<void> {
   const fn = "updateSubmissionStatus";
-  const validStatuses = new Set(['queued', 'running', 'completed', 'error']);
-  
-  try {
+  const validStatuses = new Set(["queued", "running", "completed", "error"]);
 
-    if (!validStatuses.has(status)) {
-      throw new Error(`Invalid status '${status}' for submission ${submissionId}`);
-    }
-
-    logMessage(fn, `Attempting to update submission ${submissionId} → ${status}`);
-
-    const queryText = `
-      UPDATE submissions 
-      SET status = $1
-      WHERE submission_id = $2
-      RETURNING submission_id, status`;
-    
-    const params = [status, submissionId];
-    
-    const result = await pool.query(queryText, params);
-
-    if (result.rowCount === 0) {
-      throw new Error(`Submission ${submissionId} not found`);
-    }
-
-    logMessage(fn, `Successfully updated submission ${submissionId} to ${status}`);
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorStack = error instanceof Error ? error.stack : undefined;
-    
-    logMessage(fn, `FAILED updating submission ${submissionId}: ${errorMessage}`);
-    console.error({
-      context: fn,
-      submissionId,
-      status,
-      error: errorMessage,
-      stack: errorStack
-    });
-
-    throw new Error(`Failed to update submission status: ${errorMessage}`);
+  if (!validStatuses.has(status)) {
+    return Promise.reject(
+      new Error(`Invalid status '${status}' for submission ${submissionId}`)
+    );
   }
+
+  logMessage(fn, `Attempting to update submission ${submissionId} → ${status}`);
+
+  const queryText = `
+    UPDATE submissions
+    SET status = $1
+    WHERE submission_id = $2
+    RETURNING submission_id, status`;
+
+  const params = [status, submissionId];
+
+  return pool
+    .query(queryText, params)
+    .then((result) => {
+      if (result.rowCount === 0) {
+        throw new Error(`Submission ${submissionId} not found`);
+      }
+      logMessage(fn, `Successfully updated submission ${submissionId} to ${status}`);
+    })
+    .catch((err) => {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      const errorStack = err instanceof Error ? err.stack : undefined;
+
+      logMessage(fn, `FAILED updating submission ${submissionId}: ${errorMessage}`);
+      console.error({
+        context: fn,
+        submissionId,
+        status,
+        error: errorMessage,
+        stack: errorStack,
+      });
+
+      throw new Error(`Failed to update submission status: ${errorMessage}`);
+    });
 }
 
 
@@ -394,33 +395,39 @@ export async function getSubmissionsByAssignment(
   }
 }
 
-export const saveSubmissionResults = async (
+export function saveSubmissionResults(
   submissionId: number,
   testResults: TestResult[]
-): Promise<void> => {
+): Promise<void> {
   const functionName = "saveSubmissionResults";
-  logMessage(functionName, `Saving submission results for submission ${submissionId} with ${testResults.length} test cases.`);
+  logMessage(
+    functionName,
+    `Saving submission results for submission ${submissionId} with ${testResults.length} test cases.`
+  );
 
-  const client = await pool.connect();
-  try {
-    const submissionIds: number[] = [];
-    const testCaseIds: number[] = [];
-    const passedArray: boolean[] = [];
-    const actualOutputs: (string | null)[] = [];
-    const executionTimes: (number | null)[] = [];
-    const memoryUsages: (number | null)[] = [];
-    const errorMessages: (string | null)[] = [];
+  return pool
+    .connect()
+    .then((client) => {
+      const submissionIds: number[] = [];
+      const testCaseIds: number[] = [];
+      const passedArray: boolean[] = [];
+      const actualOutputs: (string | null)[] = [];
+      const executionTimes: (number | null)[] = [];
+      const memoryUsages: (number | null)[] = [];
+      const errorMessages: (string | null)[] = [];
 
-    for (const result of testResults) {
-      submissionIds.push(submissionId);
-      testCaseIds.push(result.testCaseId ?? 0);
-      passedArray.push(result.status === 'passed');
-      actualOutputs.push(result.actual ?? null);
-      executionTimes.push(result.executionTime ?? null);
-      errorMessages.push(result.errorMessage ?? null);
-    }
+      for (const result of testResults) {
+        submissionIds.push(submissionId);
+        testCaseIds.push(result.testCaseId ?? 0);
+        passedArray.push(result.status === "passed");
+        actualOutputs.push(result.actual ?? null);
+        executionTimes.push(result.executionTime ?? null);
+        errorMessages.push(result.errorMessage ?? null);
+      }
 
-    await client.query(`
+      return client
+        .query(
+          `
       INSERT INTO submission_results (
         submission_id,
         test_case_id,
@@ -439,21 +446,29 @@ export const saveSubmissionResults = async (
         $6::integer[],
         $7::text[]
       )
-    `, [
-      submissionIds,
-      testCaseIds,
-      passedArray,
-      actualOutputs,
-      executionTimes,
-      memoryUsages,
-      errorMessages
-    ]);
-
-    logMessage(functionName, `Successfully inserted ${testResults.length} test results for submission ${submissionId}.`);
-  } catch (error) {
-    logMessage(functionName, `Error saving submission results: ${error}`);
-    throw error;
-  } finally {
-    client.release();
-  }
-};
+    `,
+          [
+            submissionIds,
+            testCaseIds,
+            passedArray,
+            actualOutputs,
+            executionTimes,
+            memoryUsages,
+            errorMessages,
+          ]
+        )
+        .then(() => {
+          logMessage(
+            functionName,
+            `Successfully inserted ${testResults.length} test results for submission ${submissionId}.`
+          );
+        })
+        .catch((err) => {
+          logMessage(functionName, `Error saving submission results: ${err}`);
+          throw err;
+        })
+    })
+    .catch((err) => {
+      return Promise.reject(err);
+    });
+}

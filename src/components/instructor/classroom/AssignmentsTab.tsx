@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import {
@@ -29,26 +29,20 @@ import { useNavigate } from "react-router-dom";
 import { deleteAssignment } from "@/services/AssignmentService";
 
 import { Classroom } from "../../../types/Classroom";
-import { Assignment } from "../../../types/Assignment";
 import { toast } from "sonner";
-import { getClassroomById } from "@/services/ClassroomService";
 
 interface AssignmentsTabProps {
   classroom: Classroom;
   formatDate?: (date: string) => string;
+  onAssignmentDeleted?: (assignmentId: number) => void;
 }
 
 const AssignmentsTab: React.FC<AssignmentsTabProps> = ({
   classroom,
   formatDate = (date) => new Date(date).toLocaleDateString(),
+  onAssignmentDeleted,
 }) => {
   const navigate = useNavigate();
-
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-
-  useEffect(() => {
-    setAssignments(classroom.assignments);
-  }, [classroom.assignments]);
 
   const handleCreateAssignment = () => {
     navigate(`/instructor/classrooms/${classroom.id}/assignments/create`);
@@ -68,9 +62,10 @@ const AssignmentsTab: React.FC<AssignmentsTabProps> = ({
     try {
       await deleteAssignment(assignmentId);
       toast.success("Assignment deleted");
-      setAssignments((cur) =>
-        cur.filter((a) => a.assignmentId !== assignmentId)
-      );
+
+      if (onAssignmentDeleted) {
+        onAssignmentDeleted(assignmentId);
+      }
     } catch (err: any) {
       console.error(err);
       toast.error("Failed to delete assignment");

@@ -52,7 +52,14 @@ const InstructorAssignment: React.FC = () => {
           throw new Error("Assignment not found");
         }
         console.log(raw);
-        setAssignment(raw.assignment);
+        const transformedAssignment = {
+          ...raw.assignment,
+          dueDate: raw.assignment.due_date,
+          publishDate: raw.assignment.publish_date,
+          due_date: undefined,
+          publish_date: undefined,
+        };
+        setAssignment(transformedAssignment);
         setSubmissions(raw.submissions || []);
       })
       .catch((err) => {
@@ -76,6 +83,7 @@ const InstructorAssignment: React.FC = () => {
   };
 
   const formatDate = (d?: Date | string | number | null) => {
+    console.log("here", assignment);
     if (!d) return "—";
 
     try {
@@ -124,7 +132,7 @@ const InstructorAssignment: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-1">
                   <Calendar size={14} />
-                  <span>Published: {formatDate(assignment.publishDate)}</span>
+                  <span>Publish: {formatDate(assignment.publishDate)}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Clock size={14} />

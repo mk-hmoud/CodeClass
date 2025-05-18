@@ -10,6 +10,7 @@ import StudentsTab from "@/components/instructor/classroom/StudentsTab";
 
 import { getClassroomById } from "../../services/ClassroomService";
 import { Classroom } from "../../types/Classroom";
+import { Assignment } from "../../types/Assignment";
 
 interface Student {
   id: string;
@@ -68,6 +69,18 @@ const InstructorClassroom = () => {
       navigate("/instructor/dashboard");
     }
   }, [loading, classroom, navigate]);
+
+  const handleAssignmentDeleted = (assignmentId: number) => {
+    if (classroom) {
+      const updatedClassroom = {
+        ...classroom,
+        assignments: classroom.assignments.filter(
+          (assignment) => assignment.assignmentId !== assignmentId
+        ),
+      };
+      setClassroom(updatedClassroom);
+    }
+  };
 
   if (loading) {
     return <div>Loading classroom...</div>;
@@ -194,7 +207,10 @@ const InstructorClassroom = () => {
         </div>
 
         <TabsContent value="assignments" className="space-y-6">
-          <AssignmentsTab classroom={classroom} />
+          <AssignmentsTab
+            classroom={classroom}
+            onAssignmentDeleted={handleAssignmentDeleted}
+          />
         </TabsContent>
 
         <TabsContent value="students" className="space-y-6">

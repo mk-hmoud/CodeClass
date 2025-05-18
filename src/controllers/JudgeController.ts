@@ -386,9 +386,9 @@ export const getSubmitStatusHandler = async (
       },
     };
 
-    await updateSubmissionStatus(submissionId, "completed");
+    updateSubmissionStatus(submissionId, "completed");
     console.log(verdict);
-    await saveSubmissionResults(submissionId, testResults);
+    saveSubmissionResults(submissionId, testResults);
     res.status(200).json(verdict);
 
     runPlagiarismCheck(submissionId);

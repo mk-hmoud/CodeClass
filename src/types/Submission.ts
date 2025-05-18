@@ -12,6 +12,10 @@ export interface SubmissionResult {
   export interface PlagiarismReport {
     reportId: number;
     submissionId: number;
+    studentName: string;
+    submission: string;
+    comparedSubmissionId: number;
+    comparedStudentName: string;
     comparedSubmission: number;
     similarity: number;
     checkedAt: string;

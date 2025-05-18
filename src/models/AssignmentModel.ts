@@ -109,21 +109,23 @@ export const getAssignmentById = async (
   try {
     logMessage(fn, `Fetching assignment ${assignmentId}`);
     const assignmentQuery = `
-SELECT
-        a.assignment_id,
-        a.classroom_id,
-        a.problem_id,
-        a.difficulty_level,
-        a.points,
-        a.grading_method,
-        a.max_submissions,
-        a.plagiarism_detection,
-        a.assigned_at,
-        a.publish_date,
-        a.due_date,
-        a.status,                     
-        p.title AS problem_title,
-        p.description AS problem_description,
+      SELECT
+       a.assignment_id,
+       a.classroom_id,
+       a.problem_id,
+       COALESCE(a.title, p.title)           AS assignment_title,
+       COALESCE(a.description, p.description) AS assignment_description,
+       a.difficulty_level,
+       a.points,
+       a.grading_method,
+       a.max_submissions,
+       a.plagiarism_detection,
+       a.assigned_at,
+       a.publish_date,
+       a.due_date,
+       a.status,
+       p.title           AS problem_title,
+       p.description     AS problem_description,
         p.category,
         COALESCE(p.prerequisites, '')   AS prerequisites,
         COALESCE(p.learning_outcomes,'') AS learning_outcomes,
@@ -185,8 +187,8 @@ SELECT
     const assignment: Assignment = {
       assignmentId: row.assignment_id,
       classroomId: row.classroom_id,
-      title: row.problem_title,
-      description: row.problem_description,
+      title: row.assignment_title,
+      description: row.assignment_description,
       difficulty_level: row.difficulty_level as
         | "Easy"
         | "Medium"

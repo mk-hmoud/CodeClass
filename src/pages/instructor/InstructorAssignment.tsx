@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import {
   MoreVertical,
   Edit,
@@ -11,7 +10,6 @@ import {
   Calendar,
   BookOpen,
   BarChart,
-  Download,
   ArrowLeft,
 } from "lucide-react";
 import {
@@ -28,6 +26,7 @@ import ExportTab from "@/components/instructor/assignment/view/ExportTab";
 import { getAssignmentById } from "@/services/AssignmentService";
 import { Assignment } from "@/types/Assignment";
 import { FullSubmission } from "@/types/Submission";
+import PlagiarismTab from "@/components/instructor/assignment/view/PlagiarismTab";
 
 const InstructorAssignment: React.FC = () => {
   const { assignmentId } = useParams<{ assignmentId: string }>();
@@ -40,19 +39,26 @@ const InstructorAssignment: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const { classroomId } = useParams();
   useEffect(() => {
-    console.log("HI", assignmentId);
-    if (!assignmentId) return;
+    if (!assignmentId) {
+      setError("Invalid assignment ID");
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     getAssignmentById(+assignmentId)
       .then((raw) => {
-        if (!raw) throw new Error("Not found");
+        if (!raw?.assignment) {
+          throw new Error("Assignment not found");
+        }
         console.log(raw);
         setAssignment(raw.assignment);
-        setSubmissions(raw.submissions);
+        setSubmissions(raw.submissions || []);
       })
       .catch((err) => {
         console.error(err);
-        setError("Failed to load assignment");
+        setError(err.message || "Failed to load assignment");
+        setAssignment(null);
       })
       .finally(() => setLoading(false));
   }, [assignmentId]);
@@ -67,12 +73,6 @@ const InstructorAssignment: React.FC = () => {
 
   const handleEdit = () => {
     //navigate(`/instructor/edit-assignment/${assignmentId}`);
-  };
-
-  const handleStats = () => {
-    navigate(
-      `/instructor/classrooms/${classroomId}/assignments/${assignmentId}/analytics`
-    );
   };
 
   const formatDate = (d?: Date | string | number | null) => {
@@ -109,24 +109,12 @@ const InstructorAssignment: React.FC = () => {
 
         {/* Header */}
         <div className="flex justify-between items-start mb-6">
+          {/* Left side: Title and details */}
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-3xl font-bold">
                 {assignment?.title ?? "Loading…"}
               </h1>
-              {assignment && (
-                <Badge
-                  className={`${
-                    assignment.difficulty_level === "Easy"
-                      ? "bg-green-900/40 text-green-400 border border-green-700"
-                      : assignment.difficulty_level === "Medium"
-                      ? "bg-orange-900/40 text-orange-400 border border-orange-700"
-                      : "bg-red-900/40 text-red-400 border border-red-700"
-                  }`}
-                >
-                  {assignment.difficulty_level}
-                </Badge>
-              )}
             </div>
             {assignment && (
               <div className="flex mt-2 gap-4 text-gray-400">
@@ -145,42 +133,39 @@ const InstructorAssignment: React.FC = () => {
               </div>
             )}
           </div>
-          <Button
-            onClick={() =>
-              navigate(
-                `/instructor/classrooms/${classroomId}/assignments/${assignmentId}/analytics`
-              )
-            }
-            variant="outline"
-            className="flex gap-2 items-center"
-          >
-            <BarChart size={16} className="mr-2" />
-            <span>Analytics</span>
-          </Button>
-          {/* Actions menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <MoreVertical />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleEdit}>
-                <Edit className="mr-2 h-4 w-4" /> Edit Assignment
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleStats}>
-                <BarChart className="mr-2 h-4 w-4" /> View Statistics
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <Download className="mr-2 h-4 w-4" /> Export Grades
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-red-500">
-                <Trash2 className="mr-2 h-4 w-4" /> Delete Assignment
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center gap-2">
+            {" "}
+            <Button
+              onClick={() =>
+                navigate(
+                  `/instructor/classrooms/${classroomId}/assignments/${assignmentId}/analytics`
+                )
+              }
+              variant="outline"
+              className="flex items-center"
+            >
+              <BarChart size={16} className="mr-2" /> <span>Analytics</span>
+            </Button>
+            {/* Actions menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label="More Actions">
+                  {" "}
+                  <MoreVertical />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleEdit}>
+                  <Edit className="mr-2 h-4 w-4" /> Edit Assignment
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-red-500">
+                  <Trash2 className="mr-2 h-4 w-4" /> Delete Assignment
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -207,6 +192,12 @@ const InstructorAssignment: React.FC = () => {
               className="data-[state=active]:bg-[#123651]"
             >
               Student Submissions
+            </TabsTrigger>
+            <TabsTrigger
+              value="plagiarism"
+              className="data-[state=active]:bg-[#123651]"
+            >
+              Plagiarism
             </TabsTrigger>
             <TabsTrigger
               value="export"
@@ -257,8 +248,23 @@ const InstructorAssignment: React.FC = () => {
             ) : null}
           </TabsContent>
 
+          <TabsContent value="plagiarism">
+            {assignment ? (
+              <PlagiarismTab
+                assignmentId={assignmentId || ""}
+                plagiarism_detection={assignment.plagiarism_detection}
+              />
+            ) : (
+              <div className="text-gray-400">No assignment loaded</div>
+            )}
+          </TabsContent>
+
           <TabsContent value="export">
-            <ExportTab assignment={assignment!} students={submissions} />
+            {assignment ? (
+              <ExportTab assignment={assignment} students={submissions || []} />
+            ) : (
+              <div className="text-gray-400">No assignment to export</div>
+            )}
           </TabsContent>
         </Tabs>
       </div>

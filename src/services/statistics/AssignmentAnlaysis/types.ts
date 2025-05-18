@@ -72,7 +72,8 @@ export type StatisticsEventType =
   | 'SUBMISSION_CREATED'
   | 'SUBMISSION_COMPLETED'
   | 'PLAGIARISM_DETECTED'
-  | 'STATISTICS_CALCULATED';
+  | 'STATISTICS_CALCULATED'
+  | 'GRADE_UPDATED';
 
 export interface StatisticsEvent {
   type: StatisticsEventType;
@@ -124,5 +125,14 @@ export interface StatisticsCalculatedEvent extends StatisticsEvent {
   payload: {
     assignmentId: number;
     statistics: AssignmentStatistics;
+  };
+}
+
+export interface GradeUpdatedEvent extends StatisticsEvent {
+  type: 'GRADE_UPDATED';
+  payload: {
+    assignmentId: number;
+    submissionId: number;
+    finalScore: number;
   };
 }

@@ -1,6 +1,8 @@
 import pool from "../../config/db";
 import { getAssignmentById } from "../../models/AssignmentModel";
 import { TestResult } from "../../types";
+import { statisticsEventEmitter } from "../statistics/AssignmentAnlaysis/emitter";
+import { GradeUpdatedEvent } from "../statistics/AssignmentAnlaysis/types";
 
 const logMessage = (functionName: string, message: string): void => {
   const timestamp = new Date().toISOString();
@@ -111,7 +113,19 @@ export const calculateGrade = async (
       logMessage(fn, `Calculated ${percentageScore}% of ${maxPoints} points = ${finalScore}`);
   
       let gradingStatus: 'system graded' | 'graded' | 'pending' = 'pending';
-      if (assignment.grading_method === 'Automatic') gradingStatus = 'graded';
+      if (assignment.grading_method === 'Automatic'){ 
+        gradingStatus = 'graded';
+        const gradeEvent: GradeUpdatedEvent = {
+          type: 'GRADE_UPDATED',
+          timestamp: new Date().toISOString(),
+          payload: {
+            assignmentId,
+            submissionId,
+            finalScore
+          }
+        };
+        statisticsEventEmitter.emit('GRADE_UPDATED', gradeEvent.payload);
+      }
       else if (assignment.grading_method === 'Hybrid') gradingStatus = 'system graded';
       logMessage(fn, `Setting gradingStatus = ${gradingStatus}`);
   
@@ -234,13 +248,13 @@ export async function updateManualGrade({
     }
 
     const row = subRes.rows[0];
-    const assignment_id = row.assignment_id;
+    const assignmentId = row.assignment_id;
     const grading_method = row.grading_method;
     const maxPoints = row.points || 100;
     
     const auto_score = row.auto_score !== null ? parseFloat(row.auto_score) : null;
     
-    log(`Found submission with assignment ${assignment_id} (grading method: ${grading_method}, max points: ${maxPoints})`);
+    log(`Found submission with assignment ${assignmentId} (grading method: ${grading_method}, max points: ${maxPoints})`);
     log(`Auto score: ${auto_score}, Manual score: ${manualScore}`);
 
     if (manualScore < 0 || manualScore > maxPoints) {
@@ -287,6 +301,17 @@ export async function updateManualGrade({
 
     await client.query('COMMIT');
     log(`Successfully updated submission ${submissionId}`);
+
+    const gradeEvent: GradeUpdatedEvent = {
+      type: 'GRADE_UPDATED',
+      timestamp: new Date().toISOString(),
+      payload: {
+        assignmentId,
+        submissionId,
+        finalScore
+      }
+    };
+    statisticsEventEmitter.emit('GRADE_UPDATED', gradeEvent.payload);
 
     return updRes.rows[0];
   } catch (error) {

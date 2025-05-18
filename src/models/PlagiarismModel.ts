@@ -1,4 +1,5 @@
 import pool from "../config/db";
+import { PlagiarismReport } from "../types";
 
 const logMessage = (functionName: string, message: string): void => {
   const timestamp = new Date().toISOString();
@@ -117,3 +118,40 @@ export async function isPlagiarismEnabled(assignmentId: number): Promise<boolean
     logMessage(fn, `Assignment ${assignmentId} plagiarism_detection=${rows[0].plagiarism_detection}`);
     return rows[0].plagiarism_detection;
   }
+
+
+  export const getAssignmentPlagiarismReports = async (assignmentId: number): Promise<PlagiarismReport[]> => {
+    const query = `
+      SELECT 
+        pr.report_id as "reportId",
+        pr.submission_id as "submissionId",
+        u1.first_name || ' ' || u1.last_name as "studentName",
+        s1.code as "submission",
+        pr.compared_submission as "comparedSubmissionId",
+        u2.first_name || ' ' || u2.last_name as "comparedStudentName",
+        s2.code as "comparedSubmission",
+        pr.similarity,
+        pr.checked_at as "checkedAt"
+      FROM plagiarism_reports pr
+      JOIN submissions s1 ON pr.submission_id = s1.submission_id
+      JOIN students st1 ON s1.student_id = st1.student_id
+      JOIN users u1 ON st1.user_id = u1.user_id
+      JOIN submissions s2 ON pr.compared_submission = s2.submission_id
+      JOIN students st2 ON s2.student_id = st2.student_id
+      JOIN users u2 ON st2.user_id = u2.user_id
+      WHERE s1.assignment_id = $1
+      ORDER BY pr.similarity DESC
+    `;
+  
+    try {
+      const result = await pool.query(query, [assignmentId]);
+      return result.rows.map(row => ({
+        ...row,
+        similarity: Number(row.similarity),
+        checkedAt: new Date(row.checkedAt).toISOString()
+      }));
+    } catch (error) {
+      console.error("Error fetching plagiarism reports:", error);
+      throw new Error("Failed to load plagiarism reports");
+    }
+  };

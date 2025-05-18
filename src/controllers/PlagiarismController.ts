@@ -1,5 +1,6 @@
+import { Request, Response } from 'express';
 import axios from "axios";
-import { isPlagiarismEnabled, processPlagiarismResults, storeFingerprint } from "../models/PlagiarismModel";
+import { getAssignmentPlagiarismReports, isPlagiarismEnabled, processPlagiarismResults, storeFingerprint } from "../models/PlagiarismModel";
 import { getSubmissionById, getSubmissionsFingerprintsByAssignment } from "../models/SubmissionModel";
 
 const PLAGIARISM_URL = process.env.PLAGIARISM_URL || 'http://localhost:8001'
@@ -13,6 +14,7 @@ const logMessage = (functionName: string, message: string): void => {
 
 // temp
 import pool from '../config/db'; 
+import { getAssignmentById } from '../models/AssignmentModel';
 async function logPlagiarismReports(submissionId: number) {
     const fn = 'logPlagiarismReports';
     const rs = await pool.query(
@@ -206,3 +208,62 @@ export async function debugPlagiarismRequest(
     }
   }
 }
+
+export const getAssignmentPlagiarismReportsController = async (req: Request, res: Response): Promise<void> => {
+  const functionName = 'getAssignmentPlagiarismReportsController';
+  try {
+    const assignmentId = Number(req.params.assignmentId);
+    logMessage(functionName, `Received request to fetch plagiarism reports for assignment ID: ${assignmentId}`);
+    
+    if (isNaN(assignmentId) || assignmentId <= 0) {
+      logMessage(functionName, `Invalid assignment ID: ${req.params.assignmentId}`);
+      res.status(400).json({ success: false, message: 'Invalid assignment ID' });
+      return;
+    }
+    
+    if (!req.user) {
+      logMessage(functionName, "No user information found in request");
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+    
+    if (req.user.role !== "instructor") {
+      logMessage(functionName, `User ${req.user.id} with role ${req.user.role} attempted to access plagiarism reports`);
+      res.status(403).json({ success: false, message: 'Forbidden: instructor role required' });
+      return;
+    }
+    
+    const assignment = await getAssignmentById(assignmentId);
+    
+    if (!assignment) {
+      logMessage(functionName, `Assignment with ID ${assignmentId} not found`);
+      res.status(404).json({ success: false, message: 'Assignment not found' });
+      return;
+    }
+    
+    if (!assignment.plagiarism_detection) {
+      logMessage(functionName, `Plagiarism detection is not enabled for assignment ${assignmentId}`);
+      res.status(200).json({ 
+        success: true, 
+        data: { 
+          reports: [],
+          plagiarismEnabled: false
+        }
+      });
+      return;
+    }
+    
+    const reports = await getAssignmentPlagiarismReports(assignmentId);
+    logMessage(functionName, `Fetched ${reports.length} plagiarism reports for assignment ID: ${assignmentId}`);
+    
+    res.status(200).json({ 
+      success: true, 
+      data: { 
+        reports
+      }
+    });
+  } catch (error) {
+    logMessage(functionName, `Error fetching plagiarism reports: ${error}`);
+    res.status(500).json({ success: false, message: 'Failed to fetch plagiarism reports' });
+  }
+};

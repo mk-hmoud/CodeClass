@@ -7,7 +7,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -18,19 +17,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Download, FileDown, FileText, RefreshCw, Server } from "lucide-react";
+import { Download, FileText, RefreshCw } from "lucide-react";
+import { exportAndDownloadAssignment } from "@/services/ExportService";
 
-interface MoodleExportProps {
-  assignmentData: any;
+interface GradesExportProps {
+  assignmentData: {
+    assignmentId: number | string;
+    title: string;
+    [key: string]: any;
+  };
   students: any[];
   classroomData?: any;
 }
 
-const MoodleExport = ({
+const GradesExport = ({
   assignmentData,
   students,
   classroomData,
-}: MoodleExportProps) => {
+}: GradesExportProps) => {
   const [exportFormat, setExportFormat] = useState<"csv" | "json" | "xml">(
     "csv"
   );
@@ -44,17 +48,34 @@ const MoodleExport = ({
   });
   const [isExporting, setIsExporting] = useState(false);
 
-  const handleExport = () => {
+  const handleExport = async () => {
     setIsExporting(true);
 
-    setTimeout(() => {
-      setIsExporting(false);
+    try {
+      const selectedFields = Object.entries(includeFields)
+        .filter(([_, isSelected]) => isSelected)
+        .map(([fieldName]) => fieldName);
+
+      await exportAndDownloadAssignment(
+        assignmentData.assignmentId,
+        assignmentData.title,
+        {
+          format: exportFormat,
+          includeFields: selectedFields,
+        }
+      );
+
       toast.success(
         `Successfully exported ${
           students.length
         } records in ${exportFormat.toUpperCase()} format`
       );
-    }, 1500);
+    } catch (error) {
+      console.error("Export failed:", error);
+      toast.error(`Export failed: ${error.message || "Unknown error"}`);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const toggleField = (field: keyof typeof includeFields) => {
@@ -67,10 +88,8 @@ const MoodleExport = ({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Export to Moodle</CardTitle>
-        <CardDescription>
-          Export assignment data to your Moodle course
-        </CardDescription>
+        <CardTitle>Export Grades</CardTitle>
+        <CardDescription>Export assignment grades</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid gap-6">
@@ -150,13 +169,9 @@ const MoodleExport = ({
               ) : (
                 <>
                   <Download className="mr-2 h-4 w-4" />
-                  Export to Moodle
+                  Export
                 </>
               )}
-            </Button>
-            <Button variant="outline">
-              <Server className="mr-2 h-4 w-4" />
-              Download Locally
             </Button>
           </div>
         </div>
@@ -165,4 +180,4 @@ const MoodleExport = ({
   );
 };
 
-export default MoodleExport;
+export default GradesExport;

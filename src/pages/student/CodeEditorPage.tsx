@@ -261,7 +261,7 @@ const CodeEditorPage = () => {
         return;
       }
 
-      if (isFinite(remainingAttempts)) {
+      if (remainingAttempts) {
         setRemainingAttempts((prev) => prev - 1);
       }
       setSubmissionStatus("completed");
@@ -592,7 +592,7 @@ const CodeEditorPage = () => {
   }, []);
 
   const formatAttemptsDisplay = () => {
-    if (!isFinite(remainingAttempts)) {
+    if (!remainingAttempts) {
       return (
         <Badge
           variant="outline"
@@ -650,7 +650,7 @@ const CodeEditorPage = () => {
                 <div className="ml-4">{formatAttemptsDisplay()}</div>
               </TooltipTrigger>
               <TooltipContent>
-                {!isFinite(remainingAttempts)
+                {!remainingAttempts
                   ? "You have unlimited submission attempts"
                   : remainingAttempts > 0
                   ? `You have ${remainingAttempts} submission attempt${

@@ -186,7 +186,9 @@ const Home = () => {
                     className="p-0 h-auto text-xs"
                     onClick={(e) => {
                       e.preventDefault();
-                      toast.info("Password reset functionality would go here");
+                      toast.info(
+                        "Password reset functionality not implemented"
+                      );
                     }}
                   >
                     Forgot password?

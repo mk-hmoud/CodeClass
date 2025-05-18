@@ -3,15 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import {
-  Users,
-  Book,
-  Calendar,
-  Settings,
-  PlusCircle,
-  BarChart,
-} from "lucide-react";
+import { Users, Book, Calendar, Settings, BarChart } from "lucide-react";
 
 import AssignmentsTab from "@/components/instructor/classroom/AssignmentsTab";
 import StudentsTab from "@/components/instructor/classroom/StudentsTab";
@@ -28,21 +20,6 @@ interface Student {
   completionRate: number;
 }
 
-interface ClassStats {
-  submissionsOverTime: {
-    date: string;
-    submissions: number;
-  }[];
-  assignmentCompletion: {
-    assignment: string;
-    completionRate: number;
-  }[];
-  studentEngagement: number;
-  averageScore: number;
-  assignmentsCreated: number;
-  activeStudents: number;
-}
-
 const InstructorClassroom = () => {
   const { classroomId } = useParams<{ classroomId: string }>();
   const navigate = useNavigate();
@@ -52,14 +29,6 @@ const InstructorClassroom = () => {
   const [loading, setLoading] = useState<boolean>(true);
 
   const [students, setStudents] = useState<Student[]>([]);
-  const [classStats, setClassStats] = useState<ClassStats>({
-    submissionsOverTime: [],
-    assignmentCompletion: [],
-    studentEngagement: 0,
-    averageScore: 0,
-    assignmentsCreated: 0,
-    activeStudents: 0,
-  });
 
   useEffect(() => {
     const fetchClassroom = async () => {
@@ -84,26 +53,6 @@ const InstructorClassroom = () => {
           );
           setStudents(formattedStudents);
         }
-
-        const statsData: ClassStats = {
-          submissionsOverTime: [
-            { date: "2025-03-01", submissions: 5 },
-            { date: "2025-03-08", submissions: 10 },
-            { date: "2025-03-15", submissions: 8 },
-            { date: "2025-03-22", submissions: 15 },
-            { date: "2025-03-29", submissions: 12 },
-          ],
-          assignmentCompletion:
-            fetchedClassroom.assignments?.map((a) => ({
-              assignment: a.problem.title,
-              completionRate: Math.floor(Math.random() * 100),
-            })) || [],
-          studentEngagement: 78,
-          averageScore: 82,
-          assignmentsCreated: fetchedClassroom.assignments?.length || 0,
-          activeStudents: fetchedClassroom.students?.length || 0,
-        };
-        setClassStats(statsData);
       } catch (error) {
         toast.error("Failed to load classroom");
         console.error("Error fetching classroom:", error);

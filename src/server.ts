@@ -6,6 +6,7 @@ import LanguageRoutes from './routes/LanguageRoutes';
 import AuthRoutes from './routes/AuthRoutes';
 import JudgeRoutes from './routes/JudgeRoutes';
 import SubmissionRoutes from './routes/SubmissionRoutes';
+import ExportRoutes from './routes/ExportRoutes';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { AssignmentStatisticsService } from './services/statistics/AssignmentAnlaysis/AssignmentStatistics';
@@ -36,6 +37,8 @@ app.use('/api/language', LanguageRoutes);
 app.use('/api/judge', JudgeRoutes);
 
 app.use('/api/submissions', SubmissionRoutes);
+
+app.use('/api/export', ExportRoutes);
 
 app.listen(port, () => {
   console.log(`Server is running at http://localhost:${port}!`);

@@ -10,7 +10,6 @@ import StudentsTab from "@/components/instructor/classroom/StudentsTab";
 
 import { getClassroomById } from "../../services/ClassroomService";
 import { Classroom } from "../../types/Classroom";
-import { Assignment } from "../../types/Assignment";
 
 interface Student {
   id: string;

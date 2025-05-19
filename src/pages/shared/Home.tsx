@@ -88,7 +88,7 @@ const Home = () => {
           transition={{ duration: 0.5 }}
         >
           <div className="flex justify-center md:justify-start mb-6">
-            <Logo size="large" />
+            <Logo />
           </div>
 
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-mono font-bold mb-4 text-center md:text-left">
@@ -134,7 +134,7 @@ const Home = () => {
               to="/signup"
               className="text-cyan-400 hover:text-cyan-300 flex items-center group font-mono"
             >
-              New to CodeEd? Sign up
+              New to CodeClass? Sign up
               <ArrowRight
                 size={16}
                 className="ml-1 group-hover:translate-x-1 transition-transform"
@@ -245,7 +245,7 @@ const Home = () => {
           </div>
 
           <p className="text-xs text-center text-gray-500 mt-8">
-            © {new Date().getFullYear()} CodeEd. All rights reserved.
+            © {new Date().getFullYear()} CodeClass. All rights reserved.
           </p>
         </motion.div>
       </div>

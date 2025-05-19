@@ -271,11 +271,11 @@ const ClassroomsSection = () => {
                 <div className="flex justify-between text-sm text-gray-400 mb-3">
                   <div className="flex items-center gap-1">
                     <Users size={16} />
-                    <span>{classroom.students_num} students</span>
+                    <span>{classroom.students_num} Students </span>
                   </div>
                   <div className="flex items-center gap-1">
                     <BookOpen size={16} />
-                    <span>{classroom.assignments.length} problems</span>
+                    <span>{classroom.totalAssignments} Assignments </span>
                   </div>
                 </div>
               </CardContent>

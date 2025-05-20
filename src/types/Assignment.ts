@@ -21,6 +21,7 @@ export interface Assignment {
   completed?: boolean;
   status?: "active" | "expired";
   submitted?: boolean;
+  finalScore?: number;
 }
 
 

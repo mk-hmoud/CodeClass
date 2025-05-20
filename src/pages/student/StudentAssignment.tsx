@@ -338,13 +338,23 @@ const StudentAssignment = () => {
                   <div className="space-y-4 mt-5">
                     <div>
                       <h3 className="text-xl font-semibold mb-4">Title:</h3>
-                      <p>{assignment?.problem?.title}</p>
+                      <p>{assignment?.title}</p>
                     </div>
                     <div>
                       <h3 className="text-xl font-semibold mb-4">
                         Description:
                       </h3>
-                      <p>{assignment?.problem?.description}</p>
+                      {assignment?.description ? (
+                        <div className="prose dark:prose-invert max-w-none">
+                          <pre className="whitespace-pre-wrap break-words">
+                            {assignment.description}
+                          </pre>
+                        </div>
+                      ) : (
+                        <div className="text-gray-400 italic">
+                          No description available for this assignment.
+                        </div>
+                      )}
                     </div>
                   </div>
                 </TabsContent>

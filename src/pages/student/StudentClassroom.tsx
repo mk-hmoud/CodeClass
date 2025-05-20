@@ -426,10 +426,18 @@ const StudentClassroom: React.FC = () => {
                               <div className="bg-green-900/20 border border-green-700 rounded-md p-3 mb-3">
                                 <div className="flex justify-between items-center">
                                   <span className="text-sm text-green-400">
-                                    Your grade
+                                    {assignment.finalScore === null
+                                      ? "Awaiting grade"
+                                      : "Your grade"}
                                   </span>
                                   <span className="text-xl font-bold text-green-400">
-                                    {4}/{assignment.points}
+                                    {assignment.finalScore === null ? (
+                                      <Badge className="bg-blue-900/40 text-blue-400 border border-blue-700">
+                                        Pending
+                                      </Badge>
+                                    ) : (
+                                      `${assignment.finalScore}/${assignment.points}`
+                                    )}
                                   </span>
                                 </div>
                               </div>

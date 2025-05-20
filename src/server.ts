@@ -10,6 +10,7 @@ import ExportRoutes from './routes/ExportRoutes';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { AssignmentStatisticsService } from './services/statistics/AssignmentAnlaysis/AssignmentStatistics';
+import { ClassroomStatisticsService } from './services/statistics/ClassroomAnalysis/calculator';
 
 // Load environment variables
 dotenv.config();
@@ -45,3 +46,4 @@ app.listen(port, () => {
 });
 
 AssignmentStatisticsService.getInstance();
+ClassroomStatisticsService.getInstance();

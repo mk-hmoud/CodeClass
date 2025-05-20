@@ -83,6 +83,7 @@ export interface Assignment {
   avgScore?: number;
   completed?: boolean;
   submitted?: boolean;
+  finalScore?: number;
 }
 
 export interface AssignmentCreationData{

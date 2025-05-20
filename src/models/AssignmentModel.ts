@@ -345,75 +345,96 @@ export async function getAssignmentsForStudentClassroom(
 ): Promise<Assignment[]> {
   const fn = "getAssignmentsForStudentClassroom";
   try {
-      logMessage(fn, `Fetching assignments for student ${studentId} in classroom ${classroomId}`);
-    
-      const query = `
+    logMessage(
+      fn,
+      `Fetching assignments for student ${studentId} in classroom ${classroomId}`
+    );
+
+    const query = `
       SELECT 
-        a.assignment_id AS "assignmentId",
-        a.classroom_id AS "classroomId",
-        a.problem_id AS "problemId",
+        a.assignment_id           AS "assignmentId",
+        a.classroom_id            AS "classroomId",
+        a.problem_id              AS "problemId",
         a.title,
         a.description,
-        a.difficulty_level AS "difficultyLevel",
+        a.difficulty_level        AS "difficultyLevel",
         a.points,
-        a.grading_method AS "gradingMethod",
-        a.max_submissions AS "submissionAttempts",
-        a.plagiarism_detection AS "plagiarismDetection",
-        to_char(a.assigned_at, 'YYYY-MM-DD"T"HH24:MI:SSZ') AS "assignedAt",
-        to_char(a.publish_date, 'YYYY-MM-DD"T"HH24:MI:SSZ') AS "publishDate",
-        to_char(a.due_date, 'YYYY-MM-DD"T"HH24:MI:SSZ') AS "dueDate",
-        a.status AS "status",
+        a.grading_method          AS "gradingMethod",
+        a.max_submissions         AS "submissionAttempts",
+        a.plagiarism_detection    AS "plagiarismDetection",
+        to_char(a.assigned_at,    'YYYY-MM-DD"T"HH24:MI:SSZ') AS "assignedAt",
+        to_char(a.publish_date,   'YYYY-MM-DD"T"HH24:MI:SSZ') AS "publishDate",
+        to_char(a.due_date,       'YYYY-MM-DD"T"HH24:MI:SSZ') AS "dueDate",
+        a.status                  AS "status",
+
         EXISTS (
-          SELECT 1 FROM submission_attempts sa
-          WHERE sa.assignment_id = a.assignment_id
-          AND sa.student_id = $2
-        ) AS "submitted",
+          SELECT 1 
+            FROM submission_attempts sa
+           WHERE sa.assignment_id = a.assignment_id
+             AND sa.student_id    = $2
+        )                          AS "submitted",
+
+        (
+          SELECT s.final_score
+            FROM submissions s
+           WHERE s.assignment_id = a.assignment_id
+             AND s.student_id    = $2
+           ORDER BY s.submitted_at DESC
+           LIMIT 1
+        )                          AS "finalScore",
+
         json_build_object(
-          'problemId', p.problem_id,
-          'instructorId', p.instructor_id,
-          'title', p.title,
-          'description', p.description,
-          'category', p.category,
+          'problemId',     p.problem_id,
+          'instructorId',  p.instructor_id,
+          'title',         p.title,
+          'description',   p.description,
+          'category',      p.category,
           'prerequisites', p.prerequisites,
           'learning_outcomes', p.learning_outcomes,
-          'tags', p.tags,
-          'created_at', p.created_at,
+          'tags',          p.tags,
+          'created_at',    p.created_at,
           'testCases', (
             SELECT COALESCE(json_agg(
               json_build_object(
-                'testCaseId', ptc.test_case_id,
-                'input', ptc.input,
+                'testCaseId',     ptc.test_case_id,
+                'input',          ptc.input,
                 'expectedOutput', ptc.expected_output,
-                'isPublic', ptc.is_public
+                'isPublic',       ptc.is_public
               )
             ), '[]'::json)
             FROM problem_test_cases ptc
-            WHERE ptc.problem_id = p.problem_id
+           WHERE ptc.problem_id = p.problem_id
           )
-        ) AS problem,
+        )                          AS problem,
+
         (
           SELECT COALESCE(json_agg(
             json_build_object(
-              'pairId', alp.pair_id,
-              'assignmentId', alp.assignment_id,
-              'languageId', alp.language_id,
-              'initial_code', alp.initial_code,
-              'name', l.name,
-              'version', l.version
+              'pairId',      alp.pair_id,
+              'assignmentId',alp.assignment_id,
+              'languageId',  alp.language_id,
+              'initial_code',alp.initial_code,
+              'name',        l.name,
+              'version',     l.version
             )
           ), '[]'::json)
           FROM assignment_languages_pairs alp
-          JOIN languages l ON alp.language_id = l.language_id
-          WHERE alp.assignment_id = a.assignment_id
-        ) AS languages
+          JOIN languages l ON l.language_id = alp.language_id
+         WHERE alp.assignment_id = a.assignment_id
+        )                          AS languages
+
       FROM assignments_with_status a 
-      JOIN problems p ON a.problem_id = p.problem_id
-      WHERE a.classroom_id = $1;
+      JOIN problems p ON p.problem_id = a.problem_id
+     WHERE a.classroom_id = $1;
     `;
+
     logMessage(fn, `Executing assignments query for classroom ${classroomId}`);
     const result = await pool.query(query, [classroomId, studentId]);
-    logMessage(fn, `Found ${result.rowCount} assignments for student ${studentId} ${result.rows[0]}`);
-    
+    logMessage(
+      fn,
+      `Found ${result.rowCount} assignments for student ${studentId}`
+    );
+
     return result.rows as Assignment[];
   } catch (error) {
     console.error("Error fetching assignments:", error);

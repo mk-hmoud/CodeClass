@@ -396,3 +396,6 @@ SELECT
   END AS status
 
 FROM assignments a;
+
+--ALTER TABLE assignments
+--ADD COLUMN results_published BOOLEAN NOT NULL DEFAULT FALSE;

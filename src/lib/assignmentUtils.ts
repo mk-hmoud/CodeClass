@@ -12,8 +12,8 @@ export const languageDefaultCode: Record<string, string> = {
   python: `# Your code here\n\ndef solution():\n    # Implement your solution here\n    pass\n\n# Test your solution\nprint(solution())`,
   javascript: `// Your code here\n\nfunction solution() {\n    // Implement your solution here\n    return null;\n}\n\n// Test your solution\nconsole.log(solution());`,
   typescript: `// Your code here\n\nfunction solution(): any {\n    // Implement your solution here\n    return null;\n}\n\n// Test your solution\nconsole.log(solution());`,
-  cpp: `#include <iostream>\n\nusing namespace std;\n\n// Implement your solution here\nint solution() { return 0; }\n\nint main() { cout << solution() << endl; return 0; }`,
-  c: `#include <stdio.h>\n\nint solution() { return 0; }\n\nint main() { printf("%d\\n", solution()); return 0; }`,
+  cpp: `#include <iostream>\n\nusing namespace std;\n\n// Implement your solution here\nint solution() { \nreturn 0; \n}\n\nint main() { \ncout << solution() << endl; \nreturn 0; \n}`,
+  c: `#include <stdio.h>\n\nint solution() { return 0; }\n\nint main() { \nprintf("%d\\n", solution()); \nreturn 0; \n}`,
 };
 
 export const formSchema = z.object({

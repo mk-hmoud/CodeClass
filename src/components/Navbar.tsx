@@ -8,6 +8,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import Logo from "./Logo";
+import { logout } from "@/services/AuthService";
 
 const Navbar = () => {
   const location = useLocation();
@@ -18,8 +20,7 @@ const Navbar = () => {
   return (
     <header className="border-b border-gray-800 bg-[#0b0f1a] py-3 px-4 flex items-center justify-between w-full">
       <div className="flex items-center gap-2">
-        <div className="text-[#00b7ff] text-2xl font-mono">{`<>`}</div>
-        <h1 className="text-lg font-medium text-white">Code Studio</h1>
+        <Logo />
       </div>
 
       <div className="flex items-center gap-2">
@@ -53,7 +54,12 @@ const Navbar = () => {
                 <DropdownMenuItem onClick={() => (window.location.href = "/")}>
                   Settings
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => (window.location.href = "/")}>
+                <DropdownMenuItem
+                  onClick={() => {
+                    logout();
+                    window.location.href = "/";
+                  }}
+                >
                   Logout
                 </DropdownMenuItem>
               </DropdownMenuContent>

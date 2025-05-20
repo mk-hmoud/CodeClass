@@ -175,7 +175,13 @@ const AssignmentsTab: React.FC<AssignmentsTabProps> = ({
                                 <Edit className="mr-2 h-4 w-4" />
                                 Edit
                               </DropdownMenuItem>
-                              <DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  navigate(
+                                    `/instructor/classrooms/${classroom.id}/assignments/${assignment.assignmentId}/analytics`
+                                  )
+                                }
+                              >
                                 <BarChart className="mr-2 h-4 w-4" />
                                 View Statistics
                               </DropdownMenuItem>

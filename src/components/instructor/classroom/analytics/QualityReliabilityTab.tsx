@@ -10,19 +10,19 @@ import {
 } from "recharts";
 
 interface QualityReliabilityData {
-  plagiarismRate: number;
-  averageSimilarity: number;
-  maxSimilarity: number;
-  runtimeErrorRate: number;
+  plagiarismRate: number | null;
+  averageSimilarity: number | null;
+  maxSimilarity: number | null;
+  runtimeErrorRate: number | null;
   languageUsage: Array<{
     languageId: number;
     count: number;
-  }>;
+  }> | null;
 }
 
 interface QualityReliabilityTabProps {
   classId: string;
-  data: QualityReliabilityData;
+  data: QualityReliabilityData | null;
 }
 
 const QualityReliabilityTab: React.FC<QualityReliabilityTabProps> = ({
@@ -31,7 +31,14 @@ const QualityReliabilityTab: React.FC<QualityReliabilityTabProps> = ({
 }) => {
   const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
 
-  // Transform languageUsage data for the pie chart
+  const safeData: QualityReliabilityData = {
+    plagiarismRate: data?.plagiarismRate ?? 0,
+    averageSimilarity: data?.averageSimilarity ?? 0,
+    maxSimilarity: data?.maxSimilarity ?? 0,
+    runtimeErrorRate: data?.runtimeErrorRate ?? 0,
+    languageUsage: data?.languageUsage ?? [],
+  };
+
   const languageNames: Record<number, string> = {
     1: "Python",
     2: "JavaScript",
@@ -41,19 +48,23 @@ const QualityReliabilityTab: React.FC<QualityReliabilityTabProps> = ({
     6: "Go",
     7: "C#",
     8: "PHP",
-    // Add more language mappings as needed
   };
 
-  // Calculate total submissions to derive percentages
-  const totalSubmissions = data.languageUsage.reduce(
+  const totalSubmissions = safeData.languageUsage.reduce(
     (total, lang) => total + lang.count,
     0
   );
 
-  const formattedLanguageData = data.languageUsage.map((lang) => ({
+  const formattedLanguageData = safeData.languageUsage.map((lang) => ({
     name: languageNames[lang.languageId] || `Language ID ${lang.languageId}`,
-    value: Math.round((lang.count / totalSubmissions) * 100),
+    value:
+      totalSubmissions > 0
+        ? Math.round((lang.count / totalSubmissions) * 100)
+        : 0,
   }));
+
+  const hasLanguageData =
+    safeData.languageUsage && safeData.languageUsage.length > 0;
 
   return (
     <div className="space-y-6">
@@ -68,7 +79,9 @@ const QualityReliabilityTab: React.FC<QualityReliabilityTabProps> = ({
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">
-              {data.plagiarismRate.toFixed(1)}%
+              {safeData.plagiarismRate !== null
+                ? safeData.plagiarismRate.toFixed(1) + "%"
+                : "N/A"}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               % of submissions flagged above the similarity threshold
@@ -84,7 +97,9 @@ const QualityReliabilityTab: React.FC<QualityReliabilityTabProps> = ({
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">
-              {data.averageSimilarity.toFixed(1)}%
+              {safeData.averageSimilarity !== null
+                ? safeData.averageSimilarity.toFixed(1) + "%"
+                : "N/A"}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Mean similarity score among flagged submissions
@@ -100,7 +115,9 @@ const QualityReliabilityTab: React.FC<QualityReliabilityTabProps> = ({
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">
-              {data.maxSimilarity.toFixed(1)}%
+              {safeData.maxSimilarity !== null
+                ? safeData.maxSimilarity.toFixed(1) + "%"
+                : "N/A"}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Highest similarity score detected
@@ -118,12 +135,14 @@ const QualityReliabilityTab: React.FC<QualityReliabilityTabProps> = ({
         <CardContent>
           <div className="flex items-center justify-between">
             <div className="text-3xl font-bold">
-              {data.runtimeErrorRate.toFixed(1)}%
+              {safeData.runtimeErrorRate !== null
+                ? safeData.runtimeErrorRate.toFixed(1) + "%"
+                : "N/A"}
             </div>
             <div className="w-2/3 bg-gray-700 rounded-full h-4">
               <div
                 className="bg-amber-600 h-4 rounded-full"
-                style={{ width: `${data.runtimeErrorRate}%` }}
+                style={{ width: `${safeData.runtimeErrorRate ?? 0}%` }}
               />
             </div>
           </div>
@@ -138,38 +157,44 @@ const QualityReliabilityTab: React.FC<QualityReliabilityTabProps> = ({
           <CardTitle>Language Usage Breakdown</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={formattedLanguageData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  outerRadius={120}
-                  fill="#8884d8"
-                  dataKey="value"
-                  label={({ name, value }) => `${name}: ${value}%`}
-                >
-                  {formattedLanguageData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={COLORS[index % COLORS.length]}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#1f2937",
-                    borderColor: "#374151",
-                    color: "white",
-                  }}
-                  formatter={(value) => [`${value}%`, "Usage"]}
-                />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
+          {hasLanguageData && totalSubmissions > 0 ? (
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={formattedLanguageData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    outerRadius={120}
+                    fill="#8884d8"
+                    dataKey="value"
+                    label={({ name, value }) => `${name}: ${value}%`}
+                  >
+                    {formattedLanguageData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={COLORS[index % COLORS.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#1f2937",
+                      borderColor: "#374151",
+                      color: "white",
+                    }}
+                    formatter={(value) => [`${value}%`, "Usage"]}
+                  />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="h-80 flex items-center justify-center bg-slate-800 bg-opacity-20 rounded-lg">
+              <p className="text-gray-400">No language usage data available</p>
+            </div>
+          )}
           <p className="text-sm text-gray-400 mt-4">
             Proportion of submissions in each programming language across all
             assignments

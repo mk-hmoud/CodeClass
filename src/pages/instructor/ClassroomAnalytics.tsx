@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import AuthenticatedNav from "@/components/AuthenticatedNav";
+import { useNavigate, useParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ParticipationEngagementTab from "@/components/instructor/classroom/analytics/ParticipationEngagementTab";
 import PerformanceOverviewTab from "@/components/instructor/classroom/analytics/PerformanceOverviewTab";
@@ -12,9 +11,11 @@ import { getClassroomAnalytics } from "@/services/ClassroomService";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
 const ClassroomAnalytics = () => {
   const { classroomId } = useParams<{ classroomId: string }>();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("participation");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -73,9 +74,33 @@ const ClassroomAnalytics = () => {
     <div className="container mx-auto py-8 px-4">
       <div className="flex justify-between items-start mb-8">
         <div>
-          <h1 className="text-3xl font-bold">
-            {analytics.classroomName} Statistics
-          </h1>
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() =>
+                navigate(`/instructor/classrooms/${classroomId}/view`)
+              }
+              className="h-8 w-8"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="m15 18-6-6 6-6" />
+              </svg>
+            </Button>
+            <h1 className="text-3xl font-bold">
+              {analytics.classroomName} Statistics
+            </h1>
+          </div>
           <p className="text-gray-400 mt-1">
             Comprehensive analytics and insights for your classroom performance
           </p>

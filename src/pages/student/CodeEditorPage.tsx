@@ -3,9 +3,6 @@ import { toast } from "sonner";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
   ArrowLeft,
-  Maximize2,
-  Minimize2,
-  Copy,
   CheckCircle,
   XCircle,
   Save,
@@ -13,7 +10,6 @@ import {
   Clock,
   AlertTriangle,
 } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   ResizablePanelGroup,
@@ -685,9 +681,17 @@ const CodeEditorPage = () => {
                       <h3 className="text-xl font-semibold mb-4 pb-2 border-b">
                         Description
                       </h3>
-                      <div className="prose max-w-none">
-                        <p>{assignment?.problem?.description}</p>
-                      </div>
+                      {assignment?.description ? (
+                        <div className="prose dark:prose-invert max-w-none">
+                          <pre className="whitespace-pre-wrap break-words">
+                            {assignment.description}
+                          </pre>
+                        </div>
+                      ) : (
+                        <div className="text-gray-400 italic">
+                          No description available for this assignment.
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

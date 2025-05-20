@@ -13,52 +13,110 @@ import {
 } from "recharts";
 
 interface ParticipationData {
-  totalStudents: number;
-  activeStudents: number;
-  activeStudentsPercentage: number;
-  submissionRate: number;
-  submissionTrend: Array<{
-    day: number;
-    hour: number;
-    count: number;
-  }>;
+  totalStudents: number | null | undefined;
+  activeStudents: number | null | undefined;
+  activeStudentsPercentage: number | null | undefined;
+  submissionRate: number | null | undefined;
+  submissionTrend:
+    | Array<{
+        day: number;
+        hour: number;
+        count: number;
+      }>
+    | null
+    | undefined;
 }
 
 interface ParticipationEngagementTabProps {
   classId: string;
-  data: ParticipationData;
+  data: ParticipationData | null | undefined;
+  isLoading?: boolean;
 }
 
 const ParticipationEngagementTab: React.FC<ParticipationEngagementTabProps> = ({
   classId,
   data,
+  isLoading = false,
 }) => {
-  // Process submission trend data into weekly format
-  // This converts the raw hour/day data into weekly aggregates for the chart
+  if (isLoading || !data) {
+    return (
+      <div className="space-y-6">
+        <h2 className="text-2xl font-bold">Participation & Engagement</h2>
+        <Card className="bg-card border-border">
+          <CardContent className="p-6 text-center text-gray-400">
+            {isLoading
+              ? "Loading participation data..."
+              : "No participation data available."}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const {
+    totalStudents = 0,
+    activeStudents = 0,
+    activeStudentsPercentage = 0,
+    submissionRate = 0,
+    submissionTrend = [],
+  } = data;
+
   const processedTrendData = React.useMemo(() => {
-    // Group by day and sum counts
+    const trendDataArray = Array.isArray(submissionTrend)
+      ? submissionTrend
+      : [];
+
     const dayMap = new Map<number, number>();
 
-    // Initialize all days
     for (let i = 0; i < 7; i++) {
       dayMap.set(i, 0);
     }
 
-    // Sum counts for each day
-    data.submissionTrend.forEach((item) => {
-      const currentCount = dayMap.get(item.day) || 0;
-      dayMap.set(item.day, currentCount + item.count);
+    trendDataArray.forEach((item) => {
+      if (typeof item.day === "number" && typeof item.count === "number") {
+        const currentCount = dayMap.get(item.day) || 0;
+        dayMap.set(item.day, currentCount + item.count);
+      }
     });
 
-    // Convert to array format for chart
     const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     return Array.from(dayMap.entries())
       .sort((a, b) => a[0] - b[0])
-      .map(([day, count]) => ({
-        week: dayNames[day],
-        submissions: +(count / data.totalStudents).toFixed(1), // Normalize by student count
-      }));
-  }, [data.submissionTrend, data.totalStudents]);
+      .map(([day, count]) => {
+        const submissionsPerStudent =
+          totalStudents > 0 ? count / totalStudents : 0;
+        return {
+          week: dayNames[day],
+
+          submissions: parseFloat(
+            Math.max(0, submissionsPerStudent).toFixed(1)
+          ),
+        };
+      });
+  }, [submissionTrend, totalStudents]);
+
+  const formatNumber = (
+    value: number | null | undefined,
+    decimals: number = 0,
+    fallback: string = "N/A"
+  ) => {
+    if (value === null || value === undefined || isNaN(value)) {
+      return fallback;
+    }
+    return value.toFixed(decimals);
+  };
+
+  const formatPercentage = (
+    value: number | null | undefined,
+    decimals: number = 1,
+    fallback: string = "N/A"
+  ) => {
+    if (value === null || value === undefined || isNaN(value)) {
+      return fallback;
+    }
+    const clampedValue = Math.max(0, Math.min(100, value));
+    return `${clampedValue.toFixed(decimals)}%`;
+  };
 
   return (
     <div className="space-y-6">
@@ -72,7 +130,9 @@ const ParticipationEngagementTab: React.FC<ParticipationEngagementTabProps> = ({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{data.totalStudents}</div>
+            <div className="text-3xl font-bold">
+              {formatNumber(totalStudents, 0, "0")}
+            </div>
             <p className="text-xs text-muted-foreground mt-1">
               Students currently enrolled in this classroom
             </p>
@@ -88,15 +148,16 @@ const ParticipationEngagementTab: React.FC<ParticipationEngagementTabProps> = ({
           <CardContent>
             <div className="flex justify-between mb-2">
               <span className="text-3xl font-bold">
-                {data.activeStudentsPercentage.toFixed(1)}%
+                {formatPercentage(activeStudentsPercentage, 1, "0%")}
               </span>
               <span className="text-sm text-muted-foreground">
-                {data.activeStudents}/{data.totalStudents}
+                {formatNumber(activeStudents, 0, "0")}/
+                {formatNumber(totalStudents, 0, "0")}
               </span>
             </div>
-            <Progress value={data.activeStudentsPercentage} className="h-2" />
+            <Progress value={activeStudentsPercentage ?? 0} className="h-2" />
             <p className="text-xs text-muted-foreground mt-2">
-              Students with ≥1 submission in the last 2 weeks
+              Students with &ge;1 submission in the last 2 weeks
             </p>
           </CardContent>
         </Card>
@@ -109,7 +170,7 @@ const ParticipationEngagementTab: React.FC<ParticipationEngagementTabProps> = ({
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">
-              {data.submissionRate.toFixed(1)}
+              {formatNumber(submissionRate, 1, "N/A")}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Average submissions per student per week
@@ -123,38 +184,46 @@ const ParticipationEngagementTab: React.FC<ParticipationEngagementTabProps> = ({
           <CardTitle>Submission Trend</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={processedTrendData}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                <XAxis dataKey="week" />
-                <YAxis
-                  label={{
-                    value: "Submissions per student",
-                    angle: -90,
-                    position: "insideLeft",
-                    style: { textAnchor: "middle" },
-                  }}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#1f2937",
-                    borderColor: "#374151",
-                    color: "white",
-                  }}
-                />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="submissions"
-                  stroke="#3b82f6"
-                  strokeWidth={2}
-                  activeDot={{ r: 8 }}
-                  name="Submissions per Student"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          {processedTrendData &&
+          processedTrendData.length > 0 &&
+          processedTrendData.some((d) => d.submissions > 0) ? (
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={processedTrendData}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                  <XAxis dataKey="week" />
+                  <YAxis
+                    label={{
+                      value: "Submissions per student",
+                      angle: -90,
+                      position: "insideLeft",
+                      style: { textAnchor: "middle" },
+                    }}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#1f2937",
+                      borderColor: "#374151",
+                      color: "white",
+                    }}
+                  />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="submissions"
+                    stroke="#3b82f6"
+                    strokeWidth={2}
+                    activeDot={{ r: 8 }}
+                    name="Submissions per Student"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="h-80 flex items-center justify-center text-gray-400">
+              No submission trend data available.
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

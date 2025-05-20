@@ -6,8 +6,8 @@ import { JudgeVerdict, TestCase, TestResult } from '../types';
 import { getAssignmentTestCases } from '../models/ProblemModel';
 import { createSubmission, getSubmissionById, saveSubmissionResults, updateSubmissionStatus } from '../models/SubmissionModel';
 import { runPlagiarismCheck } from './PlagiarismController';
-import { statisticsEventEmitter } from '../services/statistics/AssignmentAnlaysis/emitter';
-import { SubmissionCompletedEvent, SubmissionCreatedEvent } from '../services/statistics/AssignmentAnlaysis/types';
+import { systemEventEmitter } from '../services/statistics/emitter'; 
+import { SubmissionCompletedEvent, SubmissionCreatedEvent } from '../services/statistics/events';
 import { getRemainingAttempts, getSubmissionAttemptCount } from '../models/AssignmentModel';
 import { calculateGrade } from '../services/grading/Grader';
 
@@ -227,7 +227,7 @@ export const submitHandler = async (req: Request, res: Response): Promise<void> 
       timestamp: new Date().toISOString(),
       payload: { submissionId, assignmentId, studentId }
     };
-    statisticsEventEmitter.emit('SUBMISSION_CREATED', createdEvent.payload);
+    systemEventEmitter.emit('SUBMISSION_CREATED', createdEvent.payload);
 
   } catch (err) {
     logMessage(functionName, `Error creating submission: ${err}`);
@@ -436,7 +436,7 @@ export const getSubmitStatusHandler = async (
         testResults
       }
     };
-    statisticsEventEmitter.emit('SUBMISSION_COMPLETED', completedEvent.payload);
+    systemEventEmitter.emit('SUBMISSION_COMPLETED', completedEvent.payload);
 
   } catch (err) {
     logMessage("getSubmitStatus", `Error fetching verdict: ${err}`);

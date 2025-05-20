@@ -1,4 +1,6 @@
 import pool from "../config/db";
+import { systemEventEmitter } from "../services/statistics/emitter";
+import { StudentEnrolledEvent } from "../services/statistics/events";
 import { Classroom, ClassroomStudent, Assignment } from "../types";
 import { getAssignmentsForClassroom, getAssignmentsForStudentClassroom } from "./AssignmentModel";
 
@@ -187,8 +189,8 @@ export const getInstructorClassrooms = async (
         c.classroom_name AS name,
         c.classroom_code AS code,
         c.status AS status,
-        COALESCE(e.student_count, 0) AS students,
-        COALESCE(a.assignment_count, 0) AS assignments
+        COALESCE(e.student_count, 0) AS students_num,
+        COALESCE(a.assignment_count, 0) AS "totalAssignments"
       FROM classrooms c
       LEFT JOIN (
         SELECT classroom_id, COUNT(*) AS student_count
@@ -320,6 +322,28 @@ export const joinClassroom = async (studentId: number, code: string): Promise<vo
       [classroomId, studentId]
     );
     logMessage(functionName, `Student ${studentId} enrolled in classroom ${classroomId}.`);
+
+    const enrollRes = await pool.query<{
+      enrollment_id: number;
+    }>(
+      `INSERT INTO classroom_enrollments (classroom_id, student_id)
+       VALUES ($1, $2)
+       RETURNING enrollment_id`,
+      [classroomId, studentId]
+    );
+    const enrollmentId = enrollRes.rows[0].enrollment_id;
+
+    const enrolledEvent: StudentEnrolledEvent = {
+      type: "STUDENT_ENROLLED",
+      timestamp: new Date().toISOString(),
+      payload: {
+        enrollmentId,
+        classroomId,
+        studentId,
+      },
+    };
+    systemEventEmitter.emit("STUDENT_ENROLLED", enrolledEvent.payload);
+
   } catch (error) {
     logMessage(functionName, `Error in joinClassroom: ${error}`);
     throw error;

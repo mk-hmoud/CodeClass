@@ -1,8 +1,8 @@
 import pool from "../../config/db";
 import { getAssignmentById } from "../../models/AssignmentModel";
 import { TestResult } from "../../types";
-import { statisticsEventEmitter } from "../statistics/AssignmentAnlaysis/emitter";
-import { GradeUpdatedEvent } from "../statistics/AssignmentAnlaysis/types";
+import { systemEventEmitter } from "../statistics//emitter";
+import { GradeUpdatedEvent } from "../statistics/events";
 
 const logMessage = (functionName: string, message: string): void => {
   const timestamp = new Date().toISOString();
@@ -124,7 +124,7 @@ export const calculateGrade = async (
             finalScore
           }
         };
-        statisticsEventEmitter.emit('GRADE_UPDATED', gradeEvent.payload);
+        systemEventEmitter.emit('GRADE_UPDATED', gradeEvent.payload);
       }
       else if (assignment.grading_method === 'Hybrid') gradingStatus = 'system graded';
       logMessage(fn, `Setting gradingStatus = ${gradingStatus}`);
@@ -311,7 +311,7 @@ export async function updateManualGrade({
         finalScore
       }
     };
-    statisticsEventEmitter.emit('GRADE_UPDATED', gradeEvent.payload);
+    systemEventEmitter.emit('GRADE_UPDATED', gradeEvent.payload);
 
     return updRes.rows[0];
   } catch (error) {

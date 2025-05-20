@@ -31,7 +31,7 @@ export const storePlagiarismReport = async (
   submissionId: number, 
   comparedSubmissionId: number, 
   similarity: number
-): Promise<void> => {
+): Promise<number> => {
   const functionName = "storePlagiarismReport";
   try {
     logMessage(functionName, `Storing plagiarism report: ${submissionId} compared with ${comparedSubmissionId}, similarity: ${similarity}%`);
@@ -39,12 +39,24 @@ export const storePlagiarismReport = async (
     const query = `
       INSERT INTO plagiarism_reports (submission_id, compared_submission, similarity)
       VALUES ($1, $2, $3)
-      ON CONFLICT (submission_id, compared_submission) 
-      DO UPDATE SET similarity = $3
+      ON CONFLICT (submission_id, compared_submission)
+      DO UPDATE SET similarity = EXCLUDED.similarity
+      RETURNING report_id
     `;
-    
-    await pool.query(query, [submissionId, comparedSubmissionId, similarity]);
-    logMessage(functionName, `Plagiarism report stored`);
+
+    const result = await pool.query<{ report_id: number }>(query, [
+      submissionId,
+      comparedSubmissionId,
+      similarity,
+    ]);
+
+    if (result.rowCount === 0) {
+      throw new Error("Failed to upsert plagiarism report");
+    }
+
+    const reportId = result.rows[0].report_id;
+    logMessage(functionName, `Plagiarism report stored with report_id ${reportId}`);
+    return reportId;
   } catch (error) {
     logMessage(functionName, `Error storing plagiarism report: ${error}`);
     throw error;
@@ -81,20 +93,33 @@ export const getSubmissionById = async (submissionId: number): Promise<any> => {
 export const processPlagiarismResults = async (
   submissionId: number,
   results: Array<{ compared_submission: number; similarity: number }>
-): Promise<void> => {
+): Promise<Array<{ id: number; submission_id: number; compared_submission: number; similarity: number; checked_at: Date }>> => {
   const functionName = "processPlagiarismResults";
+  const insertedReports = [];
+  
   try {
     logMessage(functionName, `Processing ${results.length} plagiarism results for submission ${submissionId}`);
     
     for (const result of results) {
-      await storePlagiarismReport(
-        submissionId, 
-        result.compared_submission, 
+      const reportId = await storePlagiarismReport(
+        submissionId,
+        result.compared_submission,
         result.similarity
       );
+      
+      if (reportId) {
+        insertedReports.push({
+          id: reportId,
+          submission_id: submissionId,
+          compared_submission: result.compared_submission,
+          similarity: result.similarity,
+          checked_at: new Date()
+        });
+      }
     }
     
     logMessage(functionName, `Processed all plagiarism results for submission ${submissionId}`);
+    return insertedReports;
   } catch (error) {
     logMessage(functionName, `Error processing plagiarism results: ${error}`);
     throw error;

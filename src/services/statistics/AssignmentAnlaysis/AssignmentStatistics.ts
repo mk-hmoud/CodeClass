@@ -4,7 +4,6 @@ import {
   SubmissionCompletedEvent,
   SubmissionCreatedEvent,
   PlagiarismDetectedEvent,
-  StatisticsEvent,
   AssignmentStatistics,
   ScoreDistributionBucket,
   AttemptsDistribution,
@@ -12,10 +11,11 @@ import {
   TestCaseStats,
   ErrorPattern,
   SubmissionTimelineEntry,
-  SubmissionTrendEntry
-} from './types';
+  SubmissionTrendEntry,
+  GradeUpdatedEvent
+} from '../events';
 import { TestResult } from '../../../types';
-import { statisticsEventEmitter } from './emitter';
+import { systemEventEmitter } from '../emitter';
 
 dotenv.config();
 
@@ -228,7 +228,7 @@ export class AssignmentStatisticsService {
       return result.rows.map(row => ({
         testCaseId: row.test_case_id,
         failureRate: parseFloat(row.failure_rate),
-        avgRuntimeMs: parseFloat(row.avg_runtime_ms),
+        avgRuntimeMs: parseInt(row.avg_runtime_ms),
         isPublic: row.is_public
       }));
     } catch (error) {
@@ -245,17 +245,16 @@ export class AssignmentStatisticsService {
       const result = await pool.query(`
         WITH error_patterns AS (
           SELECT 
-            COALESCE(sr.error_type, 'Unknown') as error_type,
             COALESCE(sr.error_message, 'Unknown') as error_message,
             COUNT(*) as occurrence_count
           FROM submission_results sr
           JOIN submissions s ON sr.submission_id = s.submission_id
           WHERE s.assignment_id = $1 
-            AND (sr.error_message IS NOT NULL OR sr.error_type IS NOT NULL)
-          GROUP BY sr.error_type, sr.error_message
+            AND sr.error_message IS NOT NULL
+          GROUP BY sr.error_message
         )
         SELECT 
-          error_type,
+          'Runtime Error' as error_type,
           error_message,
           occurrence_count
         FROM error_patterns
@@ -624,13 +623,14 @@ export class AssignmentStatisticsService {
   private registerEventListeners(): void {
     const fn = 'registerEventListeners';
     logMessage(fn, `Starting event listener registration`);
-    statisticsEventEmitter.on('SUBMISSION_CREATED', this.handleSubmissionCreated.bind(this));
-    statisticsEventEmitter.on('SUBMISSION_COMPLETED', this.handleSubmissionCompleted.bind(this));
-    statisticsEventEmitter.on('PLAGIARISM_DETECTED', this.handlePlagiarismDetected.bind(this));
+    systemEventEmitter.on('SUBMISSION_CREATED', this.handleSubmissionCreated.bind(this));
+    systemEventEmitter.on('SUBMISSION_COMPLETED', this.handleSubmissionCompleted.bind(this));
+    systemEventEmitter.on('PLAGIARISM_DETECTED', this.handlePlagiarismDetected.bind(this));
+    systemEventEmitter.on('GRADE_UPDATED', this.handleGradeUpdated.bind(this));
     logMessage(fn, `Event listeners registered`);
   }
 
-  private async handleSubmissionCreated(event: StatisticsEvent): Promise<void> {
+  private async handleSubmissionCreated(event: SubmissionCreatedEvent): Promise<void> {
     const { submissionId, assignmentId, studentId } = (event as SubmissionCreatedEvent).payload;
     const fn = 'handleSubmissionCreated';
     logMessage(fn, `Starting for submission ${submissionId}`);
@@ -649,7 +649,7 @@ export class AssignmentStatisticsService {
     logMessage(fn, `Completed handleSubmissionCreated`);
   }
 
-  private async handleSubmissionCompleted(event: StatisticsEvent): Promise<void> {
+  private async handleSubmissionCompleted(event: SubmissionCompletedEvent): Promise<void> {
     const { 
       submissionId, 
       assignmentId, 
@@ -694,7 +694,7 @@ export class AssignmentStatisticsService {
     logMessage(fn, `Completed handleSubmissionCompleted`);
   }
 
-  private async handlePlagiarismDetected(event: StatisticsEvent): Promise<void> {
+  private async handlePlagiarismDetected(event: PlagiarismDetectedEvent): Promise<void> {
     const { 
       submissionId, 
       assignmentId, 
@@ -765,12 +765,12 @@ export class AssignmentStatisticsService {
     logMessage(fn, `Completed calculateBasicStatistics`);
   }
 
-  public async calculateAllStatistics(assignmentId: number): Promise<AssignmentStatistics | null> {
+  // Updated calculateAllStatistics function with extracted score statistics
+public async calculateAllStatistics(assignmentId: number): Promise<AssignmentStatistics | null> {
     const fn = 'calculateAllStatistics';
     logMessage(fn, `Calculating all statistics for assignment ${assignmentId}`);
     
     try {
-      
       try {
         await pool.query('BEGIN');
         logMessage(fn, `Transaction started`);
@@ -778,6 +778,7 @@ export class AssignmentStatisticsService {
         const snapshotTime = new Date().toISOString();
         logMessage(fn, `Snapshot time: ${snapshotTime}`);
         
+        // Basic statistics
         logMessage(fn, `Querying total submissions`);
         const totalSubmissionsResult = await pool.query(
           'SELECT COUNT(*) as total FROM submissions WHERE assignment_id = $1',
@@ -794,28 +795,26 @@ export class AssignmentStatisticsService {
         const distinctSubmitters = parseInt(distinctSubmittersResult.rows[0].distinct_count, 10);
         logMessage(fn, `Distinct submitters: ${distinctSubmitters}`);
         
-        logMessage(fn, `Querying score statistics`);
+        // Score statistics are now handled in a separate function
         const scoreStatsResult = await pool.query(`
           SELECT 
-            COALESCE(AVG(score), 0) as average_score,
-            COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY score), 0) as median_score
+            COALESCE(AVG(final_score), 0) as average_score,
+            COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY final_score), 0) as median_score
           FROM submissions 
-          WHERE assignment_id = $1
+          WHERE assignment_id = $1 AND final_score IS NOT NULL
         `, [assignmentId]);
         
         const averageScore = scoreStatsResult.rows[0].average_score;
         const medianScore = scoreStatsResult.rows[0].median_score;
-        logMessage(fn, `Average score: ${averageScore}, Median score: ${medianScore}`);
         
+        // Score distribution
         const scoreDistribution: ScoreDistributionBucket[] = [];
-        logMessage(fn, `Calculating score distribution`);
         for (const bucket of SCORE_BUCKETS) {
-          logMessage(fn, `Querying bucket: ${bucket.start} - ${bucket.end}`);
           const bucketResult = await pool.query(`
             SELECT COUNT(*) as count
             FROM submissions
-            WHERE assignment_id = $1 AND score IS NOT NULL 
-              AND score >= $2 AND score <= $3
+            WHERE assignment_id = $1 AND final_score IS NOT NULL 
+              AND final_score >= $2 AND final_score <= $3
           `, [assignmentId, bucket.start, bucket.end]);
           
           const count = parseInt(bucketResult.rows[0].count, 10);
@@ -825,7 +824,6 @@ export class AssignmentStatisticsService {
             count
           });
           
-          logMessage(fn, `Saving score distribution bucket to database`);
           await pool.query(`
             INSERT INTO assignment_score_distribution
               (assignment_id, snapshot_time, bucket_start, bucket_end, count)
@@ -834,8 +832,8 @@ export class AssignmentStatisticsService {
             DO UPDATE SET count = $5
           `, [assignmentId, snapshotTime, bucket.start, bucket.end, count]);
         }
-        logMessage(fn, `Score distribution calculated and saved`);
         
+        // Attempts distribution
         logMessage(fn, `Querying attempts distribution`);
         const attemptsResult = await pool.query(`
           SELECT 
@@ -857,7 +855,6 @@ export class AssignmentStatisticsService {
         };
         logMessage(fn, `Attempts distribution: avg=${attemptsDistribution.avgAttempts}, median=${attemptsDistribution.medianAttempts}, max=${attemptsDistribution.maxAttempts}`);
         
-        logMessage(fn, `Saving attempts distribution to database`);
         await pool.query(`
           INSERT INTO assignment_attempts_distribution
             (assignment_id, snapshot_time, avg_attempts, median_attempts, max_attempts)
@@ -875,6 +872,7 @@ export class AssignmentStatisticsService {
           attemptsDistribution.maxAttempts
         ]);
         
+        // Runtime statistics
         logMessage(fn, `Querying runtime statistics`);
         const runtimeResult = await pool.query(`
           WITH submission_runtimes AS (
@@ -896,21 +894,21 @@ export class AssignmentStatisticsService {
           FROM submission_runtimes
         `, [assignmentId]);
         
-        const averageRuntimeMs = runtimeResult.rows[0].average_runtime;
+        const raw = runtimeResult.rows[0]
+        const averageRuntimeMs = Math.round(Number(raw.average_runtime));
         const runtimeDistribution: RuntimeDistribution = {
-          minRuntimeMs: runtimeResult.rows[0].min_runtime,
-          percentile25Ms: runtimeResult.rows[0].p25_runtime,
-          medianRuntimeMs: runtimeResult.rows[0].median_runtime,
-          percentile75Ms: runtimeResult.rows[0].p75_runtime,
-          maxRuntimeMs: runtimeResult.rows[0].max_runtime
+          minRuntimeMs:    Math.round(Number(raw.min_runtime)),
+          percentile25Ms:  Math.round(Number(raw.p25_runtime)),
+          medianRuntimeMs: Math.round(Number(raw.median_runtime)),
+          percentile75Ms:  Math.round(Number(raw.p75_runtime)),
+          maxRuntimeMs:    Math.round(Number(raw.max_runtime)),
         };
         logMessage(fn, `Runtime statistics: avg=${averageRuntimeMs}, min=${runtimeDistribution.minRuntimeMs}, max=${runtimeDistribution.maxRuntimeMs}`);
         
-        logMessage(fn, `Saving runtime distribution to database`);
         await pool.query(`
           INSERT INTO assignment_runtime_distribution
             (assignment_id, snapshot_time, min_runtime_ms, percentile_25_ms, 
-             median_runtime_ms, percentile_75_ms, max_runtime_ms)
+            median_runtime_ms, percentile_75_ms, max_runtime_ms)
           VALUES ($1, $2, $3, $4, $5, $6, $7)
           ON CONFLICT (assignment_id, snapshot_time)
           DO UPDATE SET 
@@ -929,6 +927,7 @@ export class AssignmentStatisticsService {
           runtimeDistribution.maxRuntimeMs
         ]);
         
+        // Test pass rates
         logMessage(fn, `Querying test pass rates`);
         const testPassRatesResult = await pool.query(`
           WITH test_results AS (
@@ -964,6 +963,7 @@ export class AssignmentStatisticsService {
         }
         logMessage(fn, `Public test pass rate: ${publicTestPassRate}, Private test pass rate: ${privateTestPassRate}`);
         
+        // Plagiarism statistics
         logMessage(fn, `Querying plagiarism statistics`);
         const plagiarismResult = await pool.query(`
           WITH submission_plagiarism AS (
@@ -991,6 +991,7 @@ export class AssignmentStatisticsService {
         const avgSimilarity = plagiarismResult.rows[0].avg_similarity;
         logMessage(fn, `Plagiarism rate: ${plagiarismRate}, Max similarity: ${maxSimilarity}, Avg similarity: ${avgSimilarity}`);
         
+        // Runtime error rate
         logMessage(fn, `Querying runtime error rate`);
         const runtimeErrorResult = await pool.query(`
           SELECT 
@@ -1005,14 +1006,15 @@ export class AssignmentStatisticsService {
           : null;
         logMessage(fn, `Runtime error rate: ${runtimeErrorRate}`);
         
+        // Update main statistics
         logMessage(fn, `Updating main statistics in database`);
         await pool.query(`
           INSERT INTO assignment_statistics
             (assignment_id, snapshot_time, total_submissions, distinct_submitters,
-             average_score, median_score, average_runtime_ms,
-             public_test_pass_rate, private_test_pass_rate,
-             plagiarism_rate, max_similarity, avg_similarity,
-             runtime_error_rate)
+            average_score, median_score, average_runtime_ms,
+            public_test_pass_rate, private_test_pass_rate,
+            plagiarism_rate, max_similarity, avg_similarity,
+            runtime_error_rate)
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
           ON CONFLICT (assignment_id, snapshot_time)
           DO UPDATE SET
@@ -1046,6 +1048,7 @@ export class AssignmentStatisticsService {
         await pool.query('COMMIT');
         logMessage(fn, `Transaction committed`);
         
+        // Construct full statistics object
         logMessage(fn, `Constructing full statistics object`);
         const stats: AssignmentStatistics = {
           assignmentId,
@@ -1078,7 +1081,6 @@ export class AssignmentStatisticsService {
         const msg = error instanceof Error ? error.message : String(error);
         logMessage(fn, `Error calculating statistics: ${msg}`);
         throw error;
-      } finally {
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -1087,4 +1089,89 @@ export class AssignmentStatisticsService {
       throw new Error(`Statistics calculation failed: ${errorMessage}`);
     }
   }
+
+  private async handleGradeUpdated(
+    event: GradeUpdatedEvent
+  ): Promise<void> {
+    const fn = 'handleGradeUpdated';
+    const { assignmentId, submissionId, finalScore } = event.payload;
+  
+    logMessage(fn, `Received GRADE_UPDATED for assignment ${assignmentId}, submission ${submissionId}, score ${finalScore}`);
+  
+    try {
+      await this.updateScoreStatistics(assignmentId);
+      logMessage(fn, `Score statistics updated for assignment ${assignmentId}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logMessage(fn, `Error in handleGradeUpdated: ${msg}`);
+    }
+  }
+
+  private async updateScoreStatistics(assignmentId: number): Promise<void> {
+    const fn = 'updateScoreStatistics';
+    logMessage(fn, `Starting for assignment ${assignmentId}`);
+    
+    try {
+      logMessage(fn, `Querying score statistics`);
+      const scoreStatsResult = await pool.query(`
+        SELECT 
+          COALESCE(AVG(final_score), 0) as average_score,
+          COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY final_score), 0) as median_score
+        FROM submissions 
+        WHERE assignment_id = $1 AND final_score IS NOT NULL
+      `, [assignmentId]);
+      
+      const averageScore = scoreStatsResult.rows[0].average_score;
+      const medianScore = scoreStatsResult.rows[0].median_score;
+      logMessage(fn, `Average score: ${averageScore}, Median score: ${medianScore}`);
+      
+      const snapshotTime = new Date().toISOString();
+      
+      const scoreDistribution: ScoreDistributionBucket[] = [];
+      logMessage(fn, `Calculating score distribution`);
+      for (const bucket of SCORE_BUCKETS) {
+        logMessage(fn, `Querying bucket: ${bucket.start} - ${bucket.end}`);
+        const bucketResult = await pool.query(`
+          SELECT COUNT(*) as count
+          FROM submissions
+          WHERE assignment_id = $1 AND final_score IS NOT NULL 
+            AND final_score >= $2 AND final_score <= $3
+        `, [assignmentId, bucket.start, bucket.end]);
+        
+        const count = parseInt(bucketResult.rows[0].count, 10);
+        scoreDistribution.push({
+          bucketStart: bucket.start,
+          bucketEnd: bucket.end,
+          count
+        });
+        
+        logMessage(fn, `Saving score distribution bucket to database`);
+        await pool.query(`
+          INSERT INTO assignment_score_distribution
+            (assignment_id, snapshot_time, bucket_start, bucket_end, count)
+          VALUES ($1, $2, $3, $4, $5)
+          ON CONFLICT (assignment_id, snapshot_time, bucket_start)
+          DO UPDATE SET count = $5
+        `, [assignmentId, snapshotTime, bucket.start, bucket.end, count]);
+      }
+      logMessage(fn, `Score distribution calculated and saved`);
+      
+      // Update the main statistics table with score data
+      await pool.query(`
+        UPDATE assignment_statistics
+        SET 
+          average_score = $1,
+          median_score = $2
+        WHERE assignment_id = $3 AND snapshot_time::date = $4::date
+      `, [averageScore, medianScore, assignmentId, snapshotTime.split('T')[0]]);
+      
+      logMessage(fn, `Completed score statistics update`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      logMessage(fn, `Error updating score statistics: ${msg}`);
+      throw error;
+    }
+    logMessage(fn, `Completed updateScoreStatistics`);
+  }
 }
+

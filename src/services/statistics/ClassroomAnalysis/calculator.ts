@@ -1,96 +1,161 @@
 import pool from '../../../config/db';
-import { statisticsEventEmitter } from './emitter';
-import { EventPayload } from './types';
+import { systemEventEmitter } from '../emitter';
+import { 
+  EventPayload, 
+  EventType, 
+  SubmissionCreatedEvent,
+  SubmissionCompletedEvent,
+  PlagiarismDetectedEvent,
+  StudentEnrolledEvent
+} from '../events';
 import { TestResult } from '../../../types';
 
 const logMessage = (functionName: string, message: string): void => {
     const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] [ProblemController.ts] [${functionName}] ${message}`);
+    console.log(`[${timestamp}] [ClassroomStatisticsService.ts] [${functionName}] ${message}`);
 };
 
 export class ClassroomStatisticsService {
+  private static instance: ClassroomStatisticsService;
   
-  constructor() {
+  private constructor() {
     this.registerEventHandlers();
   }
 
-  private registerEventHandlers(): void {
-    statisticsEventEmitter.on('SUBMISSION_CREATED', this.handleSubmissionCreated.bind(this));
-    statisticsEventEmitter.on('SUBMISSION_COMPLETED', this.handleSubmissionCompleted.bind(this));
-    statisticsEventEmitter.on('STUDENT_ENROLLED', this.handleStudentEnrolled.bind(this));
-    statisticsEventEmitter.on('PLAGIARISM_DETECTED', this.handlePlagiarismDetected.bind(this));
+  public static getInstance(): ClassroomStatisticsService {
+    if (!ClassroomStatisticsService.instance) {
+      ClassroomStatisticsService.instance = new ClassroomStatisticsService();
+    }
+    return ClassroomStatisticsService.instance;
   }
 
-  private async handleSubmissionCreated(payload: EventPayload<'SUBMISSION_CREATED'>): Promise<void> {
+  private registerEventHandlers(): void {
+    logMessage('registerEventHandlers', 'Initializing event handlers');
+  
+    systemEventEmitter.on('SUBMISSION_CREATED', (event: SubmissionCreatedEvent) => {
+      logMessage('eventHandler', `Received SUBMISSION_CREATED event for assignment ${event.payload.assignmentId}`);
+      this.handleSubmissionCreated(event);
+    });
+    
+    systemEventEmitter.on('SUBMISSION_COMPLETED', (event: SubmissionCompletedEvent) => {
+      logMessage('eventHandler', `Received SUBMISSION_COMPLETED event for submission ${event.payload.submissionId}`);
+      this.handleSubmissionCompleted(event);
+    });
+  
+    systemEventEmitter.on('STUDENT_ENROLLED', (event: StudentEnrolledEvent) => {
+      logMessage('eventHandler', `Received STUDENT_ENROLLED event for student ${event.payload.studentId}`);
+      this.handleStudentEnrolled(event);
+    });
+  
+    systemEventEmitter.on('PLAGIARISM_DETECTED', (event: PlagiarismDetectedEvent) => {
+      logMessage('eventHandler', `Received PLAGIARISM_DETECTED event with similarity ${event.payload.similarityScore}`);
+      this.handlePlagiarismDetected(event);
+    });
+  
+    logMessage('registerEventHandlers', 'Event handlers registered successfully');
+  }
+
+
+  private async handleSubmissionCreated(event: SubmissionCreatedEvent): Promise<void> {
+    const fn = 'handleSubmissionCreated';
     try {
-      const { assignmentId } = payload;
-      const classroomId = await this.getClassroomIdForAssignment(assignmentId);
-      if (!classroomId) {
-        logMessage('ClassroomStatisticsService', `Could not find classroom for assignment ${assignmentId}`);
+      logMessage(fn, `Processing submission created event: ${JSON.stringify(event.payload)}`);
+      
+      const { assignmentId, classroomId } = event.payload;
+      logMessage(fn, `Resolving classroom for assignment ${assignmentId}`);
+      
+      const targetClassroomId = classroomId || await this.getClassroomIdForAssignment(assignmentId);
+      if (!targetClassroomId) {
+        logMessage(fn, `Aborting processing - no classroom found for assignment ${assignmentId}`);
         return;
       }
 
-      await this.updateSubmissionTimeline(classroomId);
+      logMessage(fn, `Updating timeline for classroom ${targetClassroomId}`);
+      await this.updateSubmissionTimeline(targetClassroomId);
       
-      await this.incrementTotalSubmissions(classroomId);
+      logMessage(fn, `Incrementing submissions for classroom ${targetClassroomId}`);
+      await this.incrementTotalSubmissions(targetClassroomId);
+      
+      logMessage(fn, `Submission created processing completed for classroom ${targetClassroomId}`);
     } catch (error) {
-      logMessage('ClassroomStatisticsService', `Error handling SUBMISSION_CREATED: ${error}`);
+      logMessage(fn, `Error processing event: ${error}\nEvent: ${JSON.stringify(event)}`);
     }
   }
 
-  private async handleSubmissionCompleted(payload: EventPayload<'SUBMISSION_COMPLETED'>): Promise<void> {
+  private async handleSubmissionCompleted(event: SubmissionCompletedEvent): Promise<void> {
+    const fn = 'handleSubmissionCompleted';
     try {
-      const { assignmentId, studentId, score, status, averageRuntime } = payload;
+      logMessage(fn, `Processing submission completed event: ${JSON.stringify(event.payload)}`);
       
-      const classroomId = await this.getClassroomIdForAssignment(assignmentId);
-      const languageId = await this.getLanguageIdForSubmission(payload.submissionId);
+      const { assignmentId, classroomId: eventClassroomId, submissionId, studentId } = event.payload;
+      const classroomId = eventClassroomId || await this.getClassroomIdForAssignment(assignmentId);
       
       if (!classroomId) {
-        logMessage('ClassroomStatisticsService', `Could not find classroom for assignment ${assignmentId}`);
+        logMessage(fn, `Aborting processing - no classroom found for assignment ${assignmentId}`);
         return;
       }
 
+      logMessage(fn, `Resolved classroom ${classroomId} for submission ${submissionId}`);
+      
+      const languageId = await this.getLanguageIdForSubmission(submissionId);
+      logMessage(fn, `Detected language ${languageId} for submission ${submissionId}`);
+
+      logMessage(fn, `Updating classroom stats for ${classroomId}`);
       await this.updateClassroomStats(classroomId);
-      
-      await this.updateScoreDistribution(classroomId, score);
-      
+
+      if (event.payload.score !== null) {
+        logMessage(fn, `Updating score distribution with score ${event.payload.score}`);
+        await this.updateScoreDistribution(classroomId, event.payload.score);
+      }
+
       if (languageId) {
+        logMessage(fn, `Recording language usage for language ${languageId}`);
         await this.updateLanguageUsage(classroomId, languageId);
       }
-      
-      const hasRuntimeError = status === 'error' || payload.testResults.some(test => 
-        test.status === 'error' || test.status === 'timeout');
-      
-      if (hasRuntimeError) {
-        await this.incrementRuntimeErrors(classroomId);
-      }
-      
-      await this.updateStudentImprovement(classroomId, studentId, score);
+
+      logMessage(fn, `Submission ${submissionId} processing completed successfully`);
     } catch (error) {
-      logMessage('ClassroomStatisticsService', `Error handling SUBMISSION_COMPLETED: ${error}`);
+      logMessage(fn, `Error processing submission: ${error}\n${JSON.stringify(event.payload)}`);
     }
   }
 
-  private async handleStudentEnrolled(payload: EventPayload<'STUDENT_ENROLLED'>): Promise<void> {
+  private async handleStudentEnrolled(event: StudentEnrolledEvent): Promise<void> {
+    const fn = 'handleStudentEnrolled';
     try {
-      const { classroomId } = payload;
+      logMessage(fn, `Processing enrollment event: ${JSON.stringify(event.payload)}`);
+      
+      const { classroomId } = event.payload;
+      logMessage(fn, `Updating total students for classroom ${classroomId}`);
       
       await this.updateTotalStudents(classroomId);
+      logMessage(fn, `Student enrollment processed successfully for classroom ${classroomId}`);
     } catch (error) {
-      logMessage('ClassroomStatisticsService', `Error handling STUDENT_ENROLLED: ${error}`);
+      logMessage(fn, `Error processing enrollment: ${error}\n${JSON.stringify(event.payload)}`);
     }
   }
 
-
-  private async handlePlagiarismDetected(payload: EventPayload<'PLAGIARISM_DETECTED'>): Promise<void> {
+  private async handlePlagiarismDetected(event: PlagiarismDetectedEvent): Promise<void> {
+    const fn = 'handlePlagiarismDetected';
     try {
-      const { classroomId, similarity } = payload;
+      logMessage(fn, `Processing plagiarism event: ${JSON.stringify(event.payload)}`);
       
-      await this.updatePlagiarismStats(classroomId, similarity);
+      const { similarityScore, assignmentId, classroomId: eventClassroomId } = event.payload;
+      const classroomId = eventClassroomId || await this.getClassroomIdForAssignment(assignmentId);
+      
+      if (!classroomId) {
+        logMessage(fn, `Aborting processing - no classroom found for assignment ${assignmentId}`);
+        return;
+      }
+
+      logMessage(fn, `Updating plagiarism stats with similarity ${similarityScore}%`);
+      await this.updatePlagiarismStats(classroomId, similarityScore);
+      
+      logMessage(fn, `Plagiarism processing completed for classroom ${classroomId}`);
     } catch (error) {
-      logMessage('ClassroomStatisticsService', `Error handling PLAGIARISM_DETECTED: ${error}`);
+      logMessage(fn, `Error processing plagiarism: ${error}\n${JSON.stringify(event.payload)}`);
     }
   }
+
 
   private async getClassroomIdForAssignment(assignmentId: number): Promise<number | null> {
     try {
@@ -105,7 +170,6 @@ export class ClassroomStatisticsService {
     }
   }
 
-  
   private async getLanguageIdForSubmission(submissionId: number): Promise<number | null> {
     try {
       const result = await pool.query(
@@ -303,8 +367,9 @@ export class ClassroomStatisticsService {
   }
 
   private async updateClassroomStats(classroomId: number): Promise<void> {
+    const fn = 'updateClassroomStats';
     try {
-      // comprehensive update of all statistics for a classroom
+      logMessage(fn, `Starting full stats update for classroom ${classroomId}`);
       
       const totalStudents = await this.getTotalStudentsCount(classroomId);
       
@@ -329,8 +394,8 @@ export class ClassroomStatisticsService {
       
       const assignmentScoresResult = await pool.query(
         `SELECT 
-           AVG(s.score) as avg_score,
-           PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY s.score) as median_score
+           AVG(s.final_score) as avg_score,
+           PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY s.final_score) as median_score
          FROM submissions s
          JOIN assignments a ON s.assignment_id = a.assignment_id
          WHERE a.classroom_id = $1
@@ -372,7 +437,7 @@ export class ClassroomStatisticsService {
            SELECT 
              ce.student_id,
              a.assignment_id,
-             MAX(s.score) as max_score
+             MAX(s.final_score) as max_score
            FROM classroom_enrollments ce
            CROSS JOIN assignments a
            LEFT JOIN submissions s ON s.assignment_id = a.assignment_id AND s.student_id = ce.student_id
@@ -408,12 +473,12 @@ export class ClassroomStatisticsService {
              submissions_per_student = $6,
              avg_assignment_score = $7,
              median_assignment_score = $8,
-             plagiarism_rate = $11,
-             avg_similarity = $12,
-             max_similarity = $13,
-             runtime_error_rate = $14,
-             assignment_completion_rate = $15,
-             dropoff_rate = $17,
+             plagiarism_rate = $9,
+             avg_similarity = $10,
+             max_similarity = $11,
+             runtime_error_rate = $12,
+             assignment_completion_rate = $13,
+             dropoff_rate = $14,
              snapshot_time = CURRENT_TIMESTAMP
            WHERE stat_id = $1`,
           [
@@ -450,7 +515,7 @@ export class ClassroomStatisticsService {
              runtime_error_rate,
              assignment_completion_rate,
              dropoff_rate
-           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
+           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
           [
             classroomId,
             totalStudents,
@@ -469,6 +534,7 @@ export class ClassroomStatisticsService {
           ]
         );
       }
+      logMessage(fn, `Classroom ${classroomId} stats updated successfully`);
     } catch (error) {
       logMessage('ClassroomStatisticsService', `Error updating classroom statistics: ${error}`);
     }
@@ -500,8 +566,7 @@ export class ClassroomStatisticsService {
     }
   }
 
-
-private async updatePlagiarismStats(classroomId: number, similarity: number): Promise<void> {
+  private async updatePlagiarismStats(classroomId: number, similarity: number): Promise<void> {
     try {
         const existingRecord = await pool.query(
             `SELECT * FROM classroom_statistics 
@@ -550,9 +615,9 @@ private async updatePlagiarismStats(classroomId: number, similarity: number): Pr
     } catch (error) {
         logMessage('ClassroomStatisticsService', `Error updating plagiarism stats: ${error}`);
     }
-}
+  }
 
-private async updateStudentImprovement(classroomId: number, studentId: number, currentScore: number): Promise<void> {
+  private async updateStudentImprovement(classroomId: number, studentId: number, currentScore: number): Promise<void> {
     try {
         const previousAvgResult = await pool.query(
             `SELECT AVG(score) as avg_score 
@@ -571,11 +636,11 @@ private async updateStudentImprovement(classroomId: number, studentId: number, c
 
         await pool.query(
             `UPDATE classroom_statistics SET
-                total_improvement_points = total_improvement_points + $1,
-                student_improvement_count = student_improvement_count + 1,
+                total_improvement_points = COALESCE(total_improvement_points, 0) + $1,
+                student_improvement_count = COALESCE(student_improvement_count, 0) + 1,
                 avg_improvement = CASE 
-                    WHEN student_improvement_count > 0 
-                    THEN (total_improvement_points + $1) / (student_improvement_count + 1)
+                    WHEN COALESCE(student_improvement_count, 0) > 0 
+                    THEN (COALESCE(total_improvement_points, 0) + $1) / (COALESCE(student_improvement_count, 0) + 1)
                     ELSE $1 
                 END
              WHERE classroom_id = $2
@@ -585,11 +650,11 @@ private async updateStudentImprovement(classroomId: number, studentId: number, c
     } catch (error) {
         logMessage('ClassroomStatisticsService', `Error updating student improvement: ${error}`);
     }
-}
+  }
 
-private async updateLanguageTrends(classroomId: number, languageId: number): Promise<void> {
+  private async updateLanguageTrends(classroomId: number, languageId: number): Promise<void> {
     try {
-        // 30 day  language popularity
+        // 30 day language popularity
         await pool.query(
             `INSERT INTO classroom_language_trends (
                 classroom_id,
@@ -605,7 +670,9 @@ private async updateLanguageTrends(classroomId: number, languageId: number): Pro
                 AVG(CASE WHEN s.status = 'completed' THEN 1 ELSE 0 END) * 100 as success_rate,
                 AVG(s.average_runtime) as avg_runtime
              FROM submissions s
-             WHERE s.language_id = $2
+             JOIN assignments a ON s.assignment_id = a.assignment_id
+             WHERE a.classroom_id = $1
+             AND s.language_id = $2
              AND s.submitted_at >= NOW() - INTERVAL '30 days'
              ON CONFLICT (classroom_id, language_id)
              DO UPDATE SET
@@ -617,7 +684,8 @@ private async updateLanguageTrends(classroomId: number, languageId: number): Pro
     } catch (error) {
         logMessage('ClassroomStatisticsService', `Error updating language trends: ${error}`);
     }
-}
+  }
+
 
 private async updateConceptMastery(classroomId: number, testResults: TestResult[]): Promise<void> {
     try {

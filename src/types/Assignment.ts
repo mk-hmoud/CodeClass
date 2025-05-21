@@ -35,8 +35,8 @@ export interface AssignmentCreationData {
   grading_method: "Manual" | "Automatic" | "Hybrid";
   max_submissions?: number;
   plagiarism_detection: boolean;
-  publish_date?: Date;
-  due_date?: Date;
+  publish_date?: Date | string;
+  due_date?: Date | string;
   languages: Array<{
     languageId: number;
     initial_code?: string;

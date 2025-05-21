@@ -135,7 +135,7 @@ const InstructorClassroom = () => {
               <span>{classroom.assignments.length} Assignments</span>
             </div>
             <div className="flex items-center gap-1">
-              <Calendar size={16} />
+              <Calendar size={16} className="mr-2 text-blue-400" />
               <span>Created {formatDate(classroom.created_at)}</span>
             </div>
           </div>
@@ -165,10 +165,6 @@ const InstructorClassroom = () => {
               <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
               <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
             </svg>
-          </Button>
-          <Button variant="outline" className="flex gap-2 items-center">
-            <Settings size={16} />
-            <span>Settings</span>
           </Button>
           <Button
             onClick={() =>

@@ -297,7 +297,11 @@ const ClassroomsSection = () => {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem
-                      onClick={() => "openNewAssignmentDialog(classroom.id)"} // TODO: update this
+                      onClick={() =>
+                        navigate(
+                          `/instructor/classrooms/${classroom.id}/assignments/create`
+                        )
+                      }
                     >
                       <Plus size={16} className="mr-2" />
                       Add Assignment

@@ -144,6 +144,22 @@ const CreateAssignmentPage: React.FC = () => {
   const handleConfirmCreate = async () => {
     if (!formData) return;
 
+    let publishDate = null;
+    if (formData.publish_immediately) {
+      publishDate = new Date();
+    } else if (formData.publish_date && formData.publish_time) {
+      publishDate = new Date(formData.publish_date);
+      const [hours, minutes] = formData.publish_time.split(":");
+      publishDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+    }
+
+    let dueDate = null;
+    if (formData.due_date && formData.due_time) {
+      dueDate = new Date(formData.due_date);
+      const [hours, minutes] = formData.due_time.split(":");
+      dueDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+    }
+
     const payload: AssignmentCreationData = {
       classroomId: Number(classroomId),
       problemId: selectedProblem
@@ -158,8 +174,8 @@ const CreateAssignmentPage: React.FC = () => {
         ? formData.max_submissions
         : undefined,
       plagiarism_detection: formData.plagiarism_detection,
-      publish_date: formData.publish_date,
-      due_date: formData.due_date,
+      publish_date: publishDate,
+      due_date: dueDate,
       languages: selectedLanguages.map((lang) => ({
         languageId: languages?.find((l) => l.name === lang)?.language_id || 0,
         initial_code: codeByLanguage[lang] || "",
@@ -186,7 +202,7 @@ const CreateAssignmentPage: React.FC = () => {
           onClick={() => navigate(`/instructor/classrooms/${classroomId}/view`)}
         >
           <ArrowLeft size={16} />
-          Back to Dashboard
+          Back to Classroom
         </Button>
         <h1 className="text-3xl font-bold">Create New Assignment</h1>
         <p className="text-gray-400 mt-2">

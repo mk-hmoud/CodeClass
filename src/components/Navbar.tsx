@@ -17,6 +17,10 @@ const Navbar = () => {
   const isStudentPath = location.pathname.includes("/student");
   const isLoggedIn = isInstructorPath || isStudentPath;
 
+  const dashboardPath = isInstructorPath
+    ? "/instructor/dashboard"
+    : "/student/dashboard";
+
   return (
     <header className="border-b border-gray-800 bg-[#0b0f1a] py-3 px-4 flex items-center justify-between w-full">
       <div className="flex items-center gap-2">
@@ -44,15 +48,9 @@ const Navbar = () => {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem
-                  onClick={() => (window.location.href = "/profile")}
+                  onClick={() => (window.location.href = dashboardPath)}
                 >
-                  Profile
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => (window.location.href = "/")}>
                   Dashboard
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => (window.location.href = "/")}>
-                  Settings
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => {

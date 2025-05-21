@@ -190,18 +190,52 @@ async function updateSubmissionScore(
   gradingStatus: 'system graded' | 'graded' | 'pending'
 ) {
   try {
-    const query = `
-      UPDATE submissions 
-      SET auto_score = $1, 
-          grading_status = $2,
-          final_score = CASE 
-                          WHEN manual_score IS NOT NULL THEN manual_score 
-                          ELSE $1 
-                        END
-      WHERE submission_id = $3
-      RETURNING *`;
+    const submissionQuery = `
+      SELECT 
+        s.submission_id,
+        a.grading_method
+      FROM 
+        submissions s
+      JOIN 
+        assignments a ON s.assignment_id = a.assignment_id
+      WHERE 
+        s.submission_id = $1`;
     
-    const result = await pool.query(query, [score, gradingStatus, submissionId]);
+    const submissionResult = await pool.query(submissionQuery, [submissionId]);
+    
+    if (submissionResult.rowCount === 0) {
+      logMessage('updateSubmissionScore', `Submission ${submissionId} not found`);
+      throw new Error(`Submission ${submissionId} not found`);
+    }
+    
+    const gradingMethod = submissionResult.rows[0].grading_method;
+    logMessage('updateSubmissionScore', `Assignment grading method: ${gradingMethod}`);
+    
+    let updateQuery = '';
+    let queryParams = [];
+    
+    if (gradingMethod === 'Automatic') {
+      updateQuery = `
+        UPDATE submissions 
+        SET auto_score = $1, 
+            grading_status = $2,
+            final_score = $1
+        WHERE submission_id = $3
+        RETURNING *`;
+      queryParams = [score, gradingStatus, submissionId];
+    } else {
+      updateQuery = `
+        UPDATE submissions 
+        SET auto_score = $1, 
+            grading_status = $2
+        WHERE submission_id = $3
+        RETURNING *`;
+      queryParams = [score, gradingStatus, submissionId];
+    }
+    
+    const result = await pool.query(updateQuery, queryParams);
+    logMessage('updateSubmissionScore', `Updated submission ${submissionId} with auto_score=${score}, gradingStatus=${gradingStatus}, updateFinalScore=${gradingMethod === 'Automatic'}`);
+    
     return result.rows[0];
   } catch (error) {
     logMessage('updateSubmissionScore', `Error updating submission score: ${error}`);

@@ -316,12 +316,6 @@ export const joinClassroom = async (studentId: number, code: string): Promise<vo
       throw new Error('ALREADY_ENROLLED');
     }
 
-    await pool.query(
-      `INSERT INTO classroom_enrollments (classroom_id, student_id) 
-       VALUES ($1, $2)`,
-      [classroomId, studentId]
-    );
-    logMessage(functionName, `Student ${studentId} enrolled in classroom ${classroomId}.`);
 
     const enrollRes = await pool.query<{
       enrollment_id: number;
@@ -332,6 +326,7 @@ export const joinClassroom = async (studentId: number, code: string): Promise<vo
       [classroomId, studentId]
     );
     const enrollmentId = enrollRes.rows[0].enrollment_id;
+    logMessage(functionName, `Student ${studentId} enrolled in classroom ${classroomId}.`);
 
     const enrolledEvent: StudentEnrolledEvent = {
       type: "STUDENT_ENROLLED",

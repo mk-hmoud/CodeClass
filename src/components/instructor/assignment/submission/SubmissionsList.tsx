@@ -39,12 +39,12 @@ const SubmissionsList: React.FC<SubmissionsListProps> = ({
 
   const filteredSubmissions = submissions.filter((submission) => {
     if (activeTab === "all") return true;
-    if (activeTab === "pending") return submission.gradingStatus === "pending";
-    if (activeTab === "graded")
+    if (activeTab === "pending")
       return (
-        submission.gradingStatus === "graded" ||
+        submission.gradingStatus === "pending" ||
         submission.gradingStatus === "system graded"
       );
+    if (activeTab === "graded") return submission.gradingStatus === "graded";
     return true;
   });
 

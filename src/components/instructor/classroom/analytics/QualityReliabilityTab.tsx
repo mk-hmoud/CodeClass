@@ -41,13 +41,10 @@ const QualityReliabilityTab: React.FC<QualityReliabilityTabProps> = ({
 
   const languageNames: Record<number, string> = {
     1: "Python",
-    2: "JavaScript",
-    3: "Java",
-    4: "C++",
-    5: "Ruby",
-    6: "Go",
-    7: "C#",
-    8: "PHP",
+    2: "C++",
+    3: "JavaScript",
+    4: "C",
+    5: "TypeScript",
   };
 
   const totalSubmissions = safeData.languageUsage.reduce(

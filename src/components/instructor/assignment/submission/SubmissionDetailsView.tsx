@@ -462,6 +462,11 @@ const SubmissionDetailsView: React.FC<SubmissionDetailsViewProps> = ({
                   </span>
                 </div>
 
+                <div className="text-sm text-muted-foreground mb-4">
+                  The final grade will be calculated as an average of system and
+                  instructor scores.
+                </div>
+
                 <FormField
                   control={form.control}
                   name="feedback"
@@ -478,11 +483,6 @@ const SubmissionDetailsView: React.FC<SubmissionDetailsViewProps> = ({
                     </FormItem>
                   )}
                 />
-
-                <div className="text-sm text-muted-foreground mb-4">
-                  The final grade will be calculated as an average of system and
-                  instructor scores.
-                </div>
 
                 <Button type="submit" className="w-full">
                   Submit Final Grade

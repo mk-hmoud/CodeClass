@@ -68,10 +68,6 @@ const StudentDashboard = () => {
       }
     };
 
-    const handleContinueAssignment = (assignmentId) => {
-      //navigate(`/student/classrooms/${classroomId}/assignments/${assignmentId}/editor`);
-    };
-
     const fetchUpcomingDeadlines = async () => {
       try {
         setDeadlinesLoading(true);
@@ -145,10 +141,12 @@ const StudentDashboard = () => {
     });
   };
 
-  const handleContinueAssignment = (assignmentId: any) => {
-    //if (lastOpenedAssignment) {
-    //  navigate(`/code-editor/${lastOpenedAssignment.id}`);
-    //}
+  const handleContinueAssignment = (classroomId: any, assignmentId: any) => {
+    if (assignmentId) {
+      navigate(
+        `/student/classrooms/${classroomId}/assignments/${assignmentId}/solve`
+      );
+    }
   };
 
   const handleAssignmentClick = (assignmentId) => {
@@ -248,7 +246,10 @@ const StudentDashboard = () => {
                         </div>
                         <Button
                           onClick={() =>
-                            handleContinueAssignment(draft.assignmentId)
+                            handleContinueAssignment(
+                              draft.classroomId,
+                              draft.assignmentId
+                            )
                           }
                         >
                           Continue Assignment

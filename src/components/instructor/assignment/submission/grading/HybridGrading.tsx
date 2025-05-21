@@ -91,7 +91,10 @@ export const HybridGrading: React.FC<HybridGradingProps> = ({
                 </FormItem>
               )}
             />
-
+            <div className="text-sm text-muted-foreground mb-4">
+              The final grade will be calculated as an average of system and
+              instructor scores.
+            </div>
             <FormField
               control={form.control}
               name="feedback"
@@ -108,11 +111,6 @@ export const HybridGrading: React.FC<HybridGradingProps> = ({
                 </FormItem>
               )}
             />
-
-            <div className="text-sm text-muted-foreground mb-4">
-              The final grade will be calculated as an average of system and
-              instructor scores.
-            </div>
 
             <Button type="submit" className="w-full">
               Submit Final Grade

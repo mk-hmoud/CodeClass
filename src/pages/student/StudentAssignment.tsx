@@ -288,10 +288,12 @@ const StudentAssignment = () => {
                   <Button className="w-full" onClick={handleStartCoding}>
                     Start Coding
                   </Button>
+                  {/*
                   <Button variant="outline" className="w-full gap-2">
                     <MessageSquare size={16} />
                     Ask for Help
                   </Button>
+                  */}
                 </div>
               </div>
             </Card>

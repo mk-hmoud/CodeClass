@@ -95,9 +95,9 @@ const StudentClassroom: React.FC = () => {
 
     switch (activeFilter) {
       case "completed":
-        return assignments.filter((a) => a.completed);
+        return assignments.filter((a) => a.submitted);
       case "not-completed":
-        return assignments.filter((a) => !a.completed);
+        return assignments.filter((a) => !a.submitted);
       case "all":
       default:
         return assignments;
@@ -142,6 +142,7 @@ const StudentClassroom: React.FC = () => {
   const oneWeekFromNow = new Date();
   oneWeekFromNow.setDate(now.getDate() + 7);
 
+  // 1 week period
   const upcomingAssignments: Assignment[] = classroom.assignments
     .filter((a) => {
       if (!a.dueDate || a.completed) return false;
@@ -431,13 +432,10 @@ const StudentClassroom: React.FC = () => {
                                       : "Your grade"}
                                   </span>
                                   <span className="text-xl font-bold text-green-400">
-                                    {assignment.finalScore === null ? (
-                                      <Badge className="bg-blue-900/40 text-blue-400 border border-blue-700">
-                                        Pending
-                                      </Badge>
-                                    ) : (
-                                      `${assignment.finalScore}/${assignment.points}`
-                                    )}
+                                    {assignment.finalScore !== null &&
+                                    assignment.finalScore !== undefined
+                                      ? `${assignment.finalScore}/${assignment.points}`
+                                      : "N/A"}
                                   </span>
                                 </div>
                               </div>
@@ -565,10 +563,15 @@ const StudentClassroom: React.FC = () => {
                           <div className="bg-green-900/20 border border-green-700 rounded-md p-3 mb-3">
                             <div className="flex justify-between items-center">
                               <span className="text-sm text-green-400">
-                                Your grade
+                                {assignment.finalScore === null
+                                  ? "Awaiting grade"
+                                  : "Your grade"}
                               </span>
                               <span className="text-xl font-bold text-green-400">
-                                {4}/{assignment.points}
+                                {assignment.finalScore !== null &&
+                                assignment.finalScore !== undefined
+                                  ? `${assignment.finalScore}/${assignment.points}`
+                                  : "N/A"}
                               </span>
                             </div>
                           </div>

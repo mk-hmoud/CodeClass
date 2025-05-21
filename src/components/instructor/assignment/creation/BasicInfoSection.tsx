@@ -108,7 +108,13 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
         {selectedProblem && (
           <div className="bg-[#0d1224] p-4 rounded-md text-sm">
             <h3 className="font-medium mb-1">Problem Description</h3>
-            <p className="text-gray-400">{selectedProblem.description}</p>
+            <p className="text-gray-400">
+              <div className="prose dark:prose-invert max-w-none">
+                <pre className="whitespace-pre-wrap break-words">
+                  {selectedProblem.description}
+                </pre>
+              </div>
+            </p>
           </div>
         )}
 

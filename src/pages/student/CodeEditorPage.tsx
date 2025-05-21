@@ -125,9 +125,9 @@ const CodeEditorPage = () => {
         code,
         selectedLanguage,
         assignment.dueDate ? new Date(assignment.dueDate) : null,
-        assignment.title
+        assignment.title,
+        assignment.classroomId
       );
-
       if (success) {
         toast.success("Code saved successfully");
       } else {
@@ -603,7 +603,7 @@ const CodeEditorPage = () => {
         <Badge
           variant="outline"
           className={`font-normal flex items-center gap-1 py-1 px-2 ${
-            remainingAttempts <= 2 ? "bg-amber-50" : ""
+            remainingAttempts <= 2 ? "bg-amber-300" : ""
           }`}
         >
           <FileCode size={14} />

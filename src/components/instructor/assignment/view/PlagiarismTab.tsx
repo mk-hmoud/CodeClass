@@ -59,7 +59,7 @@ const PlagiarismTab: React.FC<PlagiarismTabProps> = ({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (plagiarism_detection) {
+    if (plagiarism_detection && assignmentId) {
       fetchPlagiarismReports();
     } else {
       setPlagiarismReports([]);
@@ -70,8 +70,11 @@ const PlagiarismTab: React.FC<PlagiarismTabProps> = ({
   const fetchPlagiarismReports = async () => {
     try {
       setLoading(true);
+      if (!assignmentId) {
+        throw new Error("Assignment ID is required");
+      }
       const reports = await getAssignmentPlagiarismReports(assignmentId);
-      setPlagiarismReports(reports);
+      setPlagiarismReports(Array.isArray(reports) ? reports : []);
     } catch (error) {
       console.error("Failed to fetch plagiarism reports:", error);
       toast({
@@ -79,45 +82,58 @@ const PlagiarismTab: React.FC<PlagiarismTabProps> = ({
         description: "Failed to load plagiarism reports. Please try again.",
         variant: "destructive",
       });
+      setPlagiarismReports([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(date);
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return "N/A";
+    try {
+      const date = new Date(dateString);
+      return new Intl.DateTimeFormat("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(date);
+    } catch (error) {
+      console.error("Invalid date format:", error);
+      return "Invalid date";
+    }
   };
 
-  const getSimilarityBadge = (similarity: number) => {
-    if (similarity >= 75) {
-      return <Badge className="bg-red-600">High ({similarity}%)</Badge>;
-    } else if (similarity >= 50) {
-      return <Badge className="bg-orange-600">Medium ({similarity}%)</Badge>;
+  const getSimilarityBadge = (similarity: number | null | undefined) => {
+    const validSimilarity = typeof similarity === "number" ? similarity : 0;
+
+    if (validSimilarity >= 75) {
+      return <Badge className="bg-red-600">High ({validSimilarity}%)</Badge>;
+    } else if (validSimilarity >= 50) {
+      return (
+        <Badge className="bg-orange-600">Medium ({validSimilarity}%)</Badge>
+      );
     } else {
-      return <Badge className="bg-blue-600">Low ({similarity}%)</Badge>;
+      return <Badge className="bg-blue-600">Low ({validSimilarity}%)</Badge>;
     }
   };
 
   const filteredReports = plagiarismReports.filter((report) => {
+    const studentName = report?.studentName || "";
+    const comparedStudentName = report?.comparedStudentName || "";
+    const similarity = report?.similarity || 0;
+
     const matchesSearch =
-      report.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      report.comparedStudentName
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
+      studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      comparedStudentName.toLowerCase().includes(searchQuery.toLowerCase());
 
     if (thresholdFilter === "high") {
-      return matchesSearch && report.similarity >= 75;
+      return matchesSearch && similarity >= 75;
     } else if (thresholdFilter === "medium") {
-      return matchesSearch && report.similarity >= 50 && report.similarity < 75;
+      return matchesSearch && similarity >= 50 && similarity < 75;
     } else if (thresholdFilter === "low") {
-      return matchesSearch && report.similarity < 50;
+      return matchesSearch && similarity < 50;
     }
 
     return matchesSearch;
@@ -190,15 +206,19 @@ const PlagiarismTab: React.FC<PlagiarismTabProps> = ({
                   </TableHeader>
                   <TableBody>
                     {filteredReports.map((report) => (
-                      <TableRow key={report.reportId}>
+                      <TableRow
+                        key={report?.reportId || `report-${Math.random()}`}
+                      >
                         <TableCell className="font-medium">
-                          {report.studentName}
+                          {report?.studentName || "Unknown Student"}
                         </TableCell>
-                        <TableCell>{report.comparedStudentName}</TableCell>
                         <TableCell>
-                          {getSimilarityBadge(report.similarity)}
+                          {report?.comparedStudentName || "Unknown Student"}
                         </TableCell>
-                        <TableCell>{formatDate(report.checkedAt)}</TableCell>
+                        <TableCell>
+                          {getSimilarityBadge(report?.similarity)}
+                        </TableCell>
+                        <TableCell>{formatDate(report?.checkedAt)}</TableCell>
                         <TableCell className="text-right">
                           <Button
                             variant="outline"
@@ -235,22 +255,25 @@ const PlagiarismTab: React.FC<PlagiarismTabProps> = ({
             <DialogContent className="max-w-4xl">
               <DialogHeader>
                 <DialogTitle className="flex justify-between items-center">
-                  <span>Plagiarism Report #{selectedReport?.reportId}</span>
+                  <span>
+                    Plagiarism Report #{selectedReport?.reportId || "N/A"}
+                  </span>
                   <DialogClose asChild></DialogClose>
                 </DialogTitle>
                 <DialogDescription>
                   {selectedReport && (
                     <div className="text-sm text-gray-400">
                       <span className="font-medium text-white">
-                        {selectedReport.studentName}
+                        {selectedReport?.studentName || "Unknown Student"}
                       </span>{" "}
                       and{" "}
                       <span className="font-medium text-white">
-                        {selectedReport.comparedStudentName}
+                        {selectedReport?.comparedStudentName ||
+                          "Unknown Student"}
                       </span>{" "}
                       submissions have a{" "}
                       <span className="font-medium text-white">
-                        {selectedReport.similarity}%
+                        {selectedReport?.similarity ?? 0}%
                       </span>{" "}
                       similarity score
                     </div>
@@ -262,20 +285,33 @@ const PlagiarismTab: React.FC<PlagiarismTabProps> = ({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                   <div>
                     <h3 className="text-sm font-medium mb-2">
-                      {selectedReport.studentName}'s Submission
+                      {selectedReport?.studentName || "Unknown Student"}'s
+                      Submission
                     </h3>
                     <CodeSubmissionView
-                      code={selectedReport.submission}
-                      language={selectedReport.submissionId.toString()}
+                      code={
+                        selectedReport?.submission ||
+                        "// No submission available"
+                      }
+                      language={
+                        selectedReport?.submissionId?.toString() || "text"
+                      }
                     />
                   </div>
                   <div>
                     <h3 className="text-sm font-medium mb-2">
-                      {selectedReport.comparedStudentName}'s Submission
+                      {selectedReport?.comparedStudentName || "Unknown Student"}
+                      's Submission
                     </h3>
                     <CodeSubmissionView
-                      code={selectedReport.comparedSubmission.toString()}
-                      language={selectedReport.comparedSubmissionId.toString()}
+                      code={
+                        selectedReport?.comparedSubmission?.toString() ||
+                        "// No submission available"
+                      }
+                      language={
+                        selectedReport?.comparedSubmissionId?.toString() ||
+                        "text"
+                      }
                     />
                   </div>
                 </div>

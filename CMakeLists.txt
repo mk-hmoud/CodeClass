@@ -15,8 +15,9 @@ endif()
 
 add_executable(CodeEd-Judge
     src/main.cpp
-    src/Redis_handler.cpp
-    src/Judge_worker.cpp
+    src/JudgeEngine
+    src/RedisHandler.cpp
+    src/JudgeWorker.cpp
 )
 
 target_link_libraries(CodeEd-Judge

@@ -4,7 +4,7 @@
 #include <sstream>
 #include <sys/wait.h>
 #include <fcntl.h>
-#include "Judge_worker.h"
+#include "JudgeWorker.h"
 #include "Logger.h"
 
 JudgeWorker::JudgeWorker(RedisHandler &redis)

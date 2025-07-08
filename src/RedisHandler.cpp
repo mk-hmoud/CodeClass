@@ -1,78 +1,81 @@
 #include "RedisHandler.h"
 #include "Logger.h"
-#include <nlohmann/json.hpp>
-#include <sstream>
+#include <hiredis/hiredis.h>
 
-using json = nlohmann::json;
+std::unique_ptr<RedisHandler> RedisHandler::instance_ = nullptr;
+
+void RedisHandler::initialize(const char *host, int port)
+{
+    if (!instance_)
+    {
+        instance_.reset(new RedisHandler(host, port));
+    }
+}
+
+RedisHandler &RedisHandler::getInstance()
+{
+    if (!instance_)
+    {
+        LOG_ERROR("RedisHandler has not been initialized, call initialize() first.");
+        exit(1);
+    }
+    return *instance_;
+}
 
 RedisHandler::RedisHandler(const char *host, int port)
+    : blocking_context_(nullptr), command_context_(nullptr)
 {
-    LOG_INFO("Connecting to Redis at " << host << ":" << port);
-    context_ = redisConnect(host, port);
+    LOG_INFO("Connecting to Redis at " << host << ":" << port << " with 2 connections.");
 
-    if (context_ == nullptr || context_->err)
+    blocking_context_ = redisConnect(host, port);
+    if (blocking_context_ == nullptr || blocking_context_->err)
     {
-        if (context_)
+        if (blocking_context_)
         {
-            LOG_ERROR("Redis connection error: " << context_->errstr);
+            LOG_ERROR("Redis blocking connection error: " << blocking_context_->errstr);
         }
         else
         {
-            LOG_ERROR("Failed to allocate Redis context");
+            LOG_ERROR("Failed to allocate Redis blocking context");
         }
         exit(1);
     }
-    LOG_INFO("Successfully connected to Redis");
+
+    command_context_ = redisConnect(host, port);
+    if (command_context_ == nullptr || command_context_->err)
+    {
+        if (command_context_)
+        {
+            LOG_ERROR("Redis command connection error: " << command_context_->errstr);
+        }
+        else
+        {
+            LOG_ERROR("Failed to allocate Redis command context");
+        }
+        exit(1);
+    }
+    LOG_INFO("Successfully connected to Redis with both connections.");
 }
 
 RedisHandler::~RedisHandler()
 {
-    LOG_INFO("Closing Redis connection");
-    redisFree(context_);
-}
-
-bool RedisHandler::brpop(std::string &jobId, std::string &value)
-{
-    LOG_DEBUG("Attempting BRPOP on 'judge:queue' queue");
-    redisReply *reply = static_cast<redisReply *>(
-        redisCommand(context_, "BRPOP judge:queue 0"));
-    if (!reply || reply->type != REDIS_REPLY_ARRAY || reply->elements != 2)
+    LOG_INFO("Closing Redis connections.");
+    if (blocking_context_)
     {
-        LOG_ERROR("BRPOP command failed or returned unexpected result");
-        if (reply)
-            freeReplyObject(reply);
-        return false;
+        redisFree(blocking_context_);
     }
-
-    jobId = reply->element[1]->str;
-    freeReplyObject(reply);
-
-    std::string hashKey = "judge:" + jobId;
-    reply = static_cast<redisReply *>(
-        redisCommand(context_, "HGET %s data", hashKey.c_str()));
-
-    LOG_DEBUG("HGET reply type: " << reply->type);
-    if (reply && reply->type == REDIS_REPLY_STRING)
+    if (command_context_)
     {
-        value = reply->str;
-        freeReplyObject(reply);
-        LOG_INFO("Received new submission from queue with jobId: " << jobId);
-        return true;
+        redisFree(command_context_);
     }
-
-    if (reply)
-        freeReplyObject(reply);
-    return false;
 }
 
 void RedisHandler::set(const std::string &key, const std::string &value)
 {
-    LOG_DEBUG("Setting Redis key: " << key);
+    std::lock_guard<std::mutex> lock(command_mutex_);
+    LOG_DEBUG("SET on command connection. Key: " << key);
     redisReply *reply = static_cast<redisReply *>(
-        redisCommand(context_, "SET %b %b",
-                     key.data(), key.size(),
-                     value.data(), value.size()));
-
+        redisCommand(command_context_, "SET %b %b", key.data(), key.size(), value.data(), value.size()));
     if (reply)
     {
         if (reply->type == REDIS_REPLY_ERROR)
@@ -85,25 +88,54 @@ void RedisHandler::set(const std::string &key, const std::string &value)
 
 bool RedisHandler::expire(const std::string &key, int seconds)
 {
-    LOG_DEBUG("Setting expire on Redis key: " << key << " to " << seconds << "s");
+    std::lock_guard<std::mutex> lock(command_mutex_);
+    LOG_DEBUG("EXPIRE on command connection. Key: " << key);
     redisReply *reply = static_cast<redisReply *>(
-        redisCommand(context_, "EXPIRE %s %d",
-                     key.c_str(), seconds));
+        redisCommand(command_context_, "EXPIRE %s %d", key.c_str(), seconds));
     if (!reply)
     {
         LOG_ERROR("Redis EXPIRE command failed: no reply");
         return false;
     }
-    bool success = false;
-    if (reply->type == REDIS_REPLY_INTEGER)
-    {
-        // reply->integer == 1 if TTL set, 0 if key does not exist
-        success = (reply->integer == 1);
-    }
-    else
+    bool success = (reply->type == REDIS_REPLY_INTEGER && reply->integer == 1);
+    if (!success && reply->type == REDIS_REPLY_ERROR)
     {
         LOG_ERROR("Redis EXPIRE failed: " << reply->str);
     }
     freeReplyObject(reply);
     return success;
+}
+
+bool RedisHandler::brpop(std::string &jobId, std::string &value)
+{
+    std::lock_guard<std::mutex> lock(blocking_mutex_);
+    LOG_DEBUG("BRPOP on blocking connection.");
+    redisReply *reply = static_cast<redisReply *>(
+        redisCommand(blocking_context_, "BRPOP judge:queue 0"));
+    if (!reply || reply->type != REDIS_REPLY_ARRAY || reply->elements != 2)
+    {
+        LOG_ERROR("BRPOP command failed or returned unexpected result");
+        if (reply)
+            freeReplyObject(reply);
+        return false;
+    }
+
+    jobId = reply->element[1]->str;
+    freeReplyObject(reply);
+
+    // HGET can also use the blocking connection since it follows BRPOP sequentially
+    std::string hashKey = "judge:" + jobId;
+    reply = static_cast<redisReply *>(
+        redisCommand(blocking_context_, "HGET %s data", hashKey.c_str()));
+    if (reply && reply->type == REDIS_REPLY_STRING)
+    {
+        value = reply->str;
+        freeReplyObject(reply);
+        LOG_INFO("Received new submission from queue with jobId: " << jobId);
+        return true;
+    }
+
+    if (reply)
+        freeReplyObject(reply);
+    return false;
 }

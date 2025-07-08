@@ -1,31 +1,45 @@
 #ifndef REDIS_JUDGE_H
 #define REDIS_JUDGE_H
 
-#include <iostream>
-#include <nlohmann/json.hpp>
-#include <cstdlib>
 #include <string>
-#include <vector>
-#include <hiredis/hiredis.h>
-#include <unistd.h>
-#include <chrono>
-#include <iomanip>
-#include <sstream>
-// #include <hiredis/adapters/libuv.h>
+#include <memory>
+#include <mutex>
 
-using json = nlohmann::json;
+struct redisContext;
 
 class RedisHandler
 {
 public:
-    RedisHandler(const char *host, int port);
-    ~RedisHandler();
+    RedisHandler(const RedisHandler &) = delete;
+    void operator=(const RedisHandler &) = delete;
+
+    /**
+     * @brief Initializes the singleton instance. Must be called once at startup.
+     */
+    static void initialize(const char *host, int port);
+
+    static RedisHandler &getInstance();
+
     bool brpop(std::string &jobId, std::string &value);
     void set(const std::string &key, const std::string &value);
     bool expire(const std::string &key, int seconds);
 
 private:
-    redisContext *context_;
+    RedisHandler(const char *host, int port);
+
+    ~RedisHandler();
+    friend struct std::default_delete<RedisHandler>;
+
+private:
+    redisContext *blocking_context_;
+    redisContext *command_context_;
+
+    std::mutex blocking_mutex_;
+    std::mutex command_mutex_;
+
+    static std::unique_ptr<RedisHandler> instance_;
 };
+
+#define REDIS() (&RedisHandler::getInstance())
 
 #endif // REDIS_JUDGE_H

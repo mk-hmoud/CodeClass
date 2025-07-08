@@ -1,23 +1,31 @@
 #include "JudgeEngine.h"
 #include "Logger.h"
+#include "RedisHandler.h"
 
-/**
- * @brief Initializes the RedisHandler and JudgeWorker.
- */
-JudgeEngine::JudgeEngine(const std::string &redisHost, int redisPort)
-    // Initialize RedisHandler with host and port
-    : redisHandler_(redisHost.c_str(), redisPort),
-      // Pass the initialized RedisHandler to the JudgeWorker
-      judgeWorker_(redisHandler_)
+JudgeEngine::JudgeEngine(const std::string &redisHost, int redisPort, size_t numThreads)
+    : judgeWorker_(),
+      threadPool_(numThreads)
 {
-    LOG_INFO("JudgeEngine initialized");
+    RedisHandler::initialize(redisHost.c_str(), redisPort);
+    LOG_INFO("JudgeEngine initialized with " << numThreads << " threads.");
 }
 
-/**
- * @brief Begins the worker's execution.
- */
 void JudgeEngine::start()
 {
-    LOG_INFO("JudgeEngine is starting the worker");
-    judgeWorker_.run();
+    LOG_INFO("JudgeEngine starting main loop and listening for jobs.");
+    while (true)
+    {
+        std::string jobId;
+        std::string submissionData;
+
+        if (!REDIS()->brpop(jobId, submissionData))
+        {
+            LOG_WARNING("Redis brpop failed or connection closed, closing worker loop.");
+            break;
+        }
+
+        LOG_INFO("Job " << jobId << " received. Enqueuing for threadpool to process.");
+        threadPool_.enqueue([this, jobId, submissionData]
+                            { this->judgeWorker_.processSubmission(jobId, submissionData); });
+    }
 }

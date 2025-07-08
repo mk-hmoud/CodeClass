@@ -6,36 +6,11 @@
 #include <fcntl.h>
 #include "JudgeWorker.h"
 #include "Logger.h"
+#include "RedisHandler.h"
 
-JudgeWorker::JudgeWorker(RedisHandler &redis)
-    : redis_(redis)
-{
-}
+using json = nlohmann::json;
 
-void JudgeWorker::run()
-{
-    LOG_INFO("JudgeWorker entering main loop");
-    std::string jobId;
-    std::string submissionData;
-    while (true)
-    {
-        if (!redis_.brpop(jobId, submissionData))
-        {
-            LOG_WARNING("Redis brpop failed or connection closed; exiting worker loop");
-            break;
-        }
-
-        // LOG_INFO("Processing job ID: " << jobId << " with data: " << submissionData);
-        try
-        {
-            processSubmission(jobId, submissionData);
-        }
-        catch (const std::exception &ex)
-        {
-            LOG_ERROR("Exception in handleJob: " << ex.what());
-        }
-    }
-}
+JudgeWorker::JudgeWorker() {}
 
 // this only considers c++ submissions at the moment
 void JudgeWorker::processSubmission(const std::string &jobId,
@@ -161,8 +136,7 @@ void JudgeWorker::processSubmission(const std::string &jobId,
     try
     {
         auto results = json::parse(outputStr);
-        LOG_INFO("Job " << jobId << " processed with results: "
-                        << results.dump());
+        LOG_INFO("Job " << jobId << " processed with results: " << results.dump(4));
         std::string prefix;
         if (submission.mode == "submit")
         {
@@ -174,23 +148,24 @@ void JudgeWorker::processSubmission(const std::string &jobId,
         }
         else
         {
-            LOG_ERROR("Unknown submission mode: " << submission.mode);
+            LOG_ERROR("Unknown submission mode for job " << jobId << ": " << submission.mode);
+            unlink(inputFilename);
+            unlink(outputFilename);
             return;
         }
 
         std::string verdictKey = prefix + jobId;
-        std::cout << "\n\nresults: " << results.dump();
-        redis_.set(verdictKey, results.dump());
-        redis_.expire(verdictKey, 3600);
+        REDIS()->set(verdictKey, results.dump());
+        REDIS()->expire(verdictKey, 3600);
+        LOG_INFO("DONE");
     }
-    catch (const std::exception &e)
+    catch (const json::parse_error &e)
     {
-        LOG_ERROR("Result parsing failed: " << e.what());
+        LOG_ERROR("Result parsing failed for job " << jobId << ": " << e.what() << ". Raw output: " << outputStr);
     }
 
     unlink(inputFilename);
     unlink(outputFilename);
-    // redis_.del("judge:" + jobId);
 }
 
 Submission JudgeWorker::parseSubmission(const std::string &jsonSubmissionData)

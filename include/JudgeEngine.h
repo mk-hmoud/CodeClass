@@ -3,6 +3,7 @@
 #include "RedisHandler.h"
 #include "JudgeWorker.h"
 #include <string>
+#include "ThreadPool.h"
 
 /**
  * @class JudgeEngine
@@ -11,10 +12,10 @@
 class JudgeEngine
 {
 public:
-    JudgeEngine(const std::string &redisHost, int redisPort);
+    JudgeEngine(const std::string &redisHost, int redisPort, size_t numThreads);
     void start();
 
 private:
-    RedisHandler redisHandler_;
     JudgeWorker judgeWorker_;
+    ThreadPool threadPool_;
 };

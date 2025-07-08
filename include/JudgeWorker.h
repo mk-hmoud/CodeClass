@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
-#include "RedisHandler.h"
+#include "nlohmann/json.hpp"
+#include <vector>
 
 struct TestCase
 {
@@ -36,12 +37,9 @@ namespace nlohmann
 class JudgeWorker
 {
 public:
-    explicit JudgeWorker(RedisHandler &redis);
-    void run();
+    explicit JudgeWorker();
     void processSubmission(const std::string &jobId, const std::string &jsonSubmissionData);
 
 private:
-    RedisHandler &redis_;
-
     Submission parseSubmission(const std::string &jsonSubmissionData);
 };

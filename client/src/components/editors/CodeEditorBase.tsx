@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as monaco from "monaco-editor";
-import "../../../src/lib/monacoConfig";
+import "../../lib/monacoConfig";
 
 interface CodeEditorBaseProps {
   defaultLanguage: string;

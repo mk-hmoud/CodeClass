@@ -60,7 +60,7 @@ auto ThreadPool::enqueue(F &&f, Args &&...args)
     return res;
 }
 
-ThreadPool::ThreadPool(size_t threads)
+inline ThreadPool::ThreadPool(size_t threads)
 {
     for (size_t i = 0; i < threads; ++i)
     {
@@ -89,7 +89,7 @@ ThreadPool::ThreadPool(size_t threads)
     }
 }
 
-ThreadPool::~ThreadPool()
+inline ThreadPool::~ThreadPool()
 {
     {
         std::unique_lock<std::mutex> lock(queue_mutex_);

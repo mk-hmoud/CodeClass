@@ -1,6 +1,9 @@
 #!/bin/bash
 
-cd ../build || { echo "Error: 'build' directory not found."; exit 1; }
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+
+cd "$ROOT_DIR/build" || { echo "Error: 'build' directory not found."; exit 1; }
 
 echo "Building project..."
 if ! make; then
@@ -11,4 +14,4 @@ fi
 cd ../bin || { echo "Error: 'bin' directory not found."; exit 1; }
 
 echo "Running Judge..."
-./CodeEd-Judge
+./judge

@@ -1,14 +1,14 @@
 import { Pool } from 'pg';
 import dotenv from 'dotenv';
+import { resolve } from 'path';
 
-dotenv.config();
-
+dotenv.config({ path: resolve(__dirname, '../../../.env') });
 const pool = new Pool({
-  user: process.env.DB_USER || 'mhmd',
-  host: process.env.DB_HOST || '127.0.0.1',
-  database: process.env.DB_NAME || 'codingplatform',
-  password: process.env.DB_PASSWORD || '1234',
-  port: Number(process.env.DB_PORT) || 5432,
+  user: process.env.DB_USER,
+  host: process.env.DB_HOST,
+  database: process.env.DB_NAME,
+  password: process.env.DB_PASSWORD,
+  port: Number(process.env.DB_PORT),
 });
 
 export default pool;

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(CodeEd-Judge)
+project(judge)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 
@@ -13,13 +13,13 @@ if (NOT HIREDIS_LIB)
     message(FATAL_ERROR "Could not find libhiredis")
 endif()
 
-add_executable(CodeEd-Judge
+add_executable(judge
     src/main.cpp
     src/JudgeEngine
     src/RedisHandler.cpp
     src/JudgeWorker.cpp
 )
 
-target_link_libraries(CodeEd-Judge
+target_link_libraries(judge
     PRIVATE ${HIREDIS_LIB} pthread
 )

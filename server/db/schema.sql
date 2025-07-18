@@ -71,11 +71,10 @@ CREATE TABLE classrooms (
   classroom_name VARCHAR(255) NOT NULL,
   classroom_code VARCHAR(50) NOT NULL UNIQUE,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-  status          VARCHAR(20) NOT NULL
-    CHECK (status IN ('active', 'archived'))
-    DEFAULT 'active'
-  FOREIGN KEY (instructor_id) REFERENCES instructors(instructor_id) ON DELETE CASCADE
+  status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
+  CONSTRAINT fk_instructor FOREIGN KEY (instructor_id) REFERENCES instructors(instructor_id) ON DELETE CASCADE
 );
+
 
 CREATE TABLE classroom_enrollments (
   enrollment_id SERIAL PRIMARY KEY,
@@ -116,8 +115,7 @@ CREATE TABLE assignments (
   due_date TIMESTAMPTZ,
   FOREIGN KEY (classroom_id) REFERENCES classrooms(classroom_id) ON DELETE CASCADE,
   FOREIGN KEY (problem_id) REFERENCES problems(problem_id) ON DELETE CASCADE,
-  UNIQUE (classroom_id, problem_id),
-  CONSTRAINT submission_attempts_check CHECK (submission_attempts IS NULL OR submission_attempts >= 0)
+  UNIQUE (classroom_id, problem_id)
 );
 
 CREATE TABLE problem_test_cases (

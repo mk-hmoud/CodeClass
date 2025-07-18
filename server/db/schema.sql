@@ -116,8 +116,7 @@ CREATE TABLE assignments (
   due_date TIMESTAMPTZ,
   FOREIGN KEY (classroom_id) REFERENCES classrooms(classroom_id) ON DELETE CASCADE,
   FOREIGN KEY (problem_id) REFERENCES problems(problem_id) ON DELETE CASCADE,
-  UNIQUE (classroom_id, problem_id),
-  CONSTRAINT submission_attempts_check CHECK (submission_attempts IS NULL OR submission_attempts >= 0)
+  UNIQUE (classroom_id, problem_id)
 );
 
 CREATE TABLE problem_test_cases (

@@ -1,5 +1,14 @@
 #!/bin/bash
 
+DB_CONTAINER_NAME="codeclass-postgres"
+if [ "$(docker ps -q -f name=$DB_CONTAINER_NAME)" ]; then
+  echo "PostgreSQL container '$DB_CONTAINER_NAME' is already running."
+else
+  echo "Starting PostgreSQL container '$DB_CONTAINER_NAME'..."
+  docker start $DB_CONTAINER_NAME > /dev/null
+  echo "PostgreSQL started."
+fi
+
 echo "Starting the judge..."
 (cd judge && ./scripts/run_judge.sh) &
 JUDGE_PID=$!

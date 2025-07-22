@@ -20,8 +20,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
-import { Problem } from "@/types/problem/Problem";
-import { TestCase } from "@/types/problem/TestCase";
+import { Problem } from "@/types/Problem";
+import { TestCase } from "@/types/TestCase";
 import { PROBLEM_CATEGORY_OPTIONS } from "@/constants/problem";
 
 interface ProblemDetailDialogProps {

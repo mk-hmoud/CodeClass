@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Problem } from "@/types/problem/Problem";
+import { Problem } from "@/types/Problem";
 import {
   getProblems,
   updateProblem,

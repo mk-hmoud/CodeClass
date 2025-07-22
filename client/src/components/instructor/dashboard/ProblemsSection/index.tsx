@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import ProblemList from "./ProblemList";
 import { Book, ChevronDown, ChevronUp, Plus } from "lucide-react";
 import ProblemDetailDialog from "./ProblemDetailDialog";
-import { Problem } from "../../../../types/problem/Problem";
+import { Problem } from "../../../../types/Problem";
 import { useProblems } from "@/hooks/use-problems";
 import { useNavigate } from "react-router-dom";
 import ConfirmDialog from "@/components/ui/confirm-dialog";

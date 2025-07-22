@@ -45,7 +45,10 @@ export const createProblem = async (
           tc.isPublic !== undefined ? tc.isPublic : false,
         ]);
       }
-      logMessage(functionName, `Inserted ${data.testCases.length} test case(s) for problem ID: ${problemId}`);
+      logMessage(
+        functionName,
+        `Inserted ${data.testCases.length} test case(s) for problem ID: ${problemId}`
+      );
     }
 
     await pool.query("COMMIT");
@@ -57,7 +60,9 @@ export const createProblem = async (
   }
 };
 
-export const getProblemById = async (problemId: number): Promise<Problem | null> => {
+export const getProblemById = async (
+  problemId: number
+): Promise<Problem | null> => {
   const functionName = "getProblemById";
   try {
     const query = `SELECT * FROM problems WHERE problem_id = $1`;
@@ -74,7 +79,7 @@ export const getProblemById = async (problemId: number): Promise<Problem | null>
       learning_outcomes: row.learning_outcomes,
       tags: row.tags,
       created_at: row.created_at,
-      testCases: [] 
+      testCases: [],
     };
 
     const testCasesQuery = `
@@ -98,7 +103,9 @@ export const getProblemById = async (problemId: number): Promise<Problem | null>
   }
 };
 
-export const getProblemsByInstructor = async (instructorId: number): Promise<Problem[]> => {
+export const getProblemsByInstructor = async (
+  instructorId: number
+): Promise<Problem[]> => {
   const functionName = "getProblemsByInstructor";
   try {
     const query = `
@@ -122,7 +129,10 @@ export const getProblemsByInstructor = async (instructorId: number): Promise<Pro
       ORDER BY p.created_at DESC
     `;
     const result = await pool.query(query, [instructorId]);
-    logMessage(functionName, `Fetched ${result.rows.length} problems for instructor ID: ${instructorId}`);
+    logMessage(
+      functionName,
+      `Fetched ${result.rows.length} problems for instructor ID: ${instructorId}`
+    );
     return result.rows.map((row: any) => ({
       problemId: row.problem_id,
       instructorId: row.instructor_id,
@@ -133,10 +143,44 @@ export const getProblemsByInstructor = async (instructorId: number): Promise<Pro
       learning_outcomes: row.learning_outcomes,
       tags: row.tags,
       created_at: row.created_at,
-      testCases: row.testcases
+      testCases: row.testcases,
     }));
   } catch (error) {
     logMessage(functionName, `Error fetching problems: ${error}`);
+    throw error;
+  }
+};
+
+export const updateProblem = async (
+  problemId: number,
+  data: ProblemCreationData
+): Promise<Problem> => {
+  const functionName = "updateProblem";
+  try {
+    const query = `
+      UPDATE 
+        problems 
+      SET 
+        title = $1, 
+        description = $2, 
+        category = $3, 
+        prerequisites = $4, 
+        learning_outcomes = $5, 
+        tags = $6 
+      WHERE 
+        problem_id = $7 RETURNING *`;
+    const result = await pool.query(query, [
+      data.title,
+      data.description,
+      data.category,
+      data.prerequisites,
+      data.learning_outcomes,
+      data.tags,
+      problemId,
+    ]);
+    return result.rows[0];
+  } catch (error) {
+    logMessage(functionName, `Error updating problem: ${error}`);
     throw error;
   }
 };
@@ -152,7 +196,6 @@ export const deleteProblem = async (problemId: number): Promise<void> => {
     throw error;
   }
 };
-
 
 export const getAssignmentTestCases = async (
   assignmentId: number

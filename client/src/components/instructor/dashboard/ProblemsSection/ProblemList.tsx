@@ -1,5 +1,5 @@
 import React from "react";
-import { Problem } from "../../../../types/problem/Problem";
+import { Problem } from "../../../../types/Problem";
 import ProblemCard from "./ProblemCard";
 
 interface ProblemListProps {

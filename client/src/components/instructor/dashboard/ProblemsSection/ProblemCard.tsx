@@ -2,7 +2,7 @@ import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Edit, Trash } from "lucide-react";
-import { Problem } from "@/types/problem/Problem";
+import { Problem } from "@/types/Problem";
 
 interface ProblemCardProps {
   problem: Problem;
@@ -27,7 +27,7 @@ const ProblemCard: React.FC<ProblemCardProps> = ({
           <div>
             <h3 className="text-lg font-semibold">{problem.title}</h3>
             <p className="text-sm text-gray-400">
-              Category: Algorithm | Difficulty: Medium
+              Category: {problem.category || "Algorithms"}
             </p>
             <p className="mt-2 text-gray-300 line-clamp-2">
               {problem.description}

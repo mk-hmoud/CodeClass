@@ -71,11 +71,10 @@ CREATE TABLE classrooms (
   classroom_name VARCHAR(255) NOT NULL,
   classroom_code VARCHAR(50) NOT NULL UNIQUE,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-  status          VARCHAR(20) NOT NULL
-    CHECK (status IN ('active', 'archived'))
-    DEFAULT 'active'
-  FOREIGN KEY (instructor_id) REFERENCES instructors(instructor_id) ON DELETE CASCADE
+  status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
+  CONSTRAINT fk_instructor FOREIGN KEY (instructor_id) REFERENCES instructors(instructor_id) ON DELETE CASCADE
 );
+
 
 CREATE TABLE classroom_enrollments (
   enrollment_id SERIAL PRIMARY KEY,

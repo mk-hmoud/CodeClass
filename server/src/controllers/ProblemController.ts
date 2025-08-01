@@ -24,12 +24,10 @@ export const createProblemController = async (
     logMessage(functionName, "Received request to create problem.");
 
     if (!req.user || !req.user.role_id) {
-      res
-        .status(401)
-        .json({
-          success: false,
-          message: "Unauthorized: Instructor not identified",
-        });
+      res.status(401).json({
+        success: false,
+        message: "Unauthorized: Instructor not identified",
+      });
       return;
     }
 
@@ -90,12 +88,10 @@ export const getProblemsController = async (
     logMessage(functionName, "Received request to fetch problems.");
 
     if (!req.user || !req.user.role_id) {
-      res
-        .status(401)
-        .json({
-          success: false,
-          message: "Unauthorized: Instructor not identified",
-        });
+      res.status(401).json({
+        success: false,
+        message: "Unauthorized: Instructor not identified",
+      });
       return;
     }
     const instructorId = req.user.role_id;

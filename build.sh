@@ -2,9 +2,20 @@
 
 set -e
 
+
+# --- Flag Parsing ---
+BUILD_DOCKER=true
+
+if [[ "$1" == "--no-docker" ]]; then
+  echo "Flag --no-docker detected. skip Docker image build."
+  BUILD_DOCKER=false
+fi
+# --- End of Flag Parsing ---
+
+
 echo "=== Setting up judge dependencies ==="
-DEPS_DIR="judge/dependencies"
-mkdir -p $DEPS_DIR
+DEPS_DIR="$PWD/judge/dependencies"
+mkdir -p "$DEPS_DIR"
 
 if [ ! -d "$DEPS_DIR/json" ]; then
   echo "Cloning nlohmann/json..."
@@ -13,30 +24,38 @@ else
   echo "nlohmann/json already exists."
 fi
 
-if [ ! -d "$DEPS_DIR/hiredis" ]; then
+if [ ! -f "$DEPS_DIR/hiredis/lib/libhiredis.a" ]; then
   echo "Cloning and building hiredis..."
-  git clone https://github.com/redis/hiredis.git $DEPS_DIR/hiredis
-  cd $DEPS_DIR/hiredis
-  make
-  make install
-  cd ../../../
+  rm -rf "$DEPS_DIR/hiredis"
+  git clone https://github.com/redis/hiredis.git "$DEPS_DIR/hiredis"
+  pushd "$DEPS_DIR/hiredis"
+    make
+    make install PREFIX="$DEPS_DIR/hiredis"
+  popd
 else
-  echo "hiredis already exists."
+  echo "hiredis is already built and installed locally."
 fi
 
 echo "Judge dependencies are set up."
 
 echo "=== Building the C++ judge ==="
-mkdir -p judge/build
-cd judge/build
-cmake ..
-make
-cd ../..
+BUILD_DIR="judge/build"
+if [ -d "$BUILD_DIR" ]; then
+  echo "→ Removing stale build directory at $BUILD_DIR"
+  rm -rf "$BUILD_DIR"
+fi
+mkdir -p "$BUILD_DIR"
+pushd "$BUILD_DIR" >/dev/null
+  cmake ..
+  make
+popd >/dev/null
 echo "C++ judge built successfully."
 
-echo "=== Building Docker images for the judge ==="
-./judge/scripts/build_images.sh
-echo "Docker images built successfully."
+if [ "$BUILD_DOCKER" = true ]; then
+  echo "=== Building Docker images for the judge ==="
+  ./judge/scripts/build_images.sh
+  echo "Docker images built successfully."
+fi
 
 echo "=== Setting up PostgreSQL container ==="
 if [ ! -f .env ]; then

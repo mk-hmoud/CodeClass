@@ -17,6 +17,7 @@ import InstructorAssignment from "./pages/instructor/InstructorAssignment";
 import AssignmentAnalytics from "./pages/instructor/AssignmentAnalytics";
 import ProblemCreation from "./pages/instructor/ProblemCreation";
 import AssignmentCreation from "./pages/instructor/AssignmentCreation";
+import LiveQuizCreator from "./pages/instructor/QuizCreation";
 
 import StudentLayout from "./layouts/StudentLayout";
 import StudentDashboard from "./pages/student/StudentDashboard";
@@ -50,6 +51,9 @@ const App = () => (
                   <Route path="view" element={<InstructorAssignment />} />
                   <Route path="analytics" element={<AssignmentAnalytics />} />
                 </Route>
+              </Route>
+              <Route path="quizes">
+                <Route path="create" element={<LiveQuizCreator />} />
               </Route>
               <Route path="analytics" element={<ClassroomAnalytics />} />
             </Route>

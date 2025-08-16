@@ -395,5 +395,64 @@ SELECT
 
 FROM assignments a;
 
+
+CREATE TABLE quizzes (
+  quiz_id SERIAL PRIMARY KEY,
+  classroom_id INT NOT NULL REFERENCES classrooms(classroom_id) ON DELETE CASCADE,
+  instructor_id INT NOT NULL REFERENCES instructors(instructor_id) ON DELETE CASCADE,
+  title VARCHAR(255) NOT NULL,
+  description TEXT,
+  time_limit_minutes INT, 
+  start_date TIMESTAMPTZ,
+  end_date TIMESTAMPTZ,
+  shuffle_problems BOOLEAN NOT NULL DEFAULT FALSE,
+  is_published BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE quiz_problems (
+  quiz_problem_id SERIAL PRIMARY KEY,
+  quiz_id INT NOT NULL REFERENCES quizzes(quiz_id) ON DELETE CASCADE,
+  problem_id INT NOT NULL REFERENCES problems(problem_id) ON DELETE CASCADE,
+  points INT NOT NULL DEFAULT 10,
+  problem_order INT NOT NULL,
+  UNIQUE (quiz_id, problem_id)
+);
+
+CREATE TABLE quiz_sessions (
+  session_id SERIAL PRIMARY KEY,
+  quiz_id INT NOT NULL REFERENCES quizzes(quiz_id) ON DELETE CASCADE,
+  student_id INT NOT NULL REFERENCES students(student_id) ON DELETE CASCADE,
+  start_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  end_time TIMESTAMPTZ,
+  status VARCHAR(20) NOT NULL DEFAULT 'in_progress' CHECK (status IN ('in_progress', 'submitted', 'graded')),
+  final_score NUMERIC(5,2),
+  UNIQUE (quiz_id, student_id)
+);
+
+CREATE TABLE quiz_submissions (
+  submission_id SERIAL PRIMARY KEY,
+  session_id INT NOT NULL REFERENCES quiz_sessions(session_id) ON DELETE CASCADE,
+  quiz_problem_id INT NOT NULL REFERENCES quiz_problems(quiz_problem_id) ON DELETE CASCADE,
+  language_id INT NOT NULL REFERENCES languages(language_id) ON DELETE CASCADE,
+  code TEXT NOT NULL,
+  submitted_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  status VARCHAR(20) NOT NULL DEFAULT 'queued' CHECK (status IN ('queued','running','completed','error')),
+  passed_tests INT,
+  total_tests INT,
+  auto_score NUMERIC(5,2)
+);
+
+CREATE TABLE quiz_submission_results (
+  submission_id INT NOT NULL REFERENCES quiz_submissions(submission_id) ON DELETE CASCADE,
+  test_case_id INT NOT NULL REFERENCES problem_test_cases(test_case_id) ON DELETE CASCADE,
+  passed BOOLEAN NOT NULL,
+  actual_output TEXT,
+  execution_time_ms INT,
+  memory_usage_kb INT,
+  error_message TEXT,
+  PRIMARY KEY (submission_id, test_case_id)
+);
+
 --ALTER TABLE assignments
 --ADD COLUMN results_published BOOLEAN NOT NULL DEFAULT FALSE;

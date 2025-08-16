@@ -350,3 +350,40 @@ export interface AssignmentAnalyticsPayload {
   dueDate?: Date;
   points?: number;
 }
+
+export interface QuizProblem {
+  problemId: number;
+  points: number;
+  problemOrder: number;
+  problemDetails?: Problem; 
+}
+
+export interface Quiz {
+  quizId: number;
+  classroomId: number;
+  instructorId: number;
+  title: string;
+  description?: string;
+  time_limit_minutes: number;
+  startDate?: Date | null;
+  endDate?: Date | null;
+  shuffleProblems: boolean;
+  isPublished: boolean;
+  createdAt: Date;
+  problems: QuizProblem[];
+}
+
+export interface QuizCreationData {
+  classroomId: number;
+  title: string;
+  description?: string | null;
+  time_limit_minutes: number;
+  startDate?: Date | null;
+  endDate?: Date | null;
+  shuffleProblems: boolean;
+  problems: Array<{
+    problemId: number;
+    points: number;
+    problemOrder: number;
+  }>;
+}

@@ -2,6 +2,7 @@ import express from 'express';
 import ClassroomRoutes from './routes/ClassroomRoutes';
 import ProblemRoutes from './routes/ProblemRoutes';
 import AssignmentRoutes from './routes/AssignmentRoutes';
+import QuizRoutes from './routes/QuizRoutes';
 import LanguageRoutes from './routes/LanguageRoutes';
 import AuthRoutes from './routes/AuthRoutes';
 import JudgeRoutes from './routes/JudgeRoutes';
@@ -28,6 +29,8 @@ app.use(express.json());
 app.use('/api/classrooms', ClassroomRoutes);
 
 app.use('/api/assignments', AssignmentRoutes);
+
+app.use('/api/quizzes', QuizRoutes);
 
 app.use('/api/problems', ProblemRoutes);
 

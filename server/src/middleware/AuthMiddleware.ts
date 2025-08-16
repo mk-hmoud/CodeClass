@@ -40,7 +40,7 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction):
     }
     
     const token = authHeader.split(' ')[1];
-    logMessage(functionName, `Extracted token: ${token}`);
+    //logMessage(functionName, `Extracted token: ${token}`);
     
     
     const decoded = jwt.verify(token, JWT_SECRET) as {

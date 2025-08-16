@@ -3,24 +3,24 @@ import { Problem } from "./Problem";
 
 
 export interface QuizProblem {
-  problem_id: number;
+  problemId: number;
   points: number;
-  problem_order: number;
-  problem_details?: Problem; 
+  problemOrder: number;
+  problemDetails?: Problem; 
 }
 
 export interface Quiz {
-  quiz_id: number;
-  classroom_id: number;
-  instructor_id: number;
+  quizId: number;
+  classroomId: number;
+  instructorId: number;
   title: string;
   description?: string;
   time_limit_minutes: number;
-  start_date?: Date | null;
-  end_date?: Date | null;
-  shuffle_problems: boolean;
-  is_published: boolean;
-  created_at: Date;
+  startDate?: Date | null;
+  endDate?: Date | null;
+  shuffleProblems: boolean;
+  isPublished: boolean;
+  createdAt: Date;
   problems: QuizProblem[];
 }
 
@@ -30,13 +30,13 @@ export interface QuizCreationData {
   title: string;
   description?: string | null;
   time_limit_minutes: number;
-  start_date?: Date | null;
-  end_date?: Date | null;
-  shuffle_problems: boolean;
+  startDate?: Date | null;
+  endDate?: Date | null;
+  shuffleProblems: boolean;
   problems: Array<{
-    problem_id: number;
+    problemId: number;
     points: number;
-    problem_order: number;
+    problemOrder: number;
   }>;
 }
 
@@ -67,11 +67,11 @@ export const quizFormSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters long."),
   description: z.string().optional(),
   time_limit_minutes: z.coerce.number().min(5, "Time limit must be at least 5 minutes."),
-  start_date: z.date().optional(),
-  start_time: z.string().optional(),
-  end_date: z.date().optional(),
-  end_time: z.string().optional(),
-  shuffle_problems: z.boolean().default(false),
+  startDate: z.date().optional(),
+  startTime: z.string().optional(),
+  endDate: z.date().optional(),
+  endTime: z.string().optional(),
+  shuffleProblems: z.boolean().default(false),
   problems: z.array(z.object({
     problemId: z.number(),
     points: z.coerce.number().min(0, "Points cannot be negative.")

@@ -45,7 +45,7 @@ const QuizSettingsSection: React.FC<QuizSettingsSectionProps> = ({ form }) => {
             />
             <FormField
               control={form.control}
-              name="shuffle_problems"
+              name="shuffleProblems"
               render={({ field }) => (
                 <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                   <div className="space-y-0.5">
@@ -65,7 +65,7 @@ const QuizSettingsSection: React.FC<QuizSettingsSectionProps> = ({ form }) => {
             <div className="grid grid-cols-2 gap-4">
                 <FormField
                     control={form.control}
-                    name="start_date"
+                    name="startDate"
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Start Date</FormLabel>
@@ -85,7 +85,7 @@ const QuizSettingsSection: React.FC<QuizSettingsSectionProps> = ({ form }) => {
                 />
                 <FormField
                     control={form.control}
-                    name="start_time"
+                    name="startTime"
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>Start Time</FormLabel>
@@ -100,7 +100,7 @@ const QuizSettingsSection: React.FC<QuizSettingsSectionProps> = ({ form }) => {
             <div className="grid grid-cols-2 gap-4">
                 <FormField
                     control={form.control}
-                    name="end_date"
+                    name="endDate"
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>End Date</FormLabel>
@@ -120,7 +120,7 @@ const QuizSettingsSection: React.FC<QuizSettingsSectionProps> = ({ form }) => {
                 />
                 <FormField
                     control={form.control}
-                    name="end_time"
+                    name="endTime"
                     render={({ field }) => (
                         <FormItem>
                             <FormLabel>End Time</FormLabel>

@@ -31,7 +31,7 @@ const CreateQuizPage: React.FC = () => {
       title: "",
       description: "",
       time_limit_minutes: 60,
-      shuffle_problems: false,
+      shuffleProblems: false,
       problems: [],
     },
   });
@@ -53,16 +53,16 @@ const CreateQuizPage: React.FC = () => {
     if (!classroomId) return;
 
     let startDate = null;
-    if (data.start_date && data.start_time) {
-      startDate = new Date(data.start_date);
-      const [hours, minutes] = data.start_time.split(":");
+    if (data.startDate && data.startTime) {
+      startDate = new Date(data.startDate);
+      const [hours, minutes] = data.startTime.split(":");
       startDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
     }
 
     let endDate = null;
-    if (data.end_date && data.end_time) {
-      endDate = new Date(data.end_date);
-      const [hours, minutes] = data.end_time.split(":");
+    if (data.endDate && data.endTime) {
+      endDate = new Date(data.endDate);
+      const [hours, minutes] = data.endTime.split(":");
       endDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
     }
 
@@ -71,17 +71,17 @@ const CreateQuizPage: React.FC = () => {
       title: data.title,
       description: data.description,
       time_limit_minutes: data.time_limit_minutes,
-      start_date: startDate,
-      end_date: endDate,
-      shuffle_problems: data.shuffle_problems,
+      startDate: startDate,
+      endDate: endDate,
+      shuffleProblems: data.shuffleProblems,
       problems: data.problems.map((p, index) => ({
-        problem_id: p.problemId,
+        problemId: p.problemId,
         points: p.points,
-        problem_order: index + 1,
+        problemOrder: index + 1,
       })),
     };
     
-    createQuizMutation.mutate(/*payload*/);
+    createQuizMutation.mutate(payload);
   };
 
   const onError = (errors: any) => {

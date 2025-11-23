@@ -1,12 +1,12 @@
-FROM gcc:latest
+FROM alpine:3.18
 
-RUN apt-get update && apt-get install -y python3 && \
-    useradd -m runner
+RUN apk add --no-cache g++ python3
+
+RUN adduser -D runner
 
 WORKDIR /home/runner
 
 COPY runner.py /runner.py
-
 RUN chmod +x /runner.py
 
 USER runner

@@ -139,3 +139,65 @@ bool RedisHandler::brpop(std::string &jobId, std::string &value)
         freeReplyObject(reply);
     return false;
 }
+
+bool RedisHandler::brpoplpush(const std::string &source, const std::string &destination, int timeout, std::string &outValue)
+{
+    std::lock_guard<std::mutex> lock(blocking_mutex_);
+    // LOG_DEBUG("BRPOPLPUSH " << source << " -> " << destination);
+
+    redisReply *reply = static_cast<redisReply *>(
+        redisCommand(blocking_context_, "BRPOPLPUSH %s %s %d",
+                     source.c_str(), destination.c_str(), timeout));
+
+    if (!reply)
+    {
+        LOG_ERROR("BRPOPLPUSH failed: context error");
+        return false;
+    }
+
+    bool success = false;
+    if (reply->type == REDIS_REPLY_STRING)
+    {
+        outValue = std::string(reply->str, reply->len);
+        success = true;
+    }
+    else if (reply->type == REDIS_REPLY_NIL)
+    {
+        // timeout
+        success = false;
+    }
+    else
+    {
+        LOG_ERROR("BRPOPLPUSH unexpected type: " << reply->type);
+    }
+
+    freeReplyObject(reply);
+    return success;
+}
+
+void RedisHandler::lrem(const std::string &key, int count, const std::string &value)
+{
+    std::lock_guard<std::mutex> lock(command_mutex_);
+    redisReply *reply = static_cast<redisReply *>(
+        redisCommand(command_context_, "LREM %s %d %b", key.c_str(), count, value.data(), value.size()));
+
+    if (reply)
+        freeReplyObject(reply);
+}
+
+bool RedisHandler::hget(const std::string &key, const std::string &field, std::string &outValue)
+{
+    std::lock_guard<std::mutex> lock(command_mutex_);
+    redisReply *reply = static_cast<redisReply *>(
+        redisCommand(command_context_, "HGET %s %s", key.c_str(), field.c_str()));
+
+    if (reply && reply->type == REDIS_REPLY_STRING)
+    {
+        outValue = std::string(reply->str, reply->len);
+        freeReplyObject(reply);
+        return true;
+    }
+    if (reply)
+        freeReplyObject(reply);
+    return false;
+}

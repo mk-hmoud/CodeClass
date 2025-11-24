@@ -21,6 +21,9 @@ public:
     static RedisHandler &getInstance();
 
     bool brpop(std::string &jobId, std::string &value);
+    bool brpoplpush(const std::string &source, const std::string &destination, int timeout, std::string &outValue);
+    void lrem(const std::string &key, int count, const std::string &value);
+    bool hget(const std::string &key, const std::string &field, std::string &outValue);
     void set(const std::string &key, const std::string &value);
     bool expire(const std::string &key, int seconds);
 

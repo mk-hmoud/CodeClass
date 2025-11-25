@@ -1,13 +1,10 @@
 import pool from "../config/db";
+import logger from "../config/logger";
 import { systemEventEmitter } from "../services/statistics/emitter";
 import { StudentEnrolledEvent } from "../services/statistics/events";
 import { Classroom, ClassroomStudent, Assignment } from "../types";
 import { getAssignmentsForClassroom, getAssignmentsForStudentClassroom } from "./AssignmentModel";
 
-const logMessage = (functionName: string, message: string): void => {
-  const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] [ClassroomModel.ts] [${functionName}] ${message}`);
-};
 
 export interface ClassroomCreationData {
   instructor_id: number;
@@ -20,7 +17,7 @@ export const createClassroom = async (
 ): Promise<Classroom> => {
   const functionName = "createClassroom";
   try {
-    logMessage(functionName, "Starting classroom creation.");
+    logger.info({ functionName }, "Starting classroom creation.");
     const insertQuery = `
       INSERT INTO classrooms (instructor_id, classroom_name, classroom_code)
       VALUES ($1, $2, $3)
@@ -43,10 +40,10 @@ export const createClassroom = async (
       completion: 0,
       created_at: row.created_at,
     };
-    logMessage(functionName, `Classroom created with ID: ${classroom.id}.`);
+    logger.info({ functionName, classroomId: classroom.id }, `Classroom created with ID: ${classroom.id}.`);
     return classroom;
   } catch (error) {
-    logMessage(functionName, `Error creating classroom: ${error}`);
+    logger.error({ functionName, error }, `Error creating classroom: ${error}`);
     throw error;
   }
 };
@@ -54,7 +51,7 @@ export const createClassroom = async (
 export const getInstructorClassroomById = async (classroomId: number): Promise<Classroom> => {
   const fn = "getInstructorClassroomById";
   try {
-    logMessage(fn, `Fetching instructor classroom with ID: ${classroomId}`);
+    logger.info({ fn, classroomId }, `Fetching instructor classroom with ID: ${classroomId}`);
     const classroomRes = await pool.query(
       `SELECT classroom_id AS id, classroom_name AS name, classroom_code AS code, created_at 
        FROM classrooms 
@@ -73,9 +70,9 @@ export const getInstructorClassroomById = async (classroomId: number): Promise<C
     );
     const students: ClassroomStudent[] = studentsRes.rows;
 
-    logMessage(fn, `Fetching assignments for classroom ${classroomId}`);
+    logger.info({ fn, classroomId }, `Fetching assignments for classroom ${classroomId}`);
     const assignments: Assignment[] = await getAssignmentsForClassroom(classroomId);
-    logMessage(fn, `Found ${assignments.length} assignments in classroom ${classroomId}`);
+    logger.debug({ fn, classroomId, assignmentCount: assignments.length }, `Found ${assignments.length} assignments in classroom ${classroomId}`);
 
     const instructorClassroom: Classroom = {
       ...classroomData,
@@ -83,10 +80,10 @@ export const getInstructorClassroomById = async (classroomId: number): Promise<C
       assignments,
     };
 
-    logMessage(fn, `Successfully fetched instructor classroom ${classroomId}`);
+    logger.info({ fn, classroomId }, `Successfully fetched instructor classroom ${classroomId}`);
     return instructorClassroom;
   } catch (error) {
-    logMessage(fn, `Error: ${error}`);
+    logger.error({ fn, classroomId, error }, `Error: ${error}`);
     throw error;
   }
 };
@@ -97,9 +94,9 @@ export const getStudentClassroomById = async (
 ): Promise<Classroom> => {
   const fn = "getStudentClassroomById";
   try {
-    logMessage(fn, `Fetching classroom ${classroomId} for student ${studentId}`);
+    logger.info({ fn, classroomId, studentId }, `Fetching classroom ${classroomId} for student ${studentId}`);
     
-    logMessage(fn, `Executing main classroom query`);
+    logger.debug({ fn, classroomId, studentId }, `Executing main classroom query`);
     const classroomRes = await pool.query(
       `SELECT 
         c.classroom_id AS id,
@@ -119,15 +116,18 @@ export const getStudentClassroomById = async (
     );
 
     if (classroomRes.rowCount === 0) {
-      logMessage(fn, `Classroom ${classroomId} not found for student ${studentId}`);
+      logger.warn({ fn, classroomId, studentId }, `Classroom ${classroomId} not found for student ${studentId}`);
       throw new Error("Classroom not found");
     }
     
-    logMessage(fn, `Found classroom ${classroomId}, fetching assignments`);
+    logger.info({ fn, classroomId, studentId }, `Found classroom ${classroomId}, fetching assignments`);
     const classroomData = classroomRes.rows[0];
     const assignments = await getAssignmentsForStudentClassroom(classroomId, studentId);
     
-    logMessage(fn, `Completed fetching ${assignments.length} assignments for classroom ${classroomId}`);
+    logger.debug(
+      { fn, classroomId, studentId, assignmentCount: assignments.length },
+      `Completed fetching ${assignments.length} assignments for classroom ${classroomId}`
+    );
     
     return {
       ...classroomData,
@@ -136,7 +136,7 @@ export const getStudentClassroomById = async (
       completedAssignments: parseInt(classroomData.completedAssignments)
     };
   } catch (error) {
-    console.error("Error fetching classroom:", error);
+    logger.error({ fn, classroomId, studentId, error }, "Error fetching classroom");
     throw error;
   }
 };
@@ -144,15 +144,15 @@ export const getStudentClassroomById = async (
 export const deleteClassroom = async (classroomId: number): Promise<void> => {
   const functionName = "deleteClassroom";
   try {
-    logMessage(functionName, `Attempting to delete classroom with ID: ${classroomId}.`);
+    logger.info({ functionName, classroomId }, `Attempting to delete classroom with ID: ${classroomId}.`);
     const deleteQuery = `
       DELETE FROM classrooms
       WHERE classroom_id = $1
     `;
     await pool.query(deleteQuery, [classroomId]);
-    logMessage(functionName, `Classroom with ID: ${classroomId} deleted successfully.`);
+    logger.info({ functionName, classroomId }, `Classroom with ID: ${classroomId} deleted successfully.`);
   } catch (error) {
-    logMessage(functionName, `Error deleting classroom: ${error}`);
+    logger.error({ functionName, classroomId, error }, `Error deleting classroom: ${error}`);
     throw error;
   }
 };
@@ -164,15 +164,21 @@ export const assignAssignment = async (
 ): Promise<void> => {
   const functionName = "assignAssignment";
   try {
-    logMessage(functionName, `Assigning problem ID ${problemId} to classroom ID ${classroomId}.`);
+    logger.info(
+      { functionName, classroomId, problemId, due_date },
+      `Assigning problem ID ${problemId} to classroom ID ${classroomId}.`
+    );
     const insertQuery = `
       INSERT INTO assignments (classroom_id, problem_id, due_date)
       VALUES ($1, $2, $3)
     `;
     await pool.query(insertQuery, [classroomId, problemId, due_date]);
-    logMessage(functionName, `Problem ID ${problemId} assigned to classroom ID ${classroomId} successfully.`);
+    logger.info(
+      { functionName, classroomId, problemId, due_date },
+      `Problem ID ${problemId} assigned to classroom ID ${classroomId} successfully.`
+    );
   } catch (error) {
-    logMessage(functionName, `Error assigning assignment: ${error}`);
+    logger.error({ functionName, classroomId, problemId, error }, `Error assigning assignment: ${error}`);
     throw error;
   }
 };
@@ -182,7 +188,10 @@ export const getInstructorClassrooms = async (
 ): Promise<Classroom[]> => {
   const functionName = "getInstructorClassrooms";
   try {
-    logMessage(functionName, `Fetching instructor classrooms for instructorId ${instructorId}.`);
+    logger.info(
+      { functionName, instructorId },
+      `Fetching instructor classrooms for instructorId ${instructorId}.`
+    );
     const query = `
       SELECT 
         c.classroom_id AS id,
@@ -205,10 +214,17 @@ export const getInstructorClassrooms = async (
       WHERE c.instructor_id = $1;
     `;
     const result = await pool.query(query, [instructorId]);
-    logMessage(functionName, `Fetched ${result.rows.length} instructor classrooms.`);
+    logger.info(
+      { functionName, instructorId, count: result.rows.length },
+      `Fetched ${result.rows.length} instructor classrooms.`
+    )
     return result.rows as Classroom[];
   } catch (error) {
-    logMessage(functionName, `Failed to fetch instructor classrooms for instructorId ${instructorId}: ${error}`);
+    
+    logger.error(
+      { functionName, instructorId, error },
+      `Failed to fetch instructor classrooms for instructorId ${instructorId}: ${error}`
+    );
     return [];
   }
 };
@@ -219,7 +235,10 @@ export const getStudentClassrooms = async (
 ): Promise<Classroom[]> => {
   const fn = "getStudentClassrooms";
   try {
-    logMessage(fn, `Fetching student classrooms for studentId ${studentId}.`);
+    logger.info(
+      { fn, studentId },
+      `Fetching student classrooms for studentId ${studentId}.`
+    );
 
     const query = `
       SELECT 
@@ -277,12 +296,16 @@ export const getStudentClassrooms = async (
     `;
 
     const result = await pool.query(query, [studentId]);
-    logMessage(fn, `Fetched ${result.rows.length} student classrooms.`);
+    logger.info(
+      { fn, studentId, count: result.rows.length },
+      `Fetched ${result.rows.length} student classrooms.`
+    );
 
     return result.rows as unknown as Classroom[];
   } catch (error) {
-    logMessage(
-      fn,
+    
+    logger.error(
+      { fn, studentId, error },
       `Failed to fetch student classrooms for studentId ${studentId}: ${error}`
     );
     return [];
@@ -295,7 +318,10 @@ export const getStudentClassrooms = async (
 export const joinClassroom = async (studentId: number, code: string): Promise<void> => {
   const functionName = 'joinClassroom';
   try {
-    logMessage(functionName, `Student ${studentId} attempting to join with code ${code}.`);
+    logger.info(
+      { functionName, studentId, code },
+      `Student ${studentId} attempting to join with code ${code}.`
+    );
 
     const classQuery = await pool.query(
       `SELECT classroom_id FROM classrooms WHERE classroom_code = $1`,
@@ -326,7 +352,10 @@ export const joinClassroom = async (studentId: number, code: string): Promise<vo
       [classroomId, studentId]
     );
     const enrollmentId = enrollRes.rows[0].enrollment_id;
-    logMessage(functionName, `Student ${studentId} enrolled in classroom ${classroomId}.`);
+    logger.info(
+      { functionName, studentId, classroomId, enrollmentId },
+      `Student ${studentId} enrolled in classroom ${classroomId}.`
+    );
 
     const enrolledEvent: StudentEnrolledEvent = {
       type: "STUDENT_ENROLLED",
@@ -340,7 +369,10 @@ export const joinClassroom = async (studentId: number, code: string): Promise<vo
     systemEventEmitter.emit("STUDENT_ENROLLED", enrolledEvent.payload);
 
   } catch (error) {
-    logMessage(functionName, `Error in joinClassroom: ${error}`);
+    logger.error(
+      { functionName, studentId, code, error },
+      `Error in joinClassroom: ${error}`
+    );
     throw error;
   }
 };

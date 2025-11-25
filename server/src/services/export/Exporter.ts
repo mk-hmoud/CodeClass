@@ -5,11 +5,7 @@ import { XMLBuilder } from 'fast-xml-parser';
 import JSZip from 'jszip';
 import ExcelJS from 'exceljs';
 import PDFKit from 'pdfkit';
-
-const logMessage = (functionName: string, message: string): void => {
-  const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] [ExportController] [${functionName}] ${message}`);
-};
+import logger from '../../config/logger';
 
 const SUPPORTED_FORMATS = ['csv', 'json', 'xml', 'zip', 'excel', 'pdf'];
 
@@ -19,11 +15,11 @@ const handleExport = async (req: Request, res: Response, format: string): Promis
     return;
   }
 
-  const functionName = `handle${format.toUpperCase()}Export`;
+  const fn = `handle${format.toUpperCase()}Export`;
   const client = await pool.connect();
   
   try {
-    logMessage(functionName, "Starting export transaction");
+    logger.info({ fn }, "Starting export transaction");
     await client.query('BEGIN');
 
     const { assignmentId } = req.params;
@@ -33,7 +29,10 @@ const handleExport = async (req: Request, res: Response, format: string): Promis
       throw new Error('Missing assignment ID');
     }
 
-    logMessage(functionName, `Processing export for assignment: ${assignmentId}, with requested fields: ${JSON.stringify(includeFields || 'all')}`);
+    logger.info(
+      { fn, assignmentId, includeFields: includeFields ?? 'all' },
+      "Processing export request"
+    );
 
     const assignmentRes = await client.query(
       'SELECT title FROM assignments WHERE assignment_id = $1',
@@ -72,7 +71,10 @@ const handleExport = async (req: Request, res: Response, format: string): Promis
       ORDER BY s.submitted_at DESC
     `, [assignmentId]);
 
-    logMessage(functionName, `Fetched ${submissionsRes.rowCount} submissions for assignment ${assignmentId}`);
+    logger.info(
+      { fn, assignmentId, count: submissionsRes.rowCount },
+      "Fetched submissions for export"
+    );
 
     const filteredData = submissionsRes.rows.map(row => {
       const result: Record<string, any> = {};
@@ -143,12 +145,11 @@ const handleExport = async (req: Request, res: Response, format: string): Promis
       'Content-Disposition': `attachment; filename="${filename}"`
     }).send(fileData);
 
-    logMessage(functionName, "Export completed successfully");
+    logger.info({ fn, assignmentId, filename }, "Export completed successfully");
 
   } catch (error) {
     await client.query('ROLLBACK');
-    logMessage(functionName, `Export failed: ${error}`);
-    
+    logger.error({ fn, error, assignmentId: req.params.assignmentId }, "Export failed");
     res.status(500).json(error);
   } finally {
     client.release();
@@ -174,11 +175,10 @@ export const exportPDFHandler = (req: Request, res: Response): Promise<void> =>
   handleExport(req, res, 'pdf');
 
 const generateCSV = async (data: any[]): Promise<string> => {
-  const functionName = "generateCSV";
-  logMessage(functionName, "Starting CSV generation");
-  logMessage(functionName, `CSV data entries to process: ${data.length}`);
+  const fn = "generateCSV";
+  logger.info({ fn, rows: data.length }, "Starting CSV generation");
   if (data.length > 0) {
-    logMessage(functionName, `CSV data sample (first row): ${JSON.stringify(data[0])}`);
+    logger.debug({ fn, sample: data[0] }, "CSV data sample (first row)");
   }
   
   return new Promise((resolve) => {
@@ -187,7 +187,7 @@ const generateCSV = async (data: any[]): Promise<string> => {
     
     csvStream.on('data', chunk => csvData += chunk);
     csvStream.on('end', () => {
-      logMessage(functionName, "CSV generation completed");
+      logger.info({ fn }, "CSV generation completed");
       resolve(csvData);
     });
     
@@ -197,12 +197,14 @@ const generateCSV = async (data: any[]): Promise<string> => {
 };
 
 const generateJSON = (data: any[]): string => {
-  logMessage("generateJSON", "Generating JSON export");
+  const fn = "generateJSON";
+  logger.info({ fn, rows: data.length }, "Generating JSON export");
   return JSON.stringify(data, null, 2);
 };
 
 const generateXML = (data: any[]): string => {
-  logMessage("generateXML", "Generating XML export");
+  const fn = "generateXML";
+  logger.info({ fn, rows: data.length }, "Generating XML export");
   const builder = new XMLBuilder({
     arrayNodeName: "Submission",
     format: true
@@ -211,8 +213,8 @@ const generateXML = (data: any[]): string => {
 };
 
 const generateZIP = async (data: any[], assignmentTitle: string): Promise<Buffer> => {
-  const functionName = "generateZIP";
-  logMessage(functionName, "Starting ZIP file creation");
+  const fn = "generateZIP";
+  logger.info({ fn, rows: data.length }, "Starting ZIP file creation");
   
   const zip = new JSZip();
   const submissionsFolder = zip.folder('submissions');
@@ -226,7 +228,7 @@ const generateZIP = async (data: any[], assignmentTitle: string): Promise<Buffer
     submissionsFolder.file(fileName, submission.code || '');
   });
 
-  logMessage(functionName, `Added ${data.length} code files to ZIP`);
+  logger.info({ fn, fileCount: data.length }, "Added code files to ZIP");
   return zip.generateAsync({ type: 'nodebuffer' });
 };
 
@@ -237,8 +239,8 @@ const generateExcel = async (
   data: any[],
   assignmentTitle: string
 ): Promise<Buffer> => {
-  const functionName = "generateExcel";
-  logMessage(functionName, "Starting Excel generation");
+  const fn = "generateExcel";
+  logger.info({ fn, rows: data.length }, "Starting Excel generation");
 
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet(assignmentTitle);
@@ -260,15 +262,15 @@ const generateExcel = async (
     });
   }
 
-  logMessage(functionName, `Excel workbook created with ${data.length} rows`);
+  logger.info({ fn, rows: data.length }, "Excel workbook created");
 
   const arrayBuffer = await workbook.xlsx.writeBuffer();
   return Buffer.from(arrayBuffer);
 };
 
 const generatePDF = async (data: any[], assignmentTitle: string): Promise<Buffer> => {
-  const functionName = "generatePDF";
-  logMessage(functionName, "Starting PDF generation");
+  const fn = "generatePDF";
+  logger.info({ fn, rows: data.length }, "Starting PDF generation");
   
   return new Promise((resolve) => {
     const chunks: any[] = [];
@@ -281,7 +283,7 @@ const generatePDF = async (data: any[], assignmentTitle: string): Promise<Buffer
     doc.on('data', chunk => chunks.push(chunk));
     doc.on('end', () => {
       const result = Buffer.concat(chunks);
-      logMessage(functionName, "PDF generation completed");
+      logger.info({ fn }, "PDF generation completed");
       resolve(result);
     });
     
@@ -380,17 +382,17 @@ const generatePDF = async (data: any[], assignmentTitle: string): Promise<Buffer
 
  const formatLabel = (key: string): string => {
   const labelMap: Record<string, string> = {
-    'submission_id': 'Submission ID',
-    'student_id': 'Student ID',
-    'studentId': 'Student ID',
-    'code': 'Code',
-    'language': 'Language',
-    'submitted_at': 'Submitted At',
-    'timestamp': 'Submitted At',
-    'score': 'Score',
-    'feedback': 'Feedback',
-    'name': 'Student Name',
-    'email': 'Email'
+    submission_id: 'Submission ID',
+    student_id: 'Student ID',
+    studentId: 'Student ID',
+    code: 'Code',
+    language: 'Language',
+    submitted_at: 'Submitted At',
+    timestamp: 'Submitted At',
+    score: 'Score',
+    feedback: 'Feedback',
+    name: 'Student Name',
+    email: 'Email'
   };
   
   return labelMap[key] || key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ');

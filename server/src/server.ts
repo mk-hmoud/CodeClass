@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import ClassroomRoutes from './routes/ClassroomRoutes';
 import ProblemRoutes from './routes/ProblemRoutes';
@@ -8,12 +9,10 @@ import JudgeRoutes from './routes/JudgeRoutes';
 import SubmissionRoutes from './routes/SubmissionRoutes';
 import ExportRoutes from './routes/ExportRoutes';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import { AssignmentStatisticsService } from './services/statistics/AssignmentAnlaysis/AssignmentStatistics';
 import { ClassroomStatisticsService } from './services/statistics/ClassroomAnalysis/calculator';
 
-// Load environment variables
-dotenv.config();
+import logger from './config/logger';
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -42,7 +41,7 @@ app.use('/api/submissions', SubmissionRoutes);
 app.use('/api/export', ExportRoutes);
 
 app.listen(port, () => {
-  console.log(`Server is running at http://localhost:${port}!`);
+  logger.info(`Server running at http://localhost:${port}!`);
 });
 
 AssignmentStatisticsService.getInstance();

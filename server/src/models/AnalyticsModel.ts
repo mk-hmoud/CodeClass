@@ -1,9 +1,6 @@
 import pool from "../config/db";
+import logger from '../config/logger';
 import { AssignmentAnalyticsPayload, ClassroomAnalyticsPayload } from "../types/";
-
-const logMessage = (fn: string, msg: string) => {
-  console.log(`[${new Date().toISOString()}] [analyticsModel] [${fn}] ${msg}`);
-};
 
 export async function getClassroomAnalytics(classroomId: number): Promise<ClassroomAnalyticsPayload> {
   const fn = "getClassroomAnalytics";
@@ -12,7 +9,7 @@ export async function getClassroomAnalytics(classroomId: number): Promise<Classr
     'SELECT classroom_name FROM classrooms WHERE classroom_id = $1',[classroomId]
   );
   const classroomName = classroomRes.rows[0].classroom_name;
-  logMessage(fn, `Classroom name : ${classroomName}`);
+  logger.debug({ fn, classroomId, classroomName }, `Classroom name : ${classroomName}`);
 
   const statRes = await pool.query(
     `SELECT
@@ -36,7 +33,7 @@ export async function getClassroomAnalytics(classroomId: number): Promise<Classr
     [classroomId]
   );
   if (statRes.rowCount === 0) {
-    logMessage(fn, `No statistics found for classroom ${classroomId}, returning zeros.`);
+    logger.warn({ fn, classroomId }, `No statistics found for classroom ${classroomId}, returning zeros.`);
   }
   const stats = statRes.rows[0] ?? {
     total_students: 0,
@@ -147,7 +144,7 @@ export async function getClassroomAnalytics(classroomId: number): Promise<Classr
 
 export async function getAssignmentAnalytics(assignmentId: number): Promise<AssignmentAnalyticsPayload> {
   const fn = "getAssignmentAnalytics";
-  logMessage(fn, `Fetching analytics for assignment ${assignmentId}`);
+  logger.info({ fn, assignmentId }, `Fetching analytics for assignment ${assignmentId}`);
 
   try {
 
@@ -179,7 +176,7 @@ export async function getAssignmentAnalytics(assignmentId: number): Promise<Assi
     );
 
     if (statsRes.rowCount === 0) {
-      logMessage(fn, `No statistics found for assignment ${assignmentId}, returning default values`);
+      logger.warn({ fn, assignmentId }, `No statistics found for assignment ${assignmentId}, returning default values`);
       return getDefaultAnalyticsPayload();
     }
 
@@ -365,10 +362,10 @@ export async function getAssignmentAnalytics(assignmentId: number): Promise<Assi
       points: assignmentRow.points ?? undefined,
     };
 
-    logMessage(fn, `Successfully fetched and processed analytics for assignment ${assignmentId}`);
+    logger.info({ fn, assignmentId }, `Successfully fetched and processed analytics for assignment ${assignmentId}`);
     return analyticsPayload;
   } catch (error) {
-    logMessage(fn, `Error fetching analytics for assignment ${assignmentId}: ${error}`);
+    logger.error({ fn, assignmentId, error }, `Error fetching analytics for assignment ${assignmentId}`);
     throw error;
   }
 }

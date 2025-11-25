@@ -1,3 +1,4 @@
+import logger from '../config/logger';
 import { Request, Response } from 'express';
 import { 
   createClassroom, 
@@ -14,25 +15,21 @@ import { getInstructorByUserId, getInstructorIdByClassroom, Instructor } from '.
 import { getStudentByUserId, Student } from '../models/StudentModel'; 
 import { Classroom } from "../types";
 
-const logMessage = (functionName: string, message: string): void => {
-  const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] [ClassroomController.ts] [${functionName}] ${message}\n`);
-};
 
 export const createClassroomController = async (req: Request, res: Response): Promise<void> => {
   const functionName = 'createClassroomController';
   try {
-    logMessage(functionName, 'Received request to create classroom.');
+    logger.info({ fn: functionName }, 'Received request to create classroom.');
 
     if (!req.user) {
-      logMessage(functionName, "No user information found in request.");
+      logger.warn({ fn: functionName }, 'No user information found in request.');
       res.status(401).json({ success: false, message: 'Unauthorized' });
       return;
     }
 
     const instructor: Instructor | null = await getInstructorByUserId(req.user.id);
     if (!instructor) {
-      logMessage(functionName, "Unauthorized user, cannot create classroom.");
+      logger.warn({ fn: functionName, userId: req.user.id }, 'Unauthorized user, cannot create classroom.');
       res.status(401).json({ success: false, message: 'Unauthorized: Instructor not identified' });
       return;
     }
@@ -44,7 +41,7 @@ export const createClassroomController = async (req: Request, res: Response): Pr
     }
     
     const classroom_code = generateClassroomCode();
-    logMessage(functionName, `Generated code for the classroom is ${classroom_code}`);
+    logger.debug({ fn: functionName, classroom_code }, `Generated code for the classroom is ${classroom_code}`);
 
     const classroomData: Omit<Classroom, 'id' | 'created_at'> = {
       name: name,
@@ -57,10 +54,10 @@ export const createClassroomController = async (req: Request, res: Response): Pr
     };
 
     const result = await createClassroom(classroomData);
-    logMessage(functionName, `Classroom created with ID: ${result.id}`);
+    logger.info({ fn: functionName, classroomId: result.id }, `Classroom created with ID: ${result.id}`);
     res.status(201).json({ success: true, data: result });
   } catch (error) {
-    logMessage(functionName, `Error creating classroom: ${error}`);
+    logger.error({ fn: functionName, error }, `Error creating classroom: ${error}`);
     res.status(500).json({ success: false, message: 'Failed to create classroom' });
   }
 };
@@ -79,16 +76,19 @@ export const getClassroomByIdController = async (req: Request, res: Response): P
   const functionName = "getClassroomByIdController";
   try {
     const classroomId = Number(req.params.classroomId);
-    logMessage(functionName, `Received request for classroom ID: ${classroomId}`);
+    logger.info({ fn: functionName, classroomId }, `Received request for classroom ID: ${classroomId}`);
 
     if (!req.user) {
-      logMessage(functionName, "No user information found in request.");
+      logger.warn({ fn: functionName }, 'No user information found in request.');
       res.status(401).json({ success: false, message: 'Unauthorized' });
       return;
     }
     
     const role = req.user.role;
-    logMessage(functionName, `User ID ${req.user.id} has role: ${role}`);
+    logger.debug(
+      { fn: functionName, userId: req.user.id, role: role },
+      `User ID ${req.user.id} has role: ${role}`
+    );
 
     let classroom;
     if (role === "instructor") {
@@ -98,10 +98,10 @@ export const getClassroomByIdController = async (req: Request, res: Response): P
     } else {
       throw new Error("Invalid user role");
     }
-    logMessage(functionName, `Fetched classroom ID: ${classroomId} successfully`);
+    logger.info({ fn: functionName, classroomId }, `Fetched classroom ID: ${classroomId} successfully`);
     res.status(200).json({ success: true, data: classroom });
   } catch (error) {
-    logMessage(functionName, `Error fetching classroom: ${error}`);
+    logger.error({ fn: functionName, error }, `Error fetching classroom: ${error}`);
     res.status(500).json({ success: false, message: "Failed to fetch classroom" });
   }
 };
@@ -109,34 +109,47 @@ export const getClassroomByIdController = async (req: Request, res: Response): P
 export const getClassroomsController = async (req: Request, res: Response): Promise<void> => {
   const functionName = 'getClassroomsController';
   try {
-    logMessage(functionName, 'Received request to fetch classrooms');
+    logger.info({ fn: functionName }, 'Received request to fetch classrooms');
 
     if (!req.user) {
-      logMessage(functionName, "No user information found in request.");
+      logger.warn({ fn: functionName }, 'No user information found in request.');
       res.status(401).json({ success: false, message: 'Unauthorized' });
       return;
     }
 
     const role = req.user.role;
-    logMessage(functionName, `User's role is ${req.user.role} has role id: ${req.user.role_id}`);
+    logger.debug(
+      { fn: functionName, role: req.user.role, role_id: req.user.role_id },
+      `User's role is ${req.user.role} has role id: ${req.user.role_id}`
+    );
 
     let classrooms: Classroom[] = [];
 
     if (role === "instructor") {
       classrooms = await getInstructorClassrooms(req.user.role_id!);
-      logMessage(functionName, `Fetched ${classrooms.length} instructor classrooms`);
+      logger.info(
+        { fn: functionName, role: 'instructor', role_id: req.user.role_id, count: classrooms.length },
+        `Fetched ${classrooms.length} instructor classrooms`
+      );
     } else if (role === "student") {
       classrooms = await getStudentClassrooms(req.user.role_id!);
-      logMessage(functionName, `Fetched ${classrooms.length} student classrooms`);
+      logger.info(
+        { fn: functionName, role: 'student', role_id: req.user.role_id, count: classrooms.length },
+        `Fetched ${classrooms.length} student classrooms`
+      );
     } else {
-      logMessage(functionName, `User role ${role} is not recognized for fetching classrooms`);
+      
+      logger.warn(
+        { fn: functionName, role },
+        `User role ${role} is not recognized for fetching classrooms`
+      );
       res.status(400).json({ success: false, message: 'Invalid user role' });
       return;
     }
 
     res.status(200).json({ success: true, data: classrooms });
   } catch (error) {
-    logMessage(functionName, `Error fetching classrooms: ${error}`);
+    logger.error({ fn: functionName, error }, `Error fetching classrooms: ${error}`);
     res.status(500).json({ success: false, message: 'Failed to fetch classrooms' });
   }
 };
@@ -145,12 +158,18 @@ export const assignAssignmentController = async (req: Request, res: Response): P
   const functionName = 'assignAssignmentController';
   try {
     const { classroomId, problemId, due_date } = req.body;
-    logMessage(functionName, `Received request to assign problem ID ${problemId} to classroom ID ${classroomId}`);
+    logger.info(
+      { fn: functionName, classroomId, problemId, due_date },
+      `Received request to assign problem ID ${problemId} to classroom ID ${classroomId}`
+    );
     await assignAssignment(classroomId, problemId, due_date);
-    logMessage(functionName, `Problem ID ${problemId} assigned to classroom ID ${classroomId} successfully.`);
+    logger.info(
+      { fn: functionName, classroomId, problemId, due_date },
+      `Problem ID ${problemId} assigned to classroom ID ${classroomId} successfully.`
+    );
     res.status(200).json({ success: true, message: 'Assignment assigned successfully' });
   } catch (error) {
-    logMessage(functionName, `Error assigning assignment: ${error}`);
+    logger.error({ fn: functionName, error }, `Error assigning assignment: ${error}`);
     res.status(500).json({ success: false, message: 'Failed to assign assignment' });
   }
 };
@@ -159,10 +178,13 @@ export const deleteClassroomController = async (req: Request, res: Response): Pr
   const functionName = 'deleteClassroomController';
   try {
     const classroomId = Number(req.params.classroomId);
-    logMessage(functionName, `Received request to delete classroom ID: ${classroomId}`);
+    logger.info(
+      { fn: functionName, classroomId },
+      `Received request to delete classroom ID: ${classroomId}`
+    );
     
     if (!req.user) {
-      logMessage(functionName, "No user information found in request.");
+      logger.warn({ fn: functionName }, 'No user information found in request.');
       res.status(401).json({ success: false, message: 'Unauthorized' });
       return;
     }
@@ -184,10 +206,10 @@ export const deleteClassroomController = async (req: Request, res: Response): Pr
     }
 
     await deleteClassroom(classroomId);
-    logMessage(functionName, `Deleted classroom ID: ${classroomId}`);
+    logger.info({ fn: functionName, classroomId }, `Deleted classroom ID: ${classroomId}`);
     res.status(200).json({ success: true, message: 'Classroom deleted successfully' });
   } catch (error) {
-    logMessage(functionName, `Error deleting classroom: ${error}`);
+    logger.error({ fn: functionName, error }, `Error deleting classroom: ${error}`);
     res.status(500).json({ success: false, message: 'Failed to delete classroom' });
   }
 };
@@ -195,23 +217,26 @@ export const deleteClassroomController = async (req: Request, res: Response): Pr
 export const joinClassroomController = async (req: Request, res: Response): Promise<void> => {
   const functionName = 'joinClassroomController';
   try {
-    logMessage(functionName, 'Received request to join classroom.');
+    logger.info({ fn: functionName }, 'Received request to join classroom.');
 
     if (!req.user) {
-      logMessage(functionName, 'No user in request.');
+      logger.warn({ fn: functionName }, 'No user in request.');
       res.status(401).json({ success: false, message: 'Unauthorized' });
       return;
     }
 
     const student: Student | null = await getStudentByUserId(req.user.id);
     if (!student) {
-      logMessage(functionName, `User ${req.user.id} is not a student.`);
+      logger.warn(
+        { fn: functionName, userId: req.user.id },
+        `User ${req.user.id} is not a student.`
+      );
       res.status(401).json({ success: false, message: 'Unauthorized: Not a student' });
       return;
     }
 
     const { code }  = req.body;
-    logMessage(functionName, `Classroom code received is ${code}`);
+    logger.debug({ fn: functionName, code }, `Classroom code received is ${code}`);
     if (typeof code !== 'string' || !code.trim()) {
       res.status(400).json({ success: false, message: 'Classroom code is required' });
       return;
@@ -219,10 +244,16 @@ export const joinClassroomController = async (req: Request, res: Response): Prom
 
     await joinClassroom(req.user.role_id, code.trim().toUpperCase());
 
-    logMessage(functionName, `Student ${student.student_id} joined classroom with code ${code}.`);
+    logger.info(
+      { fn: functionName, studentId: student.student_id, code },
+      `Student ${student.student_id} joined classroom with code ${code}.`
+    );
     res.status(201).json({ success: true, message: 'Enrolled successfully' });
   } catch (error: any) {
-    logMessage(functionName, `Error in joinClassroom: ${error.message}`);
+    logger.error(
+      { fn: functionName, errorMessage: error.message },
+      `Error in joinClassroom: ${error.message}`
+    );
     if (error.message === 'INVALID_CODE') {
       res.status(400).json({ success: false, message: 'Invalid classroom code' });
     } else if (error.message === 'ALREADY_ENROLLED') {
@@ -238,12 +269,12 @@ export const toggleClassroomStatusController = async (req: Request, res: Respons
   const fn = 'toggleClassroomStatus';
   try {
     const classroomId = Number(req.params.classId);
-    logMessage(fn, `Toggling status for classroom ${classroomId}`);
+    logger.info({ fn, classroomId }, `Toggling status for classroom ${classroomId}`);
     const newStatus = await toggleClassroomStatus(classroomId);
-    logMessage(fn, `Classroom ${classroomId} is now ${newStatus}`);
+    logger.info({ fn, classroomId, newStatus }, `Classroom ${classroomId} is now ${newStatus}`);
     res.json({ success: true, data: { classroomId, status: newStatus } });
   } catch (err) {
-    logMessage(fn, `Error toggling: ${err}`);
+    logger.error({ fn, error: err }, `Error toggling: ${err}`);
     res.status(500).json({ success: false, message: 'Failed to toggle classroom status' });
   }
 };

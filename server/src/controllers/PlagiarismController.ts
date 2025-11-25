@@ -1,3 +1,5 @@
+import logger from '../config/logger';
+
 import { Request, Response } from 'express';
 import axios from "axios";
 import { getAssignmentPlagiarismReports, isPlagiarismEnabled, processPlagiarismResults, storeFingerprint } from "../models/PlagiarismModel";
@@ -21,10 +23,6 @@ export interface PlagiarismDetectedEvent {
 
 const PLAGIARISM_URL = process.env.PLAGIARISM_URL || 'http://localhost:8001'
 
-const logMessage = (functionName: string, message: string): void => {
-  const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] [PlagiarismController.ts] [${functionName}] ${message}`);
-};
 
 // TODO: deal with submissions done by the same user.
 
@@ -36,10 +34,14 @@ async function logPlagiarismReports(submissionId: number) {
     WHERE submission_id = $1`,
     [submissionId]
   );
-  console.log(
-    `[${new Date().toISOString()}] [PlagiarismController.ts] [${fn}]`,
-    `Reports for ${submissionId}:`,
-    rs.rows
+  logger.info(
+    { fn, submissionId },
+    `Reports for ${submissionId}:`
+  );
+
+  logger.debug(
+    { fn, submissionId, reports: rs.rows },
+    `Plagiarism reports loaded for submission ${submissionId}`
   );
 }
 
@@ -69,10 +71,25 @@ export function emitPlagiarismDetectedEvent(
       }
     };
     
-    logMessage(fn, `Emitting PLAGIARISM_DETECTED event for submission ${submissionId} vs ${comparedSubmissionId} with similarity ${similarityScore}`);
+    logger.info(
+      {
+        fn,
+        submissionId,
+        assignmentId,
+        comparedSubmissionId,
+        similarityScore,
+        studentId,
+        reportId,
+        classroomId
+      },
+      `Emitting PLAGIARISM_DETECTED event for submission ${submissionId} vs ${comparedSubmissionId} with similarity ${similarityScore}`
+    );
     systemEventEmitter.emit('PLAGIARISM_DETECTED', plagiarismEvent.payload);
   } catch (error) {
-    logMessage(fn, `Failed to emit plagiarism event: ${error}`);
+    logger.error(
+      { fn, error },
+      `Failed to emit plagiarism event: ${error}`
+    );
   }
 }
 
@@ -81,17 +98,35 @@ export async function runPlagiarismCheck(submissionId: number): Promise<void> {
   try {
     const submission = await getSubmissionById(submissionId);
     const { assignment_id, code } = submission;
-    logMessage(fn, `Submission ${submissionId} belongs to assignment ${assignment_id}`);
+    logger.info(
+      { fn, submissionId, assignmentId: assignment_id },
+      `Submission ${submissionId} belongs to assignment ${assignment_id}`
+    );
     const enabled = await isPlagiarismEnabled(assignment_id);
     if (!enabled) {
-      logMessage(fn, `Assignment ${assignment_id} has plagiarism disabled. Skipping.`);
+      logger.info(
+        { fn, assignmentId: assignment_id, enabled },
+        `Assignment ${assignment_id} has plagiarism ${enabled ? 'enabled' : 'disabled'}.`
+      );
+      
       return;
     }
-    logMessage(fn, `Loading existing fingerprints for assignment ${assignment_id}`);
+    logger.info(
+      { fn, assignmentId: assignment_id },
+      `Loading existing fingerprints for assignment ${assignment_id}`
+    );
     const existingSubs = await getSubmissionsFingerprintsByAssignment(assignment_id, submissionId);
-    logMessage(fn, `Found ${existingSubs.length} prior submissions to compare against`);
+    logger.info(
+      { fn, assignmentId: assignment_id, existingCount: existingSubs.length },
+      `Found ${existingSubs.length} prior submissions to compare against`
+    );
+    
     if (existingSubs.length === 0) {
-      logMessage(fn, `No existing submissions to compare against. Proceeding anyway to generate fingerprint.`);
+      logger.info(
+        { fn, assignmentId: assignment_id },
+        `No existing submissions to compare against. Proceeding anyway to generate fingerprint.`
+      );
+      
     }
 
     const formattedSubmissions = existingSubs.map(s => {
@@ -102,8 +137,23 @@ export async function runPlagiarismCheck(submissionId: number): Promise<void> {
       return { id: s.submission_id, fingerprint: Array.isArray(fp) ? fp : [] };
     });
 
-    logMessage(fn, `Calling plagiarism microservice at ${PLAGIARISM_URL}`);
-    logMessage(fn, `Request details: submissionId=${submissionId}, assignmentId=${assignment_id}`);
+    logger.info(
+      {
+        fn,
+        plagiarismUrl: PLAGIARISM_URL,
+        submissionId,
+        assignmentId: assignment_id
+      },
+      `Calling plagiarism microservice at ${PLAGIARISM_URL}`
+    );
+    logger.debug(
+      {
+        fn,
+        submissionId,
+        assignmentId: assignment_id
+      },
+      `Request details: submissionId=${submissionId}, assignmentId=${assignment_id}`
+    );
     await debugPlagiarismRequest(submissionId, assignment_id, code, formattedSubmissions);
     const response = await axios.post(`${PLAGIARISM_URL}/plagiarism/check`, {
       submission_id: submissionId,
@@ -114,14 +164,31 @@ export async function runPlagiarismCheck(submissionId: number): Promise<void> {
     });
 
     if (response.data.fingerprint && Array.isArray(response.data.fingerprint)) {
-      logMessage(fn, `Storing returned fingerprint (${response.data.fingerprint.length} hashes) for submission ${submissionId}`);
+      logger.info(
+        {
+          fn,
+          submissionId,
+          fingerprintLength: response.data.fingerprint?.length
+        },
+        `Storing returned fingerprint (${response.data.fingerprint.length} hashes) for submission ${submissionId}`
+      );
       await storeFingerprint(submissionId, response.data.fingerprint);
     } else {
-      logMessage(fn, `No valid fingerprint returned, skipping storeFingerprint`);
+      logger.warn(
+        { fn, submissionId },
+        `No valid fingerprint returned, skipping storeFingerprint`
+      );
     }
 
     if (response.data.results && Array.isArray(response.data.results)) {
-      logMessage(fn, `Processing ${response.data.results.length} plagiarism results`);
+      logger.info(
+        {
+          fn,
+          submissionId,
+          resultsCount: response.data.results?.length ?? 0
+        },
+        `Processing ${response.data.results.length} plagiarism results`
+      );
       const plagiarismReports = await processPlagiarismResults(submissionId, response.data.results);
       
       if (plagiarismReports && plagiarismReports.length > 0) {
@@ -140,7 +207,15 @@ export async function runPlagiarismCheck(submissionId: number): Promise<void> {
           const { compared_submission, similarity, id: reportId } = report;
           
           if (similarity >= SIMILARITY_THRESHOLD) {
-            logMessage(fn, `Detected plagiarism: submission ${submissionId} has ${similarity * 100}% similarity with submission ${compared_submission}`);
+            logger.info(
+              {
+                fn,
+                submissionId,
+                comparedSubmissionId: compared_submission,
+                similarity: similarity
+              },
+              `Detected plagiarism: submission ${submissionId} has ${similarity * 100}% similarity with submission ${compared_submission}`
+            );
             
             emitPlagiarismDetectedEvent(
               submissionId,
@@ -155,18 +230,32 @@ export async function runPlagiarismCheck(submissionId: number): Promise<void> {
         }
       }
     } else {
-      logMessage(fn, `No plagiarism results array returned`);
+      logger.warn(
+        { fn, submissionId },
+        `No plagiarism results array returned`
+      );
     }
 
     await logPlagiarismReports(submissionId);
-    logMessage(fn, `Completed plagiarism check for submission ${submissionId}`);
+    logger.info(
+      { fn, submissionId },
+      `Completed plagiarism check for submission ${submissionId}`
+    );
   } catch (e: any) {
-    logMessage(fn, `Plagiarism check failed: ${e.message}`);
+    logger.error(
+      { fn, errorMessage: e.message },
+      `Plagiarism check failed: ${e.message}`
+    );
     if (e.response) {
-      logMessage(fn, `Response status: ${e.response.status}`);
-      logMessage(fn, `Response data: ${JSON.stringify(e.response.data)}`);
+      logger.error(
+        { fn, status: e.response.status, data: e.response.data },
+        `Response from plagiarism service indicated error`
+      );
     } else if (e.request) {
-      logMessage(fn, `No response received from plagiarism service`);
+      logger.error(
+        { fn },
+        `No response received from plagiarism service`
+      );
     }
   }
 }
@@ -198,26 +287,44 @@ export async function debugPlagiarismRequest(
     }))
   };
 
-  logMessage(fn, `Request payload structure: ${JSON.stringify(debugPayload, null, 2)}`);
+  logger.debug(
+    { fn, payload: debugPayload },
+    `Request payload structure: ${JSON.stringify(debugPayload, null, 2)}`
+  );
   
   if (!Array.isArray(payload.existing_submissions)) {
-    logMessage(fn, "ERROR: existing_submissions is not an array");
+    logger.error(
+      { fn },
+      "ERROR: existing_submissions is not an array"
+    );
   }
   
   for (let i = 0; i < payload.existing_submissions.length; i++) {
     const sub = payload.existing_submissions[i];
     if (!sub.id) {
-      logMessage(fn, `ERROR: Submission at index ${i} missing id`);
+      logger.error(
+        { fn, index: i },
+        `ERROR: Submission at index ${i} missing id`
+      );
     }
     if (!Array.isArray(sub.fingerprint)) {
-      logMessage(fn, `ERROR: Submission ${sub.id} has non-array fingerprint: ${typeof sub.fingerprint}`);
+      logger.error(
+        { fn, submissionIndex: i, submissionId: sub.id, fingerprintType: typeof sub.fingerprint },
+        `ERROR: Submission ${sub.id} has non-array fingerprint: ${typeof sub.fingerprint}`
+      );
     } else if (sub.fingerprint.length === 0) {
-      logMessage(fn, `WARNING: Submission ${sub.id} has empty fingerprint array`);
+      logger.warn(
+        { fn, submissionId: sub.id },
+        `WARNING: Submission ${sub.id} has empty fingerprint array`
+      );
     } else {
       for (let j = 0; j < Math.min(5, sub.fingerprint.length); j++) {
         const val = sub.fingerprint[j];
         if (!Number.isInteger(val) || val > 2147483647 || val < 0) {
-          logMessage(fn, `WARNING: Submission ${sub.id} has potentially problematic fingerprint value at index ${j}: ${val}`);
+          logger.warn(
+            { fn, submissionId: sub.id, index: j, value: val },
+            `WARNING: Submission ${sub.id} has potentially problematic fingerprint value at index ${j}: ${val}`
+          );
         }
       }
     }
@@ -228,35 +335,53 @@ export const getAssignmentPlagiarismReportsController = async (req: Request, res
   const functionName = 'getAssignmentPlagiarismReportsController';
   try {
     const assignmentId = Number(req.params.assignmentId);
-    logMessage(functionName, `Received request to fetch plagiarism reports for assignment ID: ${assignmentId}`);
+    logger.info(
+      { fn: functionName, assignmentId },
+      `Received request to fetch plagiarism reports for assignment ID: ${assignmentId}`
+    );
     
     if (isNaN(assignmentId) || assignmentId <= 0) {
-      logMessage(functionName, `Invalid assignment ID: ${req.params.assignmentId}`);
+      logger.warn(
+        { fn: functionName, rawAssignmentId: req.params.assignmentId },
+        `Invalid assignment ID: ${req.params.assignmentId}`
+      );
       res.status(400).json({ success: false, message: 'Invalid assignment ID' });
       return;
     }
     
     if (!req.user) {
-      logMessage(functionName, "No user information found in request");
+      logger.warn(
+        { fn: functionName },
+        "No user information found in request"
+      );
       res.status(401).json({ success: false, message: 'Unauthorized' });
       return;
     }
     
     if (req.user.role !== "instructor") {
-      logMessage(functionName, `User ${req.user.id} with role ${req.user.role} attempted to access plagiarism reports`);
+      logger.warn(
+        { fn: functionName, userId: req.user.id, role: req.user.role },
+        `User ${req.user.id} with role ${req.user.role} attempted to access plagiarism reports`
+      );
       res.status(403).json({ success: false, message: 'Forbidden: instructor role required' });
       return;
     }
     
     const assignment = await getAssignmentById(assignmentId);
     if (!assignment) {
-      logMessage(functionName, `Assignment with ID ${assignmentId} not found`);
+      logger.warn(
+        { fn: functionName, assignmentId },
+        `Assignment with ID ${assignmentId} not found`
+      );
       res.status(404).json({ success: false, message: 'Assignment not found' });
       return;
     }
     
     if (!assignment.plagiarism_detection) {
-      logMessage(functionName, `Plagiarism detection is not enabled for assignment ${assignmentId}`);
+      logger.info(
+        { fn: functionName, assignmentId },
+        `Plagiarism detection is not enabled for assignment ${assignmentId}`
+      );
       res.status(200).json({
         success: true,
         data: {
@@ -268,7 +393,10 @@ export const getAssignmentPlagiarismReportsController = async (req: Request, res
     }
     
     const reports = await getAssignmentPlagiarismReports(assignmentId);
-    logMessage(functionName, `Fetched ${reports.length} plagiarism reports for assignment ID: ${assignmentId}`);
+    logger.info(
+      { fn: functionName, assignmentId, reportCount: reports.length },
+      `Fetched ${reports.length} plagiarism reports for assignment ID: ${assignmentId}`
+    );
     
     res.status(200).json({
       success: true,
@@ -277,7 +405,10 @@ export const getAssignmentPlagiarismReportsController = async (req: Request, res
       }
     });
   } catch (error) {
-    logMessage(functionName, `Error fetching plagiarism reports: ${error}`);
+    logger.error(
+      { fn: functionName, error },
+      `Error fetching plagiarism reports: ${error}`
+    );
     res.status(500).json({ success: false, message: 'Failed to fetch plagiarism reports' });
   }
 };

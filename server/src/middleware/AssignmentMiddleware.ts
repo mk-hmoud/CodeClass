@@ -1,23 +1,20 @@
 import { Request, Response, NextFunction } from 'express';
 import pool from '../config/db';
+import logger from '../config/logger';
 
-const logMessage = (functionName: string, message: string): void => {
-  const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] [AssignmentMiddleware] [${functionName}] ${message}`);
-};
 
 export const validateAssignment = async (
   req: Request, 
   res: Response, 
   next: NextFunction
 ): Promise<void> => {
-  const functionName = "validateAssignment";
+  const fn = "validateAssignment";
   
   try {
     const { assignmentId } = req.params;
     
     if (!assignmentId) {
-      logMessage(functionName, "Missing assignment ID");
+      logger.warn({ fn, url: req.originalUrl }, "Missing assignment ID");
       res.status(400).json({ error: "Missing assignment ID" });
       return; 
     }
@@ -28,16 +25,16 @@ export const validateAssignment = async (
     );
     
     if (result.rowCount === 0) {
-      logMessage(functionName, `Assignment not found: ${assignmentId}`);
+      logger.info({ fn, assignmentId }, "Assignment not found");
       res.status(404).json({ error: "Assignment not found" });
       return; 
     }
     
-    logMessage(functionName, `Validated assignment: ${assignmentId}`);
+    logger.debug({ fn, assignmentId }, "Validated assignment");
     next();
     
   } catch (error) {
-    logMessage(functionName, `Validation error: ${error}`);
+    logger.error({ fn, error }, "Assignment validation error");
     res.status(500).json({ error: "Assignment validation failed" });
   }
 };

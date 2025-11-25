@@ -1,3 +1,4 @@
+import logger from '../../../config/logger';
 import pool from '../../../config/db';
 import dotenv from 'dotenv';
 import { 
@@ -19,11 +20,6 @@ import { systemEventEmitter } from '../emitter';
 
 dotenv.config();
 
-const logMessage = (functionName: string, message: string): void => {
-    const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] [AssignmentStatistics.ts] [${functionName}] ${message}\n`);
-};
-  
 
 // score distribution bucket size
 const SCORE_BUCKETS = [
@@ -43,7 +39,11 @@ export class AssignmentStatisticsService {
 
   private async getSubmissionTimeline(assignmentId: number): Promise<SubmissionTimelineEntry[]> {
     const fn = 'getSubmissionTimeline';
-    logMessage(fn, `ENTER assignmentId=${assignmentId}`);
+    logger.debug(
+      { function: fn, assignmentId },
+      'ENTER getSubmissionTimeline'
+    );
+  
     try {
       const result = await pool.query(`
         WITH submission_dates AS (
@@ -62,10 +62,14 @@ export class AssignmentStatisticsService {
         GROUP BY day_of_week, hour_of_day
         ORDER BY day_of_week, hour_of_day
       `, [assignmentId]);
-
-      logMessage(fn, `Fetched ${result.rows.length} rows`);
+  
+      logger.debug(
+        { function: fn, assignmentId, rowCount: result.rows.length },
+        'Fetched timeline rows'
+      );
       
       const snapshotTime = new Date().toISOString();
+  
       for (const row of result.rows) {
         await pool.query(`
           INSERT INTO assignment_submission_timeline
@@ -75,23 +79,39 @@ export class AssignmentStatisticsService {
           DO UPDATE SET submission_count = $5
         `, [assignmentId, snapshotTime, row.day, row.hour, row.count]);
       }
-      logMessage(fn, `EXIT returning ${result.rows.length} timeline entries`);
+  
+      logger.debug(
+        { function: fn, assignmentId, rowCount: result.rows.length },
+        'EXIT getSubmissionTimeline'
+      );
+  
       return result.rows.map(row => ({
         day: row.day,
         hour: row.hour,
         count: parseInt(row.count, 10)
       }));
     } catch (error) {
-      logMessage(fn, `Error getting submission timeline: ${error}`);
+      logger.error(
+        { function: fn, assignmentId, error },
+        'Error getting submission timeline'
+      );
       return [];
     }
-  }
+  }  
 
   private async getSubmissionTrend(assignmentId: number): Promise<SubmissionTrendEntry[]> {
-    const fn = 'getSubmissionTimeline';
-    logMessage(fn, `ENTER assignmentId=${assignmentId}`);
+    const fn = 'getSubmissionTrend';
+    logger.debug(
+      { function: fn, assignmentId },
+      'ENTER getSubmissionTrend'
+    );
+  
     try {
-      logMessage(fn, `Fetching submission trend data`);
+      logger.debug(
+        { function: fn, assignmentId },
+        'Fetching submission trend data'
+      );
+  
       const result = await pool.query(`
         WITH submission_dates AS (
           SELECT 
@@ -106,9 +126,12 @@ export class AssignmentStatisticsService {
         GROUP BY submission_date
         ORDER BY submission_date
       `, [assignmentId]);
-
-      logMessage(fn, `Processing ${result.rowCount} trend entries`);
-
+  
+      logger.debug(
+        { function: fn, assignmentId, rowCount: result.rowCount },
+        'Processing submission trend entries'
+      );
+  
       for (const row of result.rows) {
         await pool.query(`
           INSERT INTO assignment_submission_trend
@@ -118,23 +141,41 @@ export class AssignmentStatisticsService {
           DO UPDATE SET submission_count = $3
         `, [assignmentId, row.submission_date, row.count]);
       }
-      logMessage(fn, `Completed with ${result.rows.length} trend entries`);
+  
+      logger.debug(
+        { function: fn, assignmentId, rowCount: result.rows.length },
+        'Completed submission trend calculation'
+      );
       
       return result.rows.map(row => ({
         date: row.submission_date.toISOString().split('T')[0],
         count: parseInt(row.count, 10)
       }));
     } catch (error) {
-      logMessage(fn, `Error processing trend data: ${error}`);
+      logger.error(
+        { function: fn, assignmentId, error },
+        'Error processing trend data'
+      );
       return [];
     }
-  }
+  }  
 
-  private async getMostFrequentlyMissedTestCases(assignmentId: number, limit: number = 5): Promise<TestCaseStats[]> {
+  private async getMostFrequentlyMissedTestCases(
+    assignmentId: number, 
+    limit: number = 5
+  ): Promise<TestCaseStats[]> {
     const fn = 'getMostFrequentlyMissedTestCases';
-    logMessage(fn, `Starting for assignment ${assignmentId} with limit ${limit}`);
+    logger.debug(
+      { function: fn, assignmentId, limit },
+      'Starting most frequently missed test cases query'
+    );
+  
     try {
-      logMessage(fn, `Querying database for missed test cases`);
+      logger.debug(
+        { function: fn, assignmentId, limit },
+        'Querying database for missed test cases'
+      );
+  
       const result = await pool.query(`
         WITH test_case_failures AS (
           SELECT 
@@ -157,8 +198,14 @@ export class AssignmentStatisticsService {
         ORDER BY failure_rate DESC
         LIMIT $2
       `, [assignmentId, limit]);
-      logMessage(fn, `Processing ${result.rowCount} missed test cases`);
+  
+      logger.debug(
+        { function: fn, assignmentId, limit, rowCount: result.rowCount },
+        'Processing missed test cases'
+      );
+  
       const snapshotTime = new Date().toISOString();
+  
       for (const row of result.rows) {
         await pool.query(`
           INSERT INTO assignment_test_case_stats
@@ -170,7 +217,12 @@ export class AssignmentStatisticsService {
             avg_runtime_ms = $5
         `, [assignmentId, row.test_case_id, snapshotTime, row.failure_rate, row.avg_runtime_ms]);
       }
-      logMessage(fn, `Completed with ${result.rows.length} missed test case records`);
+  
+      logger.debug(
+        { function: fn, assignmentId, limit, rowCount: result.rowCount },
+        'Completed most frequently missed test cases query'
+      );
+  
       return result.rows.map(row => ({
         testCaseId: row.test_case_id,
         failureRate: parseFloat(row.failure_rate),
@@ -178,16 +230,30 @@ export class AssignmentStatisticsService {
         isPublic: row.is_public
       }));
     } catch (error) {
-      logMessage(fn, `Failed to get missed test cases: ${error}`);
+      logger.error(
+        { function: fn, assignmentId, limit, error },
+        'Failed to get missed test cases'
+      );
       return [];
     }
-  }
+  }  
 
-  private async getTopSlowestTestCases(assignmentId: number, limit: number = 5): Promise<TestCaseStats[]> {
+  private async getTopSlowestTestCases(
+    assignmentId: number,
+    limit: number = 5
+  ): Promise<TestCaseStats[]> {
     const fn = 'getTopSlowestTestCases';
-    logMessage(fn, `Starting for assignment ${assignmentId} with limit ${limit}`);
+    logger.debug(
+      { function: fn, assignmentId, limit },
+      'Starting slow test cases query'
+    );
+  
     try {
-      logMessage(fn, `Querying database for slow test cases`);
+      logger.debug(
+        { function: fn, assignmentId, limit },
+        'Querying database for slow test cases'
+      );
+  
       const result = await pool.query(`
         WITH test_case_runtimes AS (
           SELECT 
@@ -211,8 +277,14 @@ export class AssignmentStatisticsService {
         ORDER BY avg_runtime_ms DESC
         LIMIT $2
       `, [assignmentId, limit]);
-      logMessage(fn, `Processing ${result.rowCount} slow test cases`);
+  
+      logger.debug(
+        { function: fn, assignmentId, limit, rowCount: result.rowCount },
+        'Processing slow test cases'
+      );
+  
       const snapshotTime = new Date().toISOString();
+  
       for (const row of result.rows) {
         await pool.query(`
           INSERT INTO assignment_test_case_stats
@@ -224,7 +296,12 @@ export class AssignmentStatisticsService {
             avg_runtime_ms = $5
         `, [assignmentId, row.test_case_id, snapshotTime, row.failure_rate, row.avg_runtime_ms]);
       }
-      logMessage(fn, `Completed with ${result.rows.length} slow test case records`);
+  
+      logger.debug(
+        { function: fn, assignmentId, limit, rowCount: result.rows.length },
+        'Completed slow test case statistics'
+      );
+  
       return result.rows.map(row => ({
         testCaseId: row.test_case_id,
         failureRate: parseFloat(row.failure_rate),
@@ -232,16 +309,30 @@ export class AssignmentStatisticsService {
         isPublic: row.is_public
       }));
     } catch (error) {
-      logMessage(fn, `Failed to get slow test cases: ${error}`);
+      logger.error(
+        { function: fn, assignmentId, limit, error },
+        'Failed to get slow test cases'
+      );
       return [];
     }
-  }
+  }  
 
-  private async getCommonErrorPatterns(assignmentId: number, limit: number = 5): Promise<ErrorPattern[]> {
+  private async getCommonErrorPatterns(
+    assignmentId: number,
+    limit: number = 5
+  ): Promise<ErrorPattern[]> {
     const fn = 'getCommonErrorPatterns';
-    logMessage(fn, `Starting for assignment ${assignmentId} with limit ${limit}`);
+    logger.debug(
+      { function: fn, assignmentId, limit },
+      'Starting common error patterns query'
+    );
+  
     try {
-      logMessage(fn, `Querying database for error patterns`);
+      logger.debug(
+        { function: fn, assignmentId, limit },
+        'Querying database for error patterns'
+      );
+  
       const result = await pool.query(`
         WITH error_patterns AS (
           SELECT 
@@ -261,8 +352,14 @@ export class AssignmentStatisticsService {
         ORDER BY occurrence_count DESC
         LIMIT $2
       `, [assignmentId, limit]);
-      logMessage(fn, `Processing ${result.rowCount} error patterns`);
+  
+      logger.debug(
+        { function: fn, assignmentId, limit, rowCount: result.rowCount },
+        'Processing error patterns'
+      );
+  
       const snapshotTime = new Date().toISOString();
+  
       for (const row of result.rows) {
         await pool.query(`
           INSERT INTO assignment_error_patterns
@@ -272,125 +369,242 @@ export class AssignmentStatisticsService {
           DO UPDATE SET occurrence_count = $5
         `, [assignmentId, snapshotTime, row.error_type, row.error_message, row.occurrence_count]);
       }
-      logMessage(fn, `Completed with ${result.rows.length} error patterns`);
+  
+      logger.debug(
+        { function: fn, assignmentId, limit, rowCount: result.rows.length },
+        'Completed common error patterns calculation'
+      );
+  
       return result.rows.map(row => ({
         errorType: row.error_type,
         errorMessage: row.error_message,
         occurrenceCount: parseInt(row.occurrence_count, 10)
       }));
     } catch (error) {
-      logMessage(fn, `Failed to get error patterns: ${error}`);
+      logger.error(
+        { function: fn, assignmentId, limit, error },
+        'Failed to get error patterns'
+      );
       return [];
     }
-  }
+  }  
 
-  private async updateTestCaseStatistics(assignmentId: number, testResults: TestResult[]): Promise<void> {
+  private async updateTestCaseStatistics(
+    assignmentId: number,
+    testResults: TestResult[]
+  ): Promise<void> {
     const fn = 'updateTestCaseStatistics';
-    logMessage(fn, `Starting for assignment ${assignmentId} with ${testResults.length} test results`);
+    logger.debug(
+      { function: fn, assignmentId, resultCount: testResults.length },
+      'Starting test case statistics update'
+    );
+  
     try {
-        logMessage(fn, `Mapping test results to test cases`);
-        const testCaseMap = new Map<number, { passed: boolean, executionTime: number | undefined }[]>();
-
-        for (const test of testResults) {
-            if (test.testCaseId) {
-                if (!testCaseMap.has(test.testCaseId)) {
-                    testCaseMap.set(test.testCaseId, []);
-                }
-                testCaseMap.get(test.testCaseId)?.push({
-                    passed: test.status === 'passed',
-                    executionTime: test.executionTime
-                });
-            }
+      logger.debug(
+        { function: fn, assignmentId },
+        'Mapping test results to test cases'
+      );
+  
+      const testCaseMap = new Map<number, { passed: boolean; executionTime: number | undefined }[]>();
+  
+      for (const test of testResults) {
+        if (test.testCaseId) {
+          if (!testCaseMap.has(test.testCaseId)) {
+            testCaseMap.set(test.testCaseId, []);
+          }
+          testCaseMap.get(test.testCaseId)!.push({
+            passed: test.status === 'passed',
+            executionTime: test.executionTime
+          });
         }
-        logMessage(fn, `Finished mapping test results. Found data for ${testCaseMap.size} unique test cases.`);
-
-        logMessage(fn, `Starting loop to calculate and update statistics for each test case`);
-        const snapshotTime = new Date().toISOString();
-        for (const [testCaseId, results] of testCaseMap.entries()) {
-            const totalRuns = results.length;
-            const failures = results.filter(r => !r.passed).length;
-            const failureRate = (failures / totalRuns) * 100;
-
-            const validTimes = results.filter(r => typeof r.executionTime === 'number' && r.executionTime !== null && r.executionTime >= 0);
-            const avgRuntime = validTimes.length > 0
-                ? validTimes.reduce((sum, r) => sum + (r.executionTime || 0), 0) / validTimes.length
-                : null;
-
-            logMessage(fn, `Updating pool for test case ${testCaseId}`);
-            await pool.query(`
-              INSERT INTO assignment_test_case_stats
-                (assignment_id, test_case_id, snapshot_time, failure_rate, avg_runtime_ms)
-              VALUES ($1, $2, $3, $4, $5)
-              ON CONFLICT (assignment_id, test_case_id, snapshot_time)
-              DO UPDATE SET
-                failure_rate = $4,
-                avg_runtime_ms = $5
-            `, [assignmentId, testCaseId, snapshotTime, failureRate, avgRuntime]);
-            logMessage(fn, `Finished pool update for test case ${testCaseId}`);
-        }
-        logMessage(fn, `Finished loop for test case statistics updates.`);
-
-        logMessage(fn, `Completed updateTestCaseStatistics.`);
+      }
+  
+      logger.debug(
+        {
+          function: fn,
+          assignmentId,
+          uniqueTestCases: testCaseMap.size
+        },
+        'Finished mapping test results to test cases'
+      );
+  
+      logger.debug(
+        { function: fn, assignmentId },
+        'Starting per–test case statistics update loop'
+      );
+  
+      const snapshotTime = new Date().toISOString();
+  
+      for (const [testCaseId, results] of testCaseMap.entries()) {
+        const totalRuns = results.length;
+        const failures = results.filter(r => !r.passed).length;
+        const failureRate = (failures / totalRuns) * 100;
+  
+        const validTimes = results.filter(
+          r =>
+            typeof r.executionTime === 'number' &&
+            r.executionTime !== null &&
+            r.executionTime >= 0
+        );
+        const avgRuntime =
+          validTimes.length > 0
+            ? validTimes.reduce((sum, r) => sum + (r.executionTime || 0), 0) /
+              validTimes.length
+            : null;
+  
+        logger.debug(
+          {
+            
+            function: fn,
+            assignmentId,
+            testCaseId,
+            totalRuns,
+            failures,
+            failureRate,
+            avgRuntime
+          },
+          'Updating test case statistics row'
+        );
+  
+        await pool.query(`
+          INSERT INTO assignment_test_case_stats
+            (assignment_id, test_case_id, snapshot_time, failure_rate, avg_runtime_ms)
+          VALUES ($1, $2, $3, $4, $5)
+          ON CONFLICT (assignment_id, test_case_id, snapshot_time)
+          DO UPDATE SET
+            failure_rate = $4,
+            avg_runtime_ms = $5
+        `, [assignmentId, testCaseId, snapshotTime, failureRate, avgRuntime]);
+  
+        logger.debug(
+          { function: fn, assignmentId, testCaseId },
+          'Finished updating test case statistics row'
+        );
+      }
+  
+      logger.debug(
+        { function: fn, assignmentId },
+        'Completed test case statistics updates'
+      );
     } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        logMessage(fn, `Error updating test case statistics: ${msg}`);
-        throw error;
+      const msg = error instanceof Error ? error.message : String(error);
+      logger.error(
+        { function: fn, assignmentId, error, message: msg },
+        'Error updating test case statistics'
+      );
+      throw error;
     }
-}
+  }
+  
 
 
-  private async updateErrorPatterns(assignmentId: number, errorResults: TestResult[]): Promise<void> {
+  private async updateErrorPatterns(
+    assignmentId: number,
+    errorResults: TestResult[]
+  ): Promise<void> {
     const fn = 'updateErrorPatterns';
-    logMessage(fn, `Starting for assignment ${assignmentId} with ${errorResults.length} error results`);
+    logger.debug(
+      {
+        
+        function: fn,
+        assignmentId,
+        errorResultCount: errorResults.length
+      },
+      'Starting error pattern update'
+    );
+  
     try {
-      logMessage(fn, `Grouping errors by type and message`);
-      const errorMap = new Map<string, { count: number, errorType: string, errorMessage: string }>();
-      
+      logger.debug(
+        { function: fn, assignmentId },
+        'Grouping errors by type and message'
+      );
+  
+      const errorMap = new Map<
+        string,
+        { count: number; errorType: string; errorMessage: string }
+      >();
+  
       for (const test of errorResults) {
         if (test.errorType || test.errorMessage) {
           const errorType = test.errorType || 'Unknown';
           const errorMessage = test.errorMessage || 'Unknown';
           const key = `${errorType}:${errorMessage}`;
-          
+  
           if (!errorMap.has(key)) {
             errorMap.set(key, { count: 0, errorType, errorMessage });
           }
-          
-          const error = errorMap.get(key)!;
-          error.count++;
+  
+          const entry = errorMap.get(key)!;
+          entry.count++;
         }
       }
-      logMessage(fn, `Finished grouping. Found ${errorMap.size} unique error patterns`);
-      
+  
+      logger.debug(
+        {
+          
+          function: fn,
+          assignmentId,
+          uniquePatterns: errorMap.size
+        },
+        'Finished grouping error patterns'
+      );
+  
       const snapshotTime = new Date().toISOString();
-      logMessage(fn, `Updating error patterns in database`);
-      for (const [key, error] of errorMap.entries()) {
+      logger.debug(
+        { function: fn, assignmentId, snapshotTime },
+        'Updating error patterns in database'
+      );
+  
+      for (const [, error] of errorMap.entries()) {
         await pool.query(`
           INSERT INTO assignment_error_patterns
             (assignment_id, snapshot_time, error_type, error_message, occurrence_count)
           VALUES ($1, $2, $3, $4, $5)
           ON CONFLICT (assignment_id, snapshot_time, error_type, error_message)
-          DO UPDATE SET occurrence_count = occurrence_count + $5
+          DO UPDATE SET occurrence_count = assignment_error_patterns.occurrence_count + $5
         `, [assignmentId, snapshotTime, error.errorType, error.errorMessage, error.count]);
       }
-      logMessage(fn, `Completed updating error patterns`);
+  
+      logger.debug(
+        { function: fn, assignmentId },
+        'Completed error pattern updates'
+      );
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      logMessage(fn, `Error updating error patterns: ${msg}`);
+      logger.error(
+        { function: fn, assignmentId, error, message: msg },
+        'Error updating error patterns'
+      );
+      // note: original code swallowed the error; we keep that behavior
     }
-    logMessage(fn, `Completed updateErrorPatterns`);
   }
+  
 
   private async updateSubmissionTimeline(assignmentId: number): Promise<void> {
     const fn = 'updateSubmissionTimeline';
-    logMessage(fn, `Starting for assignment ${assignmentId}`);
+    logger.debug(
+      { function: fn, assignmentId },
+      'Starting submission timeline update'
+    );
+  
     try {
       const now = new Date();
       const dayOfWeek = now.getDay();
       const hourOfDay = now.getHours();
       const snapshotTime = now.toISOString();
-      
-      logMessage(fn, `Updating submission timeline in database`);
+  
+      logger.debug(
+        {
+          
+          function: fn,
+          assignmentId,
+          dayOfWeek,
+          hourOfDay,
+          snapshotTime
+        },
+        'Updating submission timeline in database'
+      );
+  
       await pool.query(`
         INSERT INTO assignment_submission_timeline
           (assignment_id, snapshot_time, submission_day, submission_hour, submission_count)
@@ -398,21 +612,36 @@ export class AssignmentStatisticsService {
         ON CONFLICT (assignment_id, snapshot_time, submission_day, submission_hour)
         DO UPDATE SET submission_count = assignment_submission_timeline.submission_count + 1
       `, [assignmentId, snapshotTime, dayOfWeek, hourOfDay]);
-      logMessage(fn, `Completed updating submission timeline`);
+  
+      logger.debug(
+        { function: fn, assignmentId },
+        'Completed updating submission timeline'
+      );
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      logMessage(fn, `Error updating submission timeline: ${msg}`);
+      logger.error(
+        { function: fn, assignmentId, error, message: msg },
+        'Error updating submission timeline'
+      );
     }
-    logMessage(fn, `Completed updateSubmissionTimeline`);
   }
+  
 
   private async updateSubmissionTrend(assignmentId: number): Promise<void> {
     const fn = 'updateSubmissionTrend';
-    logMessage(fn, `Starting for assignment ${assignmentId}`);
+    logger.debug(
+      { function: fn, assignmentId },
+      'Starting submission trend update'
+    );
+  
     try {
       const today = new Date().toISOString().split('T')[0];
-      
-      logMessage(fn, `Updating submission trend in database`);
+  
+      logger.debug(
+        { function: fn, assignmentId, date: today },
+        'Updating submission trend in database'
+      );
+  
       await pool.query(`
         INSERT INTO assignment_submission_trend
           (assignment_id, snapshot_date, submission_count)
@@ -420,19 +649,34 @@ export class AssignmentStatisticsService {
         ON CONFLICT (assignment_id, snapshot_date)
         DO UPDATE SET submission_count = assignment_submission_trend.submission_count + 1
       `, [assignmentId, today]);
-      logMessage(fn, `Completed updating submission trend`);
+  
+      logger.debug(
+        { function: fn, assignmentId },
+        'Completed updating submission trend'
+      );
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      logMessage(fn, `Error updating submission trend: ${msg}`);
+      logger.error(
+        { function: fn, assignmentId, error, message: msg },
+        'Error updating submission trend'
+      );
     }
-    logMessage(fn, `Completed updateSubmissionTrend`);
   }
+  
 
   private async updatePlagiarismStatistics(assignmentId: number): Promise<void> {
     const fn = 'updatePlagiarismStatistics';
-    logMessage(fn, `Starting for assignment ${assignmentId}`);
+    logger.debug(
+      { function: fn, assignmentId },
+      'Starting plagiarism statistics update'
+    );
+  
     try {
-      logMessage(fn, `Querying plagiarism data from database`);
+      logger.debug(
+        { function: fn, assignmentId },
+        'Querying plagiarism data from database'
+      );
+  
       const result = await pool.query(`
         WITH submission_plagiarism AS (
           SELECT 
@@ -450,18 +694,39 @@ export class AssignmentStatisticsService {
           MAX(CASE WHEN is_flagged = 1 THEN similarity ELSE NULL END) as max_similarity
         FROM submission_plagiarism
       `, [assignmentId]);
-      
-      logMessage(fn, `Processing plagiarism statistics`);
-      const plagiarismRate = result.rows[0].total_submissions > 0 
-        ? (result.rows[0].flagged_submissions / result.rows[0].total_submissions) * 100
-        : null;
-      
-      const maxSimilarity = result.rows[0].max_similarity;
-      const avgSimilarity = result.rows[0].avg_similarity;
-      
+  
+      logger.debug(
+        { function: fn, assignmentId },
+        'Processing plagiarism statistics'
+      );
+  
+      const row = result.rows[0];
+      const totalSubmissions = Number(row.total_submissions) || 0;
+      const flaggedSubmissions = Number(row.flagged_submissions) || 0;
+  
+      const plagiarismRate =
+        totalSubmissions > 0
+          ? (flaggedSubmissions / totalSubmissions) * 100
+          : null;
+  
+      const maxSimilarity = row.max_similarity;
+      const avgSimilarity = row.avg_similarity;
+  
       const snapshotTime = new Date().toISOString();
-      
-      logMessage(fn, `Updating plagiarism statistics in database`);
+  
+      logger.debug(
+        {
+          
+          function: fn,
+          assignmentId,
+          plagiarismRate,
+          maxSimilarity,
+          avgSimilarity,
+          snapshotTime
+        },
+        'Updating plagiarism statistics in assignment_statistics'
+      );
+  
       await pool.query(`
         UPDATE assignment_statistics
         SET 
@@ -470,113 +735,194 @@ export class AssignmentStatisticsService {
           avg_similarity = $3
         WHERE assignment_id = $4 AND snapshot_time::date = $5::date
       `, [plagiarismRate, maxSimilarity, avgSimilarity, assignmentId, snapshotTime]);
-      logMessage(fn, `Completed updating plagiarism statistics`);
+  
+      logger.debug(
+        { function: fn, assignmentId },
+        'Completed updating plagiarism statistics'
+      );
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      logMessage(fn, `Error updating plagiarism statistics: ${msg}`);
+      logger.error(
+        { function: fn, assignmentId, error, message: msg },
+        'Error updating plagiarism statistics'
+      );
     }
-    logMessage(fn, `Completed updatePlagiarismStatistics`);
   }
+  
 
-  public async getAssignmentStatistics(assignmentId: number): Promise<AssignmentStatistics | null> {
+  public async getAssignmentStatistics(
+    assignmentId: number
+  ): Promise<AssignmentStatistics | null> {
     const fn = 'getAssignmentStatistics';
-    logMessage(fn, `Starting for assignment ${assignmentId}`);
+    logger.info(
+      { function: fn, assignmentId },
+      'Fetching assignment statistics'
+    );
+  
     try {
       const today = new Date().toISOString().split('T')[0];
-      logMessage(fn, `Checking for recent statistics on ${today}`);
+      logger.debug(
+        { function: fn, assignmentId, date: today },
+        'Checking for recent statistics snapshot'
+      );
+  
       const statsResult = await pool.query(`
         SELECT * FROM assignment_statistics
         WHERE assignment_id = $1 AND snapshot_time::date = $2::date
         ORDER BY snapshot_time DESC
         LIMIT 1
       `, [assignmentId, today]);
-      
+  
       if (statsResult.rows.length > 0) {
-        logMessage(fn, `Found recent statistics, building assignment statistics`);
-        const stats = await this.buildAssignmentStatistics(assignmentId, statsResult.rows[0]);
-        logMessage(fn, `Completed building assignment statistics`);
-        return stats;
-      } else {
-        logMessage(fn, `No recent statistics found, calculating fresh statistics`);
-        const stats = await this.calculateAllStatistics(assignmentId);
-        logMessage(fn, `Completed calculating fresh statistics`);
+        logger.debug(
+          { function: fn, assignmentId },
+          'Found recent statistics, building AssignmentStatistics DTO'
+        );
+  
+        const stats = await this.buildAssignmentStatistics(
+          assignmentId,
+          statsResult.rows[0]
+        );
+  
+        logger.info(
+          { function: fn, assignmentId },
+          'Returning cached assignment statistics'
+        );
         return stats;
       }
+  
+      logger.debug(
+        { function: fn, assignmentId },
+        'No recent statistics found, recalculating all statistics'
+      );
+  
+      const stats = await this.calculateAllStatistics(assignmentId);
+  
+      logger.info(
+        { function: fn, assignmentId },
+        'Returning freshly calculated assignment statistics'
+      );
+      return stats;
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      logMessage(fn, `Error getting assignment statistics: ${msg}`);
+      logger.error(
+        { function: fn, assignmentId, error, message: msg },
+        'Error getting assignment statistics'
+      );
       return null;
     }
   }
+  
 
-  private async buildAssignmentStatistics(assignmentId: number, statsRow: any): Promise<AssignmentStatistics> {
+  private async buildAssignmentStatistics(
+    assignmentId: number,
+    statsRow: any
+  ): Promise<AssignmentStatistics> {
     const fn = 'buildAssignmentStatistics';
-    logMessage(fn, `Starting for assignment ${assignmentId}`);
+    logger.debug(
+      {
+        
+        function: fn,
+        assignmentId,
+        snapshotTime: statsRow.snapshot_time?.toISOString?.()
+      },
+      'Building AssignmentStatistics object from snapshot row'
+    );
+  
     try {
-      logMessage(fn, `Fetching score distribution`);
+      const snapshotDate = statsRow.snapshot_time.toISOString().split('T')[0];
+  
+      logger.debug(
+        { function: fn, assignmentId, snapshotDate },
+        'Fetching score distribution'
+      );
+  
       const scoreDistResult = await pool.query(`
         SELECT bucket_start, bucket_end, count
         FROM assignment_score_distribution
         WHERE assignment_id = $1 AND snapshot_time::date = $2::date
         ORDER BY bucket_start
-      `, [assignmentId, statsRow.snapshot_time.toISOString().split('T')[0]]);
-      
+      `, [assignmentId, snapshotDate]);
+  
       const scoreDistribution = scoreDistResult.rows.map(row => ({
         bucketStart: row.bucket_start,
         bucketEnd: row.bucket_end,
         count: row.count
       }));
-      
-      logMessage(fn, `Fetching attempts distribution`);
+  
+      logger.debug(
+        { function: fn, assignmentId, snapshotDate },
+        'Fetching attempts distribution'
+      );
+  
       const attemptsResult = await pool.query(`
         SELECT avg_attempts, median_attempts, max_attempts
         FROM assignment_attempts_distribution
         WHERE assignment_id = $1 AND snapshot_time::date = $2::date
         ORDER BY snapshot_time DESC
         LIMIT 1
-      `, [assignmentId, statsRow.snapshot_time.toISOString().split('T')[0]]);
-      
-      const attemptsDistribution = attemptsResult.rows.length > 0 ? {
-        avgAttempts: attemptsResult.rows[0].avg_attempts,
-        medianAttempts: attemptsResult.rows[0].median_attempts,
-        maxAttempts: attemptsResult.rows[0].max_attempts
-      } : {
-        avgAttempts: 0,
-        medianAttempts: 0,
-        maxAttempts: 0
-      };
-      
-      logMessage(fn, `Fetching runtime distribution`);
+      `, [assignmentId, snapshotDate]);
+  
+      const attemptsDistribution = attemptsResult.rows.length > 0
+        ? {
+            avgAttempts: attemptsResult.rows[0].avg_attempts,
+            medianAttempts: attemptsResult.rows[0].median_attempts,
+            maxAttempts: attemptsResult.rows[0].max_attempts
+          }
+        : {
+            avgAttempts: 0,
+            medianAttempts: 0,
+            maxAttempts: 0
+          };
+  
+      logger.debug(
+        { function: fn, assignmentId, snapshotDate },
+        'Fetching runtime distribution'
+      );
+  
       const runtimeResult = await pool.query(`
         SELECT min_runtime_ms, percentile_25_ms, median_runtime_ms, percentile_75_ms, max_runtime_ms
         FROM assignment_runtime_distribution
         WHERE assignment_id = $1 AND snapshot_time::date = $2::date
         ORDER BY snapshot_time DESC
         LIMIT 1
-      `, [assignmentId, statsRow.snapshot_time.toISOString().split('T')[0]]);
-      
-      const runtimeDistribution = runtimeResult.rows.length > 0 ? {
-        minRuntimeMs: runtimeResult.rows[0].min_runtime_ms,
-        percentile25Ms: runtimeResult.rows[0].percentile_25_ms,
-        medianRuntimeMs: runtimeResult.rows[0].median_runtime_ms,
-        percentile75Ms: runtimeResult.rows[0].percentile_75_ms,
-        maxRuntimeMs: runtimeResult.rows[0].max_runtime_ms
-      } : {
-        minRuntimeMs: null,
-        percentile25Ms: null,
-        medianRuntimeMs: null,
-        percentile75Ms: null,
-        maxRuntimeMs: null
-      };
-      
-      logMessage(fn, `Fetching other statistics components`);
+      `, [assignmentId, snapshotDate]);
+  
+      const runtimeDistribution = runtimeResult.rows.length > 0
+        ? {
+            minRuntimeMs: runtimeResult.rows[0].min_runtime_ms,
+            percentile25Ms: runtimeResult.rows[0].percentile_25_ms,
+            medianRuntimeMs: runtimeResult.rows[0].median_runtime_ms,
+            percentile75Ms: runtimeResult.rows[0].percentile_75_ms,
+            maxRuntimeMs: runtimeResult.rows[0].max_runtime_ms
+          }
+        : {
+            minRuntimeMs: null,
+            percentile25Ms: null,
+            medianRuntimeMs: null,
+            percentile75Ms: null,
+            maxRuntimeMs: null
+          };
+  
+      logger.debug(
+        { function: fn, assignmentId },
+        'Fetching secondary statistics components (timeline, trend, test cases, errors)'
+      );
+  
       const submissionTimeline = await this.getSubmissionTimeline(assignmentId);
       const submissionTrend = await this.getSubmissionTrend(assignmentId);
-      const mostFrequentlyMissedTestCases = await this.getMostFrequentlyMissedTestCases(assignmentId);
-      const topSlowestTestCases = await this.getTopSlowestTestCases(assignmentId);
-      const commonErrorPatterns = await this.getCommonErrorPatterns(assignmentId);
-      
-      logMessage(fn, `Assembling assignment statistics object`);
+      const mostFrequentlyMissedTestCases =
+        await this.getMostFrequentlyMissedTestCases(assignmentId);
+      const topSlowestTestCases =
+        await this.getTopSlowestTestCases(assignmentId);
+      const commonErrorPatterns =
+        await this.getCommonErrorPatterns(assignmentId);
+  
+      logger.debug(
+        { function: fn, assignmentId },
+        'Assembling AssignmentStatistics object'
+      );
+  
       const stats: AssignmentStatistics = {
         assignmentId,
         snapshotTime: statsRow.snapshot_time.toISOString(),
@@ -600,62 +946,118 @@ export class AssignmentStatisticsService {
         avgSimilarity: statsRow.avg_similarity,
         runtimeErrorRate: statsRow.runtime_error_rate
       };
-      logMessage(fn, `Completed assembling assignment statistics`);
+  
+      logger.debug(
+        { function: fn, assignmentId },
+        'Completed building AssignmentStatistics object'
+      );
+  
       return stats;
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      logMessage(fn, `Error building assignment statistics: ${msg}`);
+      logger.error(
+        { function: fn, assignmentId, error, message: msg },
+        'Error building assignment statistics'
+      );
       throw error;
     }
   }
+  
 
   public static getInstance(): AssignmentStatisticsService {
     const fn = 'getInstance';
-    logMessage(fn, `Retrieving instance of AssignmentStatisticsService`);
+    logger.debug(
+      { function: fn },
+      'Retrieving AssignmentStatisticsService singleton instance'
+    );
+  
     if (!AssignmentStatisticsService.instance) {
-      logMessage(fn, `Creating new instance`);
+      logger.info(
+        { function: fn },
+        'Creating new AssignmentStatisticsService instance'
+      );
       AssignmentStatisticsService.instance = new AssignmentStatisticsService();
     }
-    logMessage(fn, `Returning instance`);
+  
+    logger.debug(
+      { function: fn },
+      'Returning AssignmentStatisticsService instance'
+    );
+  
     return AssignmentStatisticsService.instance;
   }
+  
 
   private registerEventListeners(): void {
     const fn = 'registerEventListeners';
-    logMessage(fn, `Starting event listener registration`);
+    logger.info(
+      { function: fn },
+      'Registering assignment statistics event listeners'
+    );
     systemEventEmitter.on('SUBMISSION_CREATED', this.handleSubmissionCreated.bind(this));
     systemEventEmitter.on('SUBMISSION_COMPLETED', this.handleSubmissionCompleted.bind(this));
     systemEventEmitter.on('PLAGIARISM_DETECTED', this.handlePlagiarismDetected.bind(this));
     systemEventEmitter.on('GRADE_UPDATED', this.handleGradeUpdated.bind(this));
-    logMessage(fn, `Event listeners registered`);
+    logger.info(
+      { function: fn },
+      'Assignment statistics event listeners registered'
+    );
   }
 
   private async handleSubmissionCreated(event: SubmissionCreatedEvent): Promise<void> {
     const { submissionId, assignmentId, studentId } = (event as SubmissionCreatedEvent).payload;
     const fn = 'handleSubmissionCreated';
-    logMessage(fn, `Starting for submission ${submissionId}`);
+    logger.debug(
+      {
+        function: fn,
+        submissionId,
+        assignmentId,
+        studentId
+      },
+      'Handling SUBMISSION_CREATED event'
+    );
     try {
-      logMessage(fn, `Updating submission timeline and trend`);
+      logger.debug(
+        { function: fn, assignmentId },
+        'Updating submission timeline and trend'
+      );
       await this.updateSubmissionTimeline(assignmentId);
       await this.updateSubmissionTrend(assignmentId);
       
-      logMessage(fn, `Calculating basic statistics`);
+      logger.debug(
+        { function: fn, assignmentId },
+        'Recalculating basic statistics'
+      );
       await this.calculateBasicStatistics(assignmentId);
-      logMessage(fn, `Completed handling submission created event`);
+      logger.debug(
+        { function: fn, assignmentId },
+        'Completed handling SUBMISSION_CREATED event'
+      );
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      logMessage(fn, `Error handling submission created: ${msg}`);
+      logger.error(
+        {
+          function: fn,
+          assignmentId,
+          submissionId,
+          error,
+          message: msg
+        },
+        'Error handling SUBMISSION_CREATED event'
+      );
     }
-    logMessage(fn, `Completed handleSubmissionCreated`);
   }
 
-  private async handleSubmissionCompleted(event: SubmissionCompletedEvent): Promise<void> {
-    const { 
-      submissionId, 
-      assignmentId, 
-      studentId, 
-      score, 
-      passedTests, 
+  private async handleSubmissionCompleted(
+    event: SubmissionCompletedEvent
+  ): Promise<void> {
+    const fn = 'handleSubmissionCompleted';
+    const {
+      submissionId,
+      assignmentId,
+      studentId,
+      score,
+      passedTests,
       totalTests,
       publicPassedTests,
       publicTotalTests,
@@ -664,83 +1066,196 @@ export class AssignmentStatisticsService {
       averageRuntime,
       status,
       testResults
-    } = (event as SubmissionCompletedEvent).payload;
-    const fn = 'handleSubmissionCompleted';
-    logMessage(fn, `Starting for submission ${submissionId}`);
+    } = event.payload;
+  
+    logger.debug(
+      {
+        
+        function: fn,
+        submissionId,
+        assignmentId,
+        studentId,
+        score,
+        passedTests,
+        totalTests,
+        status
+      },
+      'Handling SUBMISSION_COMPLETED event'
+    );
+  
     if (assignmentId == null) {
-      logMessage('handleSubmissionCompleted', `ERROR missing assignmentId for submission ${submissionId}`);
+      logger.error(
+        {
+          
+          function: fn,
+          submissionId,
+          assignmentId
+        },
+        'Missing assignmentId in SUBMISSION_COMPLETED event payload'
+      );
       return;
     }
-    logMessage('handleSubmissionCompleted', `Starting for submission ${submissionId}, assignment ${assignmentId}`);
+  
     try {
-      logMessage(fn, `Calculating all statistics`);
+      logger.debug(
+        { function: fn, assignmentId },
+        'Recalculating all statistics after submission completion'
+      );
+  
       await this.calculateAllStatistics(assignmentId);
-      
+  
       if (testResults && Array.isArray(testResults)) {
-        logMessage(fn, `Updating test case statistics`);
+        logger.debug(
+          {
+            function: fn,
+            assignmentId,
+            submissionId,
+            testResultCount: testResults.length
+          },
+          'Updating test case statistics from submission results'
+        );
+  
         await this.updateTestCaseStatistics(assignmentId, testResults);
       }
-      
-      const errorResults = testResults?.filter(t => t.status === 'error' || t.status === 'failed');
+  
+      const errorResults = testResults?.filter(
+        t => t.status === 'error' || t.status === 'failed'
+      );
+  
       if (errorResults && errorResults.length > 0) {
-        logMessage(fn, `Updating error patterns`);
+        logger.debug(
+          {
+            function: fn,
+            assignmentId,
+            submissionId,
+            errorResultCount: errorResults.length
+          },
+          'Updating error patterns from failing test results'
+        );
+  
         await this.updateErrorPatterns(assignmentId, errorResults);
       }
-      logMessage(fn, `Completed handling submission completed event`);
+  
+      logger.debug(
+        { function: fn, assignmentId, submissionId },
+        'Completed handling SUBMISSION_COMPLETED event'
+      );
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      logMessage(fn, `Error handling submission completed: ${msg}`);
+      logger.error(
+        {
+          function: fn,
+          assignmentId,
+          submissionId,
+          error,
+          message: msg
+        },
+        'Error handling SUBMISSION_COMPLETED event'
+      );
     }
-    logMessage(fn, `Completed handleSubmissionCompleted`);
   }
+  
 
-  private async handlePlagiarismDetected(event: PlagiarismDetectedEvent): Promise<void> {
-    const { 
-      submissionId, 
-      assignmentId, 
-      studentId, 
-      comparedSubmissionId, 
-      similarityScore 
-    } = (event as PlagiarismDetectedEvent).payload;
+  private async handlePlagiarismDetected(
+    event: PlagiarismDetectedEvent
+  ): Promise<void> {
     const fn = 'handlePlagiarismDetected';
-    logMessage(fn, `Starting for submission ${submissionId}`);
+    const {
+      submissionId,
+      assignmentId,
+      studentId,
+      comparedSubmissionId,
+      similarityScore
+    } = event.payload;
+  
+    logger.debug(
+      {
+        function: fn,
+        submissionId,
+        assignmentId,
+        studentId,
+        comparedSubmissionId,
+        similarityScore
+      },
+      'Handling PLAGIARISM_DETECTED event'
+    );
+  
     try {
-      logMessage(fn, `Updating plagiarism statistics`);
       await this.updatePlagiarismStatistics(assignmentId);
-      logMessage(fn, `Completed handling plagiarism detected event`);
+  
+      logger.debug(
+        { function: fn, assignmentId, submissionId },
+        'Completed handling PLAGIARISM_DETECTED event'
+      );
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      logMessage(fn, `Error handling plagiarism detected: ${msg}`);
+      logger.error(
+        {
+          function: fn,
+          assignmentId,
+          submissionId,
+          error,
+          message: msg
+        },
+        'Error handling PLAGIARISM_DETECTED event'
+      );
     }
-    logMessage(fn, `Completed handlePlagiarismDetected`);
   }
+  
 
   private async calculateBasicStatistics(assignmentId: number): Promise<void> {
     const fn = 'calculateBasicStatistics';
-    logMessage(fn, `Starting for assignment ${assignmentId}`);
+    logger.debug(
+      { function: fn, assignmentId },
+      'Starting basic statistics calculation'
+    );
+  
     try {
       try {
         await pool.query('BEGIN');
-        logMessage(fn, `Transaction started`);
-        
-        logMessage(fn, `Querying total submissions`);
+        logger.debug(
+          { function: fn, assignmentId },
+          'Transaction started'
+        );
+  
+        logger.debug(
+          { function: fn, assignmentId },
+          'Querying total submissions and distinct submitters'
+        );
+  
         const totalSubmissionsResult = await pool.query(
           'SELECT COUNT(*) as total FROM submissions WHERE assignment_id = $1',
           [assignmentId]
         );
-        const totalSubmissions = parseInt(totalSubmissionsResult.rows[0].total, 10);
-        
-        logMessage(fn, `Querying distinct submitters`);
+        const totalSubmissions = parseInt(
+          totalSubmissionsResult.rows[0].total,
+          10
+        );
+  
         const distinctSubmittersResult = await pool.query(
           'SELECT COUNT(DISTINCT student_id) as distinct_count FROM submissions WHERE assignment_id = $1',
           [assignmentId]
         );
-        const distinctSubmitters = parseInt(distinctSubmittersResult.rows[0].distinct_count, 10);
-        
+        const distinctSubmitters = parseInt(
+          distinctSubmittersResult.rows[0].distinct_count,
+          10
+        );
+  
         const snapshotTime = new Date().toISOString();
-        
-        logMessage(fn, `Updating basic statistics in database`);
-        await pool.query(`
+  
+        logger.debug(
+          {
+            function: fn,
+            assignmentId,
+            snapshotTime,
+            totalSubmissions,
+            distinctSubmitters
+          },
+          'Updating basic statistics in database'
+        );
+  
+        await pool.query(
+          `
           INSERT INTO assignment_statistics 
             (assignment_id, snapshot_time, total_submissions, distinct_submitters)
           VALUES ($1, $2, $3, $4)
@@ -748,52 +1263,81 @@ export class AssignmentStatisticsService {
           DO UPDATE SET 
             total_submissions = $3,
             distinct_submitters = $4
-        `, [assignmentId, snapshotTime, totalSubmissions, distinctSubmitters]);
-        
+        `,
+          [assignmentId, snapshotTime, totalSubmissions, distinctSubmitters]
+        );
+  
         await pool.query('COMMIT');
-        logMessage(fn, `Transaction committed`);
+        logger.debug(
+          { function: fn, assignmentId },
+          'Transaction committed for basic statistics'
+        );
       } catch (error) {
         await pool.query('ROLLBACK');
-        logMessage(fn, `Transaction rolled back due to error`);
+        logger.error(
+          { function: fn, assignmentId, error },
+          'Transaction rolled back while calculating basic statistics'
+        );
         throw error;
-      } finally {
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      logMessage(fn, `Error calculating basic statistics: ${msg}`);
+      logger.error(
+        { function: fn, assignmentId, error, message: msg },
+        'Error calculating basic statistics'
+      );
     }
-    logMessage(fn, `Completed calculateBasicStatistics`);
+  
+    logger.debug(
+      { function: fn, assignmentId },
+      'Completed calculateBasicStatistics'
+    );
   }
+  
 
   // Updated calculateAllStatistics function with extracted score statistics
 public async calculateAllStatistics(assignmentId: number): Promise<AssignmentStatistics | null> {
     const fn = 'calculateAllStatistics';
-    logMessage(fn, `Calculating all statistics for assignment ${assignmentId}`);
+    logger.info(
+      { function: fn, assignmentId },
+      'Calculating all statistics for assignment'
+    );
     
     try {
       try {
         await pool.query('BEGIN');
-        logMessage(fn, `Transaction started`);
+        logger.debug(
+          { function: fn, assignmentId },
+          'Transaction started'
+        );
         
         const snapshotTime = new Date().toISOString();
-        logMessage(fn, `Snapshot time: ${snapshotTime}`);
+        logger.debug(
+          { function: fn, assignmentId, snapshotTime },
+          'Snapshot timestamp selected'
+        );
         
         // Basic statistics
-        logMessage(fn, `Querying total submissions`);
         const totalSubmissionsResult = await pool.query(
           'SELECT COUNT(*) as total FROM submissions WHERE assignment_id = $1',
           [assignmentId]
         );
         const totalSubmissions = parseInt(totalSubmissionsResult.rows[0].total, 10);
-        logMessage(fn, `Total submissions: ${totalSubmissions}`);
+        logger.debug(
+          { function: fn, assignmentId, totalSubmissions },
+          'Computed total submissions'
+        );
         
-        logMessage(fn, `Querying distinct submitters`);
+        
         const distinctSubmittersResult = await pool.query(
           'SELECT COUNT(DISTINCT student_id) as distinct_count FROM submissions WHERE assignment_id = $1',
           [assignmentId]
         );
         const distinctSubmitters = parseInt(distinctSubmittersResult.rows[0].distinct_count, 10);
-        logMessage(fn, `Distinct submitters: ${distinctSubmitters}`);
+        logger.debug(
+          { function: fn, assignmentId, distinctSubmitters },
+          'Computed distinct submitters'
+        );
         
         // Score statistics are now handled in a separate function
         const scoreStatsResult = await pool.query(`
@@ -834,7 +1378,6 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
         }
         
         // Attempts distribution
-        logMessage(fn, `Querying attempts distribution`);
         const attemptsResult = await pool.query(`
           SELECT 
             AVG(submission_count) as avg_attempts,
@@ -853,7 +1396,16 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
           medianAttempts: parseInt(attemptsResult.rows[0].median_attempts, 10) || 0,
           maxAttempts: parseInt(attemptsResult.rows[0].max_attempts, 10) || 0
         };
-        logMessage(fn, `Attempts distribution: avg=${attemptsDistribution.avgAttempts}, median=${attemptsDistribution.medianAttempts}, max=${attemptsDistribution.maxAttempts}`);
+        logger.debug(
+          {
+            function: fn,
+            assignmentId,
+            avgAttempts: attemptsDistribution.avgAttempts,
+            medianAttempts: attemptsDistribution.medianAttempts,
+            maxAttempts: attemptsDistribution.maxAttempts
+          },
+          'Computed attempts distribution'
+        );
         
         await pool.query(`
           INSERT INTO assignment_attempts_distribution
@@ -873,7 +1425,6 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
         ]);
         
         // Runtime statistics
-        logMessage(fn, `Querying runtime statistics`);
         const runtimeResult = await pool.query(`
           WITH submission_runtimes AS (
             SELECT 
@@ -903,7 +1454,17 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
           percentile75Ms:  Math.round(Number(raw.p75_runtime)),
           maxRuntimeMs:    Math.round(Number(raw.max_runtime)),
         };
-        logMessage(fn, `Runtime statistics: avg=${averageRuntimeMs}, min=${runtimeDistribution.minRuntimeMs}, max=${runtimeDistribution.maxRuntimeMs}`);
+        
+        logger.debug(
+          {
+            function: fn,
+            assignmentId,
+            averageRuntimeMs,
+            minRuntimeMs: runtimeDistribution.minRuntimeMs,
+            maxRuntimeMs: runtimeDistribution.maxRuntimeMs
+          },
+          'Computed runtime statistics'
+        );
         
         await pool.query(`
           INSERT INTO assignment_runtime_distribution
@@ -928,7 +1489,6 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
         ]);
         
         // Test pass rates
-        logMessage(fn, `Querying test pass rates`);
         const testPassRatesResult = await pool.query(`
           WITH test_results AS (
             SELECT 
@@ -961,10 +1521,18 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
             privateTestPassRate = passRate;
           }
         }
-        logMessage(fn, `Public test pass rate: ${publicTestPassRate}, Private test pass rate: ${privateTestPassRate}`);
+        logger.debug(
+          {
+            function: fn,
+            assignmentId,
+            publicTestPassRate,
+            privateTestPassRate
+          },
+          'Computed test pass rates'
+        );
+        
         
         // Plagiarism statistics
-        logMessage(fn, `Querying plagiarism statistics`);
         const plagiarismResult = await pool.query(`
           WITH submission_plagiarism AS (
             SELECT 
@@ -989,10 +1557,18 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
         
         const maxSimilarity = plagiarismResult.rows[0].max_similarity;
         const avgSimilarity = plagiarismResult.rows[0].avg_similarity;
-        logMessage(fn, `Plagiarism rate: ${plagiarismRate}, Max similarity: ${maxSimilarity}, Avg similarity: ${avgSimilarity}`);
+        logger.debug(
+          {
+            function: fn,
+            assignmentId,
+            plagiarismRate,
+            maxSimilarity,
+            avgSimilarity
+          },
+          'Computed plagiarism statistics'
+        );
         
         // Runtime error rate
-        logMessage(fn, `Querying runtime error rate`);
         const runtimeErrorResult = await pool.query(`
           SELECT 
             COUNT(*) as total_submissions,
@@ -1004,10 +1580,16 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
         const runtimeErrorRate = runtimeErrorResult.rows[0].total_submissions > 0
           ? (runtimeErrorResult.rows[0].error_submissions / runtimeErrorResult.rows[0].total_submissions) * 100
           : null;
-        logMessage(fn, `Runtime error rate: ${runtimeErrorRate}`);
+          logger.debug(
+            {
+              function: fn,
+              assignmentId,
+              runtimeErrorRate
+            },
+            'Computed runtime error rate'
+          );
         
         // Update main statistics
-        logMessage(fn, `Updating main statistics in database`);
         await pool.query(`
           INSERT INTO assignment_statistics
             (assignment_id, snapshot_time, total_submissions, distinct_submitters,
@@ -1046,10 +1628,17 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
         ]);
         
         await pool.query('COMMIT');
-        logMessage(fn, `Transaction committed`);
+        
+        logger.debug(
+          { function: fn, assignmentId },
+          'Transaction committed'
+        );
         
         // Construct full statistics object
-        logMessage(fn, `Constructing full statistics object`);
+        logger.debug(
+          { function: fn, assignmentId },
+          'Constructing full statistics object'
+        );
         const stats: AssignmentStatistics = {
           assignmentId,
           snapshotTime,
@@ -1074,18 +1663,27 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
           runtimeErrorRate
         };
         
-        logMessage(fn, `Completed calculating all statistics`);
+        logger.info(
+          { function: fn, assignmentId },
+          'Completed calculating all statistics'
+        );
         return stats;
       } catch (error) {
         await pool.query('ROLLBACK');
         const msg = error instanceof Error ? error.message : String(error);
-        logMessage(fn, `Error calculating statistics: ${msg}`);
+        logger.error(
+          { function: fn, assignmentId, error },
+          `Error calculating statistics: ${msg}`
+        );
         throw error;
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       const errorStack = error instanceof Error ? error.stack : '';
-      logMessage(fn, `Error: ${errorMessage}\nStack: ${errorStack}`);
+      logger.error(
+        { function: fn, assignmentId, errorMessage, errorStack },
+        'Statistics calculation failed'
+      );
       throw new Error(`Statistics calculation failed: ${errorMessage}`);
     }
   }
@@ -1096,23 +1694,39 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
     const fn = 'handleGradeUpdated';
     const { assignmentId, submissionId, finalScore } = event.payload;
   
-    logMessage(fn, `Received GRADE_UPDATED for assignment ${assignmentId}, submission ${submissionId}, score ${finalScore}`);
+    logger.info(
+      { function: fn, assignmentId, submissionId, finalScore },
+      'Received GRADE_UPDATED event'
+    );
   
     try {
       await this.updateScoreStatistics(assignmentId);
-      logMessage(fn, `Score statistics updated for assignment ${assignmentId}`);
+      logger.info(
+        { function: fn, assignmentId },
+        'Score statistics updated for assignment'
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      logMessage(fn, `Error in handleGradeUpdated: ${msg}`);
+      logger.error(
+        { function: fn, assignmentId, submissionId, error: err, message: msg },
+        'Error in handleGradeUpdated'
+      );
     }
   }
 
   private async updateScoreStatistics(assignmentId: number): Promise<void> {
     const fn = 'updateScoreStatistics';
-    logMessage(fn, `Starting for assignment ${assignmentId}`);
-    
+    logger.debug(
+      { function: fn, assignmentId },
+      'Starting score statistics update'
+    );
+  
     try {
-      logMessage(fn, `Querying score statistics`);
+      logger.debug(
+        { function: fn, assignmentId },
+        'Querying score statistics from submissions'
+      );
+  
       const scoreStatsResult = await pool.query(`
         SELECT 
           COALESCE(AVG(final_score), 0) as average_score,
@@ -1120,32 +1734,65 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
         FROM submissions 
         WHERE assignment_id = $1 AND final_score IS NOT NULL
       `, [assignmentId]);
-      
+  
       const averageScore = scoreStatsResult.rows[0].average_score;
       const medianScore = scoreStatsResult.rows[0].median_score;
-      logMessage(fn, `Average score: ${averageScore}, Median score: ${medianScore}`);
-      
+  
+      logger.debug(
+        {
+          function: fn,
+          assignmentId,
+          averageScore,
+          medianScore
+        },
+        'Computed basic score statistics'
+      );
+  
       const snapshotTime = new Date().toISOString();
-      
+  
       const scoreDistribution: ScoreDistributionBucket[] = [];
-      logMessage(fn, `Calculating score distribution`);
+      logger.debug(
+        { function: fn, assignmentId, snapshotTime },
+        'Calculating score distribution buckets'
+      );
+  
       for (const bucket of SCORE_BUCKETS) {
-        logMessage(fn, `Querying bucket: ${bucket.start} - ${bucket.end}`);
+        logger.debug(
+          {
+            function: fn,
+            assignmentId,
+            bucketStart: bucket.start,
+            bucketEnd: bucket.end
+          },
+          'Querying bucket count'
+        );
+  
         const bucketResult = await pool.query(`
           SELECT COUNT(*) as count
           FROM submissions
           WHERE assignment_id = $1 AND final_score IS NOT NULL 
             AND final_score >= $2 AND final_score <= $3
         `, [assignmentId, bucket.start, bucket.end]);
-        
+  
         const count = parseInt(bucketResult.rows[0].count, 10);
+  
         scoreDistribution.push({
           bucketStart: bucket.start,
           bucketEnd: bucket.end,
           count
         });
-        
-        logMessage(fn, `Saving score distribution bucket to database`);
+  
+        logger.debug(
+          {
+            function: fn,
+            assignmentId,
+            bucketStart: bucket.start,
+            bucketEnd: bucket.end,
+            count
+          },
+          'Saving score distribution bucket to database'
+        );
+  
         await pool.query(`
           INSERT INTO assignment_score_distribution
             (assignment_id, snapshot_time, bucket_start, bucket_end, count)
@@ -1154,9 +1801,21 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
           DO UPDATE SET count = $5
         `, [assignmentId, snapshotTime, bucket.start, bucket.end, count]);
       }
-      logMessage(fn, `Score distribution calculated and saved`);
-      
-      // Update the main statistics table with score data
+  
+      logger.debug(
+        {
+          function: fn,
+          assignmentId,
+          bucketCount: scoreDistribution.length
+        },
+        'Score distribution calculated and saved'
+      );
+  
+      logger.debug(
+        { function: fn, assignmentId },
+        'Updating assignment_statistics with new average and median scores'
+      );
+  
       await pool.query(`
         UPDATE assignment_statistics
         SET 
@@ -1164,14 +1823,29 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
           median_score = $2
         WHERE assignment_id = $3 AND snapshot_time::date = $4::date
       `, [averageScore, medianScore, assignmentId, snapshotTime.split('T')[0]]);
-      
-      logMessage(fn, `Completed score statistics update`);
+  
+      logger.info(
+        {
+          function: fn,
+          assignmentId,
+          averageScore,
+          medianScore
+        },
+        'Completed score statistics update'
+      );
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      logMessage(fn, `Error updating score statistics: ${msg}`);
+      logger.error(
+        { function: fn, assignmentId, error, message: msg },
+        'Error updating score statistics'
+      );
       throw error;
     }
-    logMessage(fn, `Completed updateScoreStatistics`);
-  }
+  
+    logger.debug(
+      { function: fn, assignmentId },
+      'Finished updateScoreStatistics'
+    );
+  }  
 }
 

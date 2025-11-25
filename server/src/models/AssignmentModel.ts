@@ -1,10 +1,6 @@
 import pool from "../config/db";
+import logger from "../config/logger";
 import { Assignment, AssignmentCreationData, Problem, TestCase, Language, AssignmentLanguage } from "../types"
-
-const logMessage = (functionName: string, message: string): void => {
-  const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] [AssignmentModel.ts] [${functionName}] ${message}`);
-};
 
 export const createAssignment = async (
   assignment: AssignmentCreationData
@@ -12,7 +8,7 @@ export const createAssignment = async (
   const fn = "createAssignment";
   const client = await pool.connect();
   try {
-    logMessage(fn, "Beginning transaction");
+    logger.debug({ fn }, 'Beginning transaction');
     await client.query("BEGIN");
 
     const insertSql = `
@@ -48,7 +44,7 @@ export const createAssignment = async (
     ]);
 
     const assignmentId: number = inserted.assignment_id;
-    logMessage(fn, `Inserted assignment ${assignmentId}`);
+    logger.info({ fn, assignmentId }, `Inserted assignment ${assignmentId}`);
 
     if (!inserted.title || !inserted.description) {
       const { rows: problemRows } = await client.query(
@@ -68,7 +64,7 @@ export const createAssignment = async (
             assignmentId,
           ]
         );
-        logMessage(fn, `Backfilled title/description from problem`);
+        logger.debug({ fn, assignmentId }, 'Backfilled title/description from problem');
       }
     }
 
@@ -85,15 +81,15 @@ export const createAssignment = async (
           initial_code || null,
         ]);
       }
-      logMessage(fn, "Inserted languages");
+      logger.debug({ fn, assignmentId }, 'Inserted languages');
     }
 
     await client.query("COMMIT");
-    logMessage(fn, "Transaction committed");
+    logger.info({ fn, assignmentId }, 'Transaction committed');
     return { assignmentId };
   } catch (err) {
     await client.query("ROLLBACK");
-    logMessage(fn, `Rolled back due to error: ${err instanceof Error ? err.message : err}`);
+    logger.error({ fn, err }, 'Rolled back transaction due to error');
     throw err;
   } finally {
     client.release();
@@ -107,7 +103,7 @@ export const getAssignmentById = async (
 ): Promise<Assignment> => {
   const fn = "getAssignmentById";
   try {
-    logMessage(fn, `Fetching assignment ${assignmentId}`);
+    logger.info({ fn, assignmentId }, `Fetching assignment ${assignmentId}`);
     const assignmentQuery = `
       SELECT
        a.assignment_id,
@@ -139,7 +135,7 @@ export const getAssignmentById = async (
 
     const resA = await pool.query(assignmentQuery, [assignmentId]);
     if (resA.rowCount === 0) {
-      logMessage(fn, `Assignment ${assignmentId} not found`);
+      logger.warn({ fn, assignmentId }, `Assignment ${assignmentId} not found`);
       throw new Error("Assignment not found");
     }
     const row = resA.rows[0];
@@ -218,10 +214,10 @@ export const getAssignmentById = async (
       }
     };
 
-    logMessage(fn, `Fetched assignment ${assignmentId} successfully`);
+    logger.info({ fn, assignmentId }, `Fetched assignment ${assignmentId} successfully`);
     return assignment;
   } catch (err) {
-    logMessage(fn, `Error in ${fn}: ${err}`);
+    logger.error({ fn, assignmentId, err }, 'Error fetching assignment by id');
     throw err;
   }
 };
@@ -231,26 +227,23 @@ export const getAssignmentForStudent = async (
 ): Promise<Assignment> => {
   const fn = "getAssignmentForStudent";
   try {
-    logMessage(fn, `Loading assignment ${assignmentId} for student view`);
+    logger.info({ fn, assignmentId }, `Loading assignment ${assignmentId} for student view`);
     const a = await getAssignmentById(assignmentId);
 
     const beforeCount = a.problem.testCases.length;
     a.problem.testCases = a.problem.testCases.filter((tc) => tc.isPublic);
     const afterCount = a.problem.testCases.length;
-    logMessage(
-      fn,
-      `Filtered test cases: ${beforeCount} → ${afterCount} public only`
-    );
+    logger.debug({ fn, assignmentId, beforeCount, afterCount }, `Filtered test cases: ${beforeCount} → ${afterCount} public only`);
 
     delete (a as any).grading_method;
     delete (a as any).assigned_at;
     delete (a as any).plagiarism_detection;
-    logMessage(fn, `Stripped instructor-only fields from assignment object`);
+    logger.debug({ fn, assignmentId }, 'Stripped instructor-only fields from assignment object');
 
-    logMessage(fn, `Returning assignment ${assignmentId} to student`);
+    logger.info({ fn, assignmentId }, `Returning assignment ${assignmentId} to student`);
     return a;
   } catch (err) {
-    logMessage(fn, `Error in getAssignmentForStudent: ${(err as Error).message}`);
+    logger.error({ fn, assignmentId, err }, 'Error in getAssignmentForStudent');
     throw err;
   }
 };
@@ -258,15 +251,15 @@ export const getAssignmentForStudent = async (
 export const deleteAssignment = async (assignmentId: number): Promise<void> => {
   const functionName = "deleteAssignment";
   try {
-    logMessage(functionName, `Deleting assignment with ID: ${assignmentId}.`);
+    logger.info({ fn: functionName, assignmentId }, `Deleting assignment with ID: ${assignmentId}.`);
     const deleteQuery = `
       DELETE FROM assignments
       WHERE assignment_id = $1
     `;
     await pool.query(deleteQuery, [assignmentId]);
-    logMessage(functionName, "Assignment deleted successfully.");
+    logger.info({ fn: functionName, assignmentId }, 'Assignment deleted successfully.');
   } catch (error) {
-    logMessage(functionName, `Error deleting assignment: ${error}`);
+    logger.error({ fn: functionName, assignmentId, error }, 'Error deleting assignment');
     throw error;
   }
 };
@@ -345,10 +338,7 @@ export async function getAssignmentsForStudentClassroom(
 ): Promise<Assignment[]> {
   const fn = "getAssignmentsForStudentClassroom";
   try {
-    logMessage(
-      fn,
-      `Fetching assignments for student ${studentId} in classroom ${classroomId}`
-    );
+    logger.info({ fn, classroomId, studentId }, `Fetching assignments for student ${studentId} in classroom ${classroomId}`);
 
     const query = `
       SELECT 
@@ -428,10 +418,10 @@ export async function getAssignmentsForStudentClassroom(
      WHERE a.classroom_id = $1;
     `;
 
-    logMessage(fn, `Executing assignments query for classroom ${classroomId}`);
+    logger.debug({ fn, classroomId, studentId }, `Executing assignments query for classroom ${classroomId}`);
     const result = await pool.query(query, [classroomId, studentId]);
-    logMessage(
-      fn,
+    logger.info(
+      { fn, classroomId, studentId, count: result.rowCount },
       `Found ${result.rowCount} assignments for student ${studentId}`
     );
 
@@ -446,7 +436,7 @@ export async function getAssignmentsForStudentClassroom(
 export const getAssignments = async (instructorId: number): Promise<Assignment[]> => {
   const functionName = 'getAssignments';
   try {
-    logMessage(functionName, `Fetching assignments for instructor ID: ${instructorId}`);
+    logger.info({ fn: functionName, instructorId }, `Fetching assignments for instructor ID: ${instructorId}`);
     const query = `
       SELECT 
         a.assignment_id AS id,
@@ -503,7 +493,7 @@ export const getAssignments = async (instructorId: number): Promise<Assignment[]
     const result = await pool.query(query, [instructorId]);
     return result.rows as Assignment[];
   } catch (error) {
-    logMessage(functionName, `Error fetching assignments for instructor: ${error}`);
+    logger.error({ fn: functionName, instructorId, error }, 'Error fetching assignments for instructor');
     throw error;
   }
 };
@@ -513,16 +503,13 @@ export async function getRemainingAttempts(
   studentId: number
 ): Promise<number> {
   const functionName = "getRemainingAttempts";
-  logMessage(
-    functionName,
+  logger.info(
+    { fn: functionName, assignmentId, studentId },
     `Checking remaining attempts for assignment ${assignmentId} and student ${studentId}`
   );
 
   try {
-    logMessage(
-      functionName,
-      `Getting max submission attempts for assignment ${assignmentId}`
-    );
+    logger.debug({ fn: functionName, assignmentId }, `Getting max submission attempts for assignment ${assignmentId}`);
     const assignRes = await pool.query<{ max_submissions: number | null }>(
       `
       SELECT max_submissions
@@ -533,31 +520,27 @@ export async function getRemainingAttempts(
     );
 
     if (assignRes.rowCount === 0) {
-      logMessage(
-        functionName,
-        `Assignment ${assignmentId} not found`
-      );
+      logger.warn({ fn: functionName, assignmentId }, `Assignment ${assignmentId} not found`);
       throw new Error("Assignment not found");
     }
 
     const maxAttempts = assignRes.rows[0].max_submissions;
-    logMessage(
-      functionName,
-      `Max attempts for assignment ${assignmentId}: ${
-        maxAttempts === null ? "Unlimited" : maxAttempts
-      }`
+    logger.info(
+      { fn: functionName, assignmentId, maxAttempts },
+      `Max attempts for assignment ${assignmentId}: ${maxAttempts === null ? 'Unlimited' : maxAttempts}`
     );
 
     if (maxAttempts === null) {
-      logMessage(
-        functionName,
+      logger.debug(
+        { fn: functionName, assignmentId, studentId },
         `Returning unlimited attempts (Infinity) for assignment ${assignmentId}`
       );
       return Infinity;
     }
 
-    logMessage(
-      functionName,
+    
+    logger.debug(
+      { fn: functionName, assignmentId, studentId },
       `Counting submission attempts in submission_attempts for assignment ${assignmentId} and student ${studentId}`
     );
     const countRes = await pool.query<{ cnt: string }>(
@@ -571,22 +554,22 @@ export async function getRemainingAttempts(
     );
 
     const used = parseInt(countRes.rows[0].cnt, 10);
-    logMessage(
-      functionName,
+    logger.info(
+      { fn: functionName, assignmentId, studentId, used },
       `Used attempts for assignment ${assignmentId} by student ${studentId}: ${used}`
     );
 
     const remaining = Math.max(0, maxAttempts - used);
-    logMessage(
-      functionName,
+    logger.info(
+      { fn: functionName, assignmentId, studentId, remaining },
       `Remaining attempts calculated: ${remaining}`
     );
 
     return remaining;
   } catch (error) {
-    logMessage(
-      functionName,
-      `Error in ${functionName} for assignment ${assignmentId}, student ${studentId}: ${error}`
+    logger.error(
+      { fn: functionName, assignmentId, studentId, error },
+      `Error in ${functionName} for assignment ${assignmentId}, student ${studentId}`
     );
     throw error;
   }
@@ -598,7 +581,10 @@ export async function getSubmissionAttemptCount(
   studentId: number
 ): Promise<number> {
   const functionName = "getSubmissionAttemptCount";
-  logMessage(functionName, `Getting submission attempt count for assignment ${assignmentId} and student ${studentId}`);
+  logger.info(
+    { fn: functionName, assignmentId, studentId },
+    `Getting submission attempt count for assignment ${assignmentId} and student ${studentId}`
+  );
   
   try {
     const result = await pool.query<{ cnt: string }>(
@@ -610,11 +596,17 @@ export async function getSubmissionAttemptCount(
     );
     
     const count = parseInt(result.rows[0].cnt, 10);
-    logMessage(functionName, `Found ${count} submission attempts`);
+    logger.info(
+      { fn: functionName, assignmentId, studentId, count },
+      `Found ${count} submission attempts`
+    );
     
     return count;
   } catch (error) {
-    logMessage(functionName, `Error in ${functionName} for assignment ${assignmentId}, student ${studentId}: ${error}`);
+    logger.error(
+      { fn: functionName, assignmentId, studentId, error },
+      `Error in ${functionName} for assignment ${assignmentId}, student ${studentId}`
+    );
     throw error;
   }
 }
@@ -625,7 +617,10 @@ export const getUpcomingDeadlines = async (
 ): Promise<any[]> => {
   const fn = "getUpcomingDeadlines";
   try {
-    logMessage(fn, `Getting assignments with deadlines within ${hours}h for student ${studentId}`);
+    logger.info(
+      { fn, studentId, hours },
+      `Getting assignments with deadlines within ${hours}h for student ${studentId}`
+    )
 
     const now = new Date();
     const threshold = new Date(now);
@@ -675,10 +670,13 @@ export const getUpcomingDeadlines = async (
       difficulty: row.difficulty_level,
     }));
 
-    logMessage(fn, `Found ${upcoming.length} upcoming assignments`);
+    logger.info(
+      { fn, studentId, hours, count: upcoming.length },
+      `Found ${upcoming.length} upcoming assignments`
+    );
     return upcoming;
   } catch (err: any) {
-    logMessage(fn, `Error getting upcoming deadlines: ${err.message || err}`);
+    logger.error({ fn, studentId, hours, err }, 'Error getting upcoming deadlines');
     throw err;
   }
 };

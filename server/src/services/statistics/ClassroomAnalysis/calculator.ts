@@ -1,3 +1,4 @@
+import logger from '../../../config/logger';
 import pool from '../../../config/db';
 import { systemEventEmitter } from '../emitter';
 import { 
@@ -10,10 +11,6 @@ import {
 } from '../events';
 import { TestResult } from '../../../types';
 
-const logMessage = (functionName: string, message: string): void => {
-    const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] [ClassroomStatisticsService.ts] [${functionName}] ${message}`);
-};
 
 export class ClassroomStatisticsService {
   private static instance: ClassroomStatisticsService;
@@ -30,129 +27,129 @@ export class ClassroomStatisticsService {
   }
 
   private registerEventHandlers(): void {
-    logMessage('registerEventHandlers', 'Initializing event handlers');
+    logger.debug('Initializing event handlers');
   
     systemEventEmitter.on('SUBMISSION_CREATED', (event: SubmissionCreatedEvent) => {
-      logMessage('eventHandler', `Received SUBMISSION_CREATED event for assignment ${event.payload.assignmentId}`);
+      logger.info(`Received SUBMISSION_CREATED event for assignment ${event.payload.assignmentId}`);
       this.handleSubmissionCreated(event);
     });
     
     systemEventEmitter.on('SUBMISSION_COMPLETED', (event: SubmissionCompletedEvent) => {
-      logMessage('eventHandler', `Received SUBMISSION_COMPLETED event for submission ${event.payload.submissionId}`);
+      logger.info(`Received SUBMISSION_COMPLETED event for submission ${event.payload.submissionId}`);
       this.handleSubmissionCompleted(event);
     });
   
     systemEventEmitter.on('STUDENT_ENROLLED', (event: StudentEnrolledEvent) => {
-      logMessage('eventHandler', `Received STUDENT_ENROLLED event for student ${event.payload.studentId}`);
+      logger.info(`Received STUDENT_ENROLLED event for student ${event.payload.studentId}`);
       this.handleStudentEnrolled(event);
     });
   
     systemEventEmitter.on('PLAGIARISM_DETECTED', (event: PlagiarismDetectedEvent) => {
-      logMessage('eventHandler', `Received PLAGIARISM_DETECTED event with similarity ${event.payload.similarityScore}`);
+      logger.info(`Received PLAGIARISM_DETECTED event with similarity ${event.payload.similarityScore}`);
       this.handlePlagiarismDetected(event);
     });
   
-    logMessage('registerEventHandlers', 'Event handlers registered successfully');
+    logger.debug('Event handlers registered successfully');
   }
 
 
   private async handleSubmissionCreated(event: SubmissionCreatedEvent): Promise<void> {
     const fn = 'handleSubmissionCreated';
     try {
-      logMessage(fn, `Processing submission created event: ${JSON.stringify(event.payload)}`);
+      logger.debug(`Processing submission created event: ${JSON.stringify(event.payload)}`);
       
       const { assignmentId, classroomId } = event.payload;
-      logMessage(fn, `Resolving classroom for assignment ${assignmentId}`);
+      logger.debug(`Resolving classroom for assignment ${assignmentId}`);
       
       const targetClassroomId = classroomId || await this.getClassroomIdForAssignment(assignmentId);
       if (!targetClassroomId) {
-        logMessage(fn, `Aborting processing - no classroom found for assignment ${assignmentId}`);
+        logger.warn(`Aborting processing - no classroom found for assignment ${assignmentId}`);
         return;
       }
 
-      logMessage(fn, `Updating timeline for classroom ${targetClassroomId}`);
+      logger.debug(`Updating timeline for classroom ${targetClassroomId}`);
       await this.updateSubmissionTimeline(targetClassroomId);
       
-      logMessage(fn, `Incrementing submissions for classroom ${targetClassroomId}`);
+      logger.debug(`Incrementing submissions for classroom ${targetClassroomId}`);
       await this.incrementTotalSubmissions(targetClassroomId);
       
-      logMessage(fn, `Submission created processing completed for classroom ${targetClassroomId}`);
+      logger.debug(`Submission created processing completed for classroom ${targetClassroomId}`);
     } catch (error) {
-      logMessage(fn, `Error processing event: ${error}\nEvent: ${JSON.stringify(event)}`);
+      logger.error(`Error processing event: ${error}\nEvent: ${JSON.stringify(event)}`);
     }
   }
 
   private async handleSubmissionCompleted(event: SubmissionCompletedEvent): Promise<void> {
     const fn = 'handleSubmissionCompleted';
     try {
-      logMessage(fn, `Processing submission completed event: ${JSON.stringify(event.payload)}`);
+      logger.debug(`Processing submission completed event: ${JSON.stringify(event.payload)}`);
       
       const { assignmentId, classroomId: eventClassroomId, submissionId, studentId } = event.payload;
       const classroomId = eventClassroomId || await this.getClassroomIdForAssignment(assignmentId);
       
       if (!classroomId) {
-        logMessage(fn, `Aborting processing - no classroom found for assignment ${assignmentId}`);
+        logger.warn(`Aborting processing - no classroom found for assignment ${assignmentId}`);
         return;
       }
 
-      logMessage(fn, `Resolved classroom ${classroomId} for submission ${submissionId}`);
+      logger.debug(`Resolved classroom ${classroomId} for submission ${submissionId}`);
       
       const languageId = await this.getLanguageIdForSubmission(submissionId);
-      logMessage(fn, `Detected language ${languageId} for submission ${submissionId}`);
+      logger.debug(`Detected language ${languageId} for submission ${submissionId}`);
 
-      logMessage(fn, `Updating classroom stats for ${classroomId}`);
+      logger.debug(`Updating classroom stats for ${classroomId}`);
       await this.updateClassroomStats(classroomId);
 
       if (event.payload.score !== null) {
-        logMessage(fn, `Updating score distribution with score ${event.payload.score}`);
+        logger.debug(`Updating score distribution with score ${event.payload.score}`);
         await this.updateScoreDistribution(classroomId, event.payload.score);
       }
 
       if (languageId) {
-        logMessage(fn, `Recording language usage for language ${languageId}`);
+        logger.debug(`Recording language usage for language ${languageId}`);
         await this.updateLanguageUsage(classroomId, languageId);
       }
 
-      logMessage(fn, `Submission ${submissionId} processing completed successfully`);
+      logger.debug(`Submission ${submissionId} processing completed successfully`);
     } catch (error) {
-      logMessage(fn, `Error processing submission: ${error}\n${JSON.stringify(event.payload)}`);
+      logger.error(`Error processing submission: ${error}\n${JSON.stringify(event.payload)}`);
     }
   }
 
   private async handleStudentEnrolled(event: StudentEnrolledEvent): Promise<void> {
     const fn = 'handleStudentEnrolled';
     try {
-      logMessage(fn, `Processing enrollment event: ${JSON.stringify(event.payload)}`);
+      logger.debug(`Processing enrollment event: ${JSON.stringify(event.payload)}`);
       
       const { classroomId } = event.payload;
-      logMessage(fn, `Updating total students for classroom ${classroomId}`);
+      logger.debug(`Updating total students for classroom ${classroomId}`);
       
       await this.updateTotalStudents(classroomId);
-      logMessage(fn, `Student enrollment processed successfully for classroom ${classroomId}`);
+      logger.debug(`Student enrollment processed successfully for classroom ${classroomId}`);
     } catch (error) {
-      logMessage(fn, `Error processing enrollment: ${error}\n${JSON.stringify(event.payload)}`);
+      logger.error(`Error processing enrollment: ${error}\n${JSON.stringify(event.payload)}`);
     }
   }
 
   private async handlePlagiarismDetected(event: PlagiarismDetectedEvent): Promise<void> {
     const fn = 'handlePlagiarismDetected';
     try {
-      logMessage(fn, `Processing plagiarism event: ${JSON.stringify(event.payload)}`);
+      logger.debug(`Processing plagiarism event: ${JSON.stringify(event.payload)}`);
       
       const { similarityScore, assignmentId, classroomId: eventClassroomId } = event.payload;
       const classroomId = eventClassroomId || await this.getClassroomIdForAssignment(assignmentId);
       
       if (!classroomId) {
-        logMessage(fn, `Aborting processing - no classroom found for assignment ${assignmentId}`);
+        logger.warn(`Aborting processing - no classroom found for assignment ${assignmentId}`);
         return;
       }
 
-      logMessage(fn, `Updating plagiarism stats with similarity ${similarityScore}%`);
+      logger.warn(`Updating plagiarism stats with similarity ${similarityScore}%`);
       await this.updatePlagiarismStats(classroomId, similarityScore);
       
-      logMessage(fn, `Plagiarism processing completed for classroom ${classroomId}`);
+      logger.debug(`Plagiarism processing completed for classroom ${classroomId}`);
     } catch (error) {
-      logMessage(fn, `Error processing plagiarism: ${error}\n${JSON.stringify(event.payload)}`);
+      logger.error(`Error processing plagiarism: ${error}\n${JSON.stringify(event.payload)}`);
     }
   }
 
@@ -165,7 +162,7 @@ export class ClassroomStatisticsService {
       );
       return result.rows[0]?.classroom_id || null;
     } catch (error) {
-      logMessage('ClassroomStatisticsService', `Error fetching classroom ID for assignment: ${error}`);
+      logger.error(`Error fetching classroom ID for assignment: ${error}`);
       return null;
     }
   }
@@ -178,7 +175,7 @@ export class ClassroomStatisticsService {
       );
       return result.rows[0]?.language_id || null;
     } catch (error) {
-      logMessage('ClassroomStatisticsService', `Error fetching language ID for submission: ${error}`);
+      logger.error(`Error fetching language ID for submission: ${error}`);
       return null;
     }
   }
@@ -214,7 +211,7 @@ export class ClassroomStatisticsService {
         );
       }
     } catch (error) {
-      logMessage('ClassroomStatisticsService', `Error updating submission timeline: ${error}`);
+      logger.error(`Error updating submission timeline: ${error}`);
     }
   }
 
@@ -250,7 +247,7 @@ export class ClassroomStatisticsService {
         );
       }
     } catch (error) {
-      logMessage('ClassroomStatisticsService', `Error incrementing total submissions: ${error}`);
+      logger.error(`Error incrementing total submissions: ${error}`);
     }
   }
 
@@ -283,7 +280,7 @@ export class ClassroomStatisticsService {
         );
       }
     } catch (error) {
-      logMessage('ClassroomStatisticsService', `Error updating score distribution: ${error}`);
+      logger.error(`Error updating score distribution: ${error}`);
     }
   }
 
@@ -313,7 +310,7 @@ export class ClassroomStatisticsService {
         );
       }
     } catch (error) {
-      logMessage('ClassroomStatisticsService', `Error updating language usage: ${error}`);
+      logger.error(`Error updating language usage: ${error}`);
     }
   }
 
@@ -349,7 +346,7 @@ export class ClassroomStatisticsService {
         );
       }
     } catch (error) {
-      logMessage('ClassroomStatisticsService', `Error updating total students: ${error}`);
+      logger.error(`Error updating total students: ${error}`);
     }
   }
 
@@ -361,7 +358,7 @@ export class ClassroomStatisticsService {
       );
       return parseInt(result.rows[0].count, 10);
     } catch (error) {
-      logMessage('ClassroomStatisticsService', `Error getting total students count: ${error}`);
+      logger.error(`Error getting total students count: ${error}`);
       return 0;
     }
   }
@@ -369,7 +366,7 @@ export class ClassroomStatisticsService {
   private async updateClassroomStats(classroomId: number): Promise<void> {
     const fn = 'updateClassroomStats';
     try {
-      logMessage(fn, `Starting full stats update for classroom ${classroomId}`);
+      logger.debug(`Starting full stats update for classroom ${classroomId}`);
       
       const totalStudents = await this.getTotalStudentsCount(classroomId);
       
@@ -534,9 +531,9 @@ export class ClassroomStatisticsService {
           ]
         );
       }
-      logMessage(fn, `Classroom ${classroomId} stats updated successfully`);
+      logger.debug(`Classroom ${classroomId} stats updated successfully`);
     } catch (error) {
-      logMessage('ClassroomStatisticsService', `Error updating classroom statistics: ${error}`);
+      logger.error(`Error updating classroom statistics: ${error}`);
     }
   }
 
@@ -562,7 +559,7 @@ export class ClassroomStatisticsService {
         );
       }
     } catch (error) {
-      logMessage('ClassroomStatisticsService', `Error incrementing runtime errors: ${error}`);
+      logger.error(`Error incrementing runtime errors: ${error}`);
     }
   }
 
@@ -613,7 +610,7 @@ export class ClassroomStatisticsService {
             );
         }
     } catch (error) {
-        logMessage('ClassroomStatisticsService', `Error updating plagiarism stats: ${error}`);
+      logger.error(`Error updating plagiarism stats: ${error}`);
     }
   }
 
@@ -648,7 +645,7 @@ export class ClassroomStatisticsService {
             [normalizedImprovement, classroomId]
         );
     } catch (error) {
-        logMessage('ClassroomStatisticsService', `Error updating student improvement: ${error}`);
+      logger.error(`Error updating student improvement: ${error}`);
     }
   }
 
@@ -682,7 +679,7 @@ export class ClassroomStatisticsService {
             [classroomId, languageId]
         );
     } catch (error) {
-        logMessage('ClassroomStatisticsService', `Error updating language trends: ${error}`);
+      logger.error(`Error updating language trends: ${error}`);
     }
   }
 
@@ -717,7 +714,7 @@ private async updateConceptMastery(classroomId: number, testResults: TestResult[
             );
         }
     } catch (error) {
-        logMessage('ClassroomStatisticsService', `Error updating concept mastery: ${error}`);
+      logger.error(`Error updating concept mastery: ${error}`);
     }
 }
 

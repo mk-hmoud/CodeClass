@@ -1,3 +1,5 @@
+import logger from '../config/logger';
+
 import { Request, Response } from "express";
 import {
   createProblem,
@@ -8,12 +10,6 @@ import {
 } from "../models/ProblemModel";
 import { ProblemCreationData } from "../types";
 
-const logMessage = (functionName: string, message: string): void => {
-  const timestamp = new Date().toISOString();
-  console.log(
-    `[${timestamp}] [ProblemController.ts] [${functionName}] ${message}`
-  );
-};
 
 export const createProblemController = async (
   req: Request,
@@ -21,7 +17,10 @@ export const createProblemController = async (
 ): Promise<void> => {
   const functionName = "createProblemController";
   try {
-    logMessage(functionName, "Received request to create problem.");
+    logger.info(
+      { fn: functionName },
+      "Received request to create problem."
+    );
 
     if (!req.user || !req.user.role_id) {
       res.status(401).json({
@@ -43,10 +42,17 @@ export const createProblemController = async (
     };
 
     const result = await createProblem(problemData);
-    logMessage(functionName, `Problem created with ID: ${result.problemId}`);
+    logger.info(
+      { fn: functionName, problemId: result.problemId },
+      `Problem created with ID: ${result.problemId}`
+    );
+    
     res.status(201).json({ success: true, data: result });
   } catch (error) {
-    logMessage(functionName, `Error creating problem: ${error}`);
+    logger.error(
+      { fn: functionName, error },
+      `Error creating problem: ${error}`
+    );
     res
       .status(500)
       .json({ success: false, message: "Failed to create problem" });
@@ -60,8 +66,8 @@ export const getProblemByIdController = async (
   const functionName = "getProblemByIdController";
   try {
     const problemId = Number(req.params.problemId);
-    logMessage(
-      functionName,
+    logger.info(
+      { fn: functionName, problemId },
       `Received request to fetch problem ID: ${problemId}`
     );
     const problem = await getProblemById(problemId);
@@ -69,10 +75,17 @@ export const getProblemByIdController = async (
       res.status(404).json({ success: false, message: "Problem not found" });
       return;
     }
-    logMessage(functionName, `Fetched problem ID: ${problemId}`);
+    
+    logger.info(
+      { fn: functionName, problemId },
+      `Fetched problem ID: ${problemId}`
+    );
     res.status(200).json({ success: true, data: problem });
   } catch (error) {
-    logMessage(functionName, `Error fetching problem: ${error}`);
+    logger.error(
+      { fn: functionName, error },
+      `Error fetching problem: ${error}`
+    );
     res
       .status(500)
       .json({ success: false, message: "Failed to fetch problem" });
@@ -85,7 +98,10 @@ export const getProblemsController = async (
 ): Promise<void> => {
   const functionName = "getProblemsController";
   try {
-    logMessage(functionName, "Received request to fetch problems.");
+    logger.info(
+      { fn: functionName },
+      "Received request to fetch problems."
+    );
 
     if (!req.user || !req.user.role_id) {
       res.status(401).json({
@@ -96,13 +112,18 @@ export const getProblemsController = async (
     }
     const instructorId = req.user.role_id;
     const problems = await getProblemsByInstructor(instructorId);
-    logMessage(
-      functionName,
+    logger.info(
+      { fn: functionName, instructorId, count: problems.length },
       `Fetched ${problems.length} problems for instructor ID: ${instructorId}`
     );
+    
     res.status(200).json({ success: true, data: problems });
   } catch (error) {
-    logMessage(functionName, `Error fetching problems: ${error}`);
+    
+    logger.error(
+      { fn: functionName, error },
+      `Error fetching problems: ${error}`
+    );
     res
       .status(500)
       .json({ success: false, message: "Failed to fetch problems" });
@@ -117,15 +138,22 @@ export const updateProblemController = async (
   try {
     const problemId = Number(req.params.problemId);
     const problemData: ProblemCreationData = req.body;
-    logMessage(
-      functionName,
+    logger.info(
+      { fn: functionName, problemId },
       `Received request to update problem ID: ${problemId}`
     );
     const updatedProblem = await updateProblem(problemId, problemData);
-    logMessage(functionName, `Updated problem ID: ${problemId}`);
+    logger.info(
+      { fn: functionName, problemId },
+      `Updated problem ID: ${problemId}`
+    );
     res.status(200).json({ success: true, data: updatedProblem });
   } catch (error) {
-    logMessage(functionName, `Error updating problem: ${error}`);
+    
+    logger.error(
+      { fn: functionName, error },
+      `Error updating problem: ${error}`
+    );
     res
       .status(500)
       .json({ success: false, message: "Failed to update problem" });
@@ -139,17 +167,24 @@ export const deleteProblemController = async (
   const functionName = "deleteProblemController";
   try {
     const problemId = Number(req.params.problemId);
-    logMessage(
-      functionName,
+    logger.info(
+      { fn: functionName, problemId },
       `Received request to delete problem ID: ${problemId}`
     );
     await deleteProblem(problemId);
-    logMessage(functionName, `Deleted problem ID: ${problemId}`);
+    logger.info(
+      { fn: functionName, problemId },
+      `Deleted problem ID: ${problemId}`
+    );
+    
     res
       .status(200)
       .json({ success: true, message: "Problem deleted successfully" });
   } catch (error) {
-    logMessage(functionName, `Error deleting problem: ${error}`);
+    logger.error(
+      { fn: functionName, error },
+      `Error deleting problem: ${error}`
+    );
     res
       .status(500)
       .json({ success: false, message: "Failed to delete problem" });

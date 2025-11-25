@@ -1,3 +1,5 @@
+import logger from '../config/logger';
+
 import { Request, Response } from 'express';
 import { nanoid } from 'nanoid';
 
@@ -11,10 +13,6 @@ import { SubmissionCompletedEvent, SubmissionCreatedEvent } from '../services/st
 import { getRemainingAttempts, getSubmissionAttemptCount } from '../models/AssignmentModel';
 import { calculateGrade } from '../services/grading/Grader';
 
-const logMessage = (functionName: string, message: string): void => {
-  const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] [JudgeController.ts] [${functionName}] ${message}`);
-};
 
 interface RunCodeRequest {
   code: string;
@@ -26,19 +24,25 @@ export const runCodeHandler = async (req: Request, res: Response): Promise<void>
   const startTime = Date.now();
   const { code, language, testCases } = req.body as RunCodeRequest;
 
-  logMessage(
-    'runCode',
+  logger.info(
+    { fn: 'runCode', language, codeLen: code?.length, testCount: testCases?.length },
     `Submission received – lang=${language}, codeLen=${code?.length}, tests=${testCases?.length}`
   );
 
   if (!code || !language || !Array.isArray(testCases)) {
-    logMessage('runCode', `Invalid request – missing parameters`);
+    logger.warn(
+      { fn: 'runCode' },
+      'Invalid request – missing parameters'
+    );
     res.status(400).json({ error: 'Missing required parameters' });
     return;
   }
 
   if (code.length > 10000) {
-    logMessage('runCode', `Payload too large – codeLen=${code.length}`);
+    logger.warn(
+      { fn: 'runCode', codeLen: code.length },
+      `Payload too large – codeLen=${code.length}`
+    );
     res
       .status(400)
       .json({ error: 'Code too long' });
@@ -46,14 +50,20 @@ export const runCodeHandler = async (req: Request, res: Response): Promise<void>
   }
 
   if (!redisClient.isReady) {
-    logMessage('runCode', 'Redis client not ready, rejecting request');
+    logger.error(
+      { fn: 'runCode' },
+      'Redis client not ready, rejecting request'
+    );
     res.status(503).json({ error: 'Service temporarily unavailable' });
     return;
   }
 
   try {
     const jobId = nanoid();
-    logMessage('runCode', `Enqueueing job ${jobId}`);
+    logger.debug(
+      { fn: 'runCode', jobId },
+      `Enqueueing job ${jobId}`
+    );
 
     const mode = "run";
     await redisClient.hSet(`judge:${jobId}`, {
@@ -64,7 +74,10 @@ export const runCodeHandler = async (req: Request, res: Response): Promise<void>
     await redisClient.lPush('judge:queue', jobId);
 
     const duration = Date.now() - startTime;
-    logMessage('runCode', `Job ${jobId} enqueued in ${duration}ms`);
+    logger.info(
+      { fn: 'runCode', jobId, durationMs: duration },
+      `Job ${jobId} enqueued in ${duration}ms`
+    );
 
     res.status(202).json({
       job_id: jobId,
@@ -72,7 +85,10 @@ export const runCodeHandler = async (req: Request, res: Response): Promise<void>
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
-    logMessage('runCode', `Failed to enqueue job – ${msg}`);
+    logger.error(
+      { fn: 'runCode', error: msg },
+      `Failed to enqueue job – ${msg}`
+    );
     res.status(500).json({
       error: 'Failed to queue submission',
       details: process.env.NODE_ENV === 'development' ? msg : undefined,
@@ -83,10 +99,17 @@ export const runCodeHandler = async (req: Request, res: Response): Promise<void>
 
 export const getRunStatusHandler = async (req: Request, res: Response): Promise<void> => {
   const { jobId } = req.params;
-  logMessage('getRunStatus', `Checking status for job ${jobId}`);
+  logger.info(
+    { fn: 'getRunStatus', jobId },
+    `Checking status for job ${jobId}`
+  );
 
   if (!redisClient.isReady) {
-    logMessage('getRunStatus', 'Redis client not ready');
+    logger.error(
+      { fn: 'getRunStatus' },
+      'Redis client not ready'
+    );
+    
     res.status(503).json({ error: 'Service temporarily unavailable' });
     return;
   }
@@ -103,7 +126,10 @@ export const getRunStatusHandler = async (req: Request, res: Response): Promise<
     const parsedData = JSON.parse(raw);
     
     if (parsedData.status === 'compile_error') {
-      logMessage('getRunStatus', `No valid test results found in data: ${JSON.stringify(parsedData)}`);
+      logger.warn(
+        { fn: 'getRunStatus', jobId, raw: JSON.stringify(parsedData) },
+        `No valid test results found in data: ${JSON.stringify(parsedData)}`
+      );
       const verdict: JudgeVerdict = {
         status: 'compile_error',
         error: {
@@ -129,7 +155,10 @@ export const getRunStatusHandler = async (req: Request, res: Response): Promise<
       }
     } else {
       testResults = [];
-      logMessage('getRunStatus', `No valid test results found in data: ${JSON.stringify(parsedData).substring(0, 200)}`);
+      logger.warn(
+        { fn: 'getRunStatus', jobId, rawSnippet: JSON.stringify(parsedData).substring(0, 200) },
+        `No valid test results found in data: ${JSON.stringify(parsedData).substring(0, 200)}`
+      );
     }
         
     const passed = testResults.filter((t) => t.status === 'passed').length;
@@ -153,7 +182,10 @@ export const getRunStatusHandler = async (req: Request, res: Response): Promise<
     console.log(verdict);
     res.status(200).json(verdict);
   } catch (err) {
-    logMessage('getRunStatus', `Error fetching verdict: ${err}`);
+    logger.error(
+      { fn: 'getRunStatus', jobId, error: err },
+      `Error fetching verdict: ${err}`
+    );
     res.status(500).json({ 
       status: 'system_error',
       error: {
@@ -175,20 +207,31 @@ export const submitHandler = async (req: Request, res: Response): Promise<void> 
   };
 
   if (!req.user) {
-    logMessage(functionName, 'No user in request.');
+    logger.warn(
+      { fn: functionName },
+      'No user in request.'
+    );
+    
     res.status(401).json({ success: false, message: 'Unauthorized' });
     return;
   }
 
   if (req.user?.role !== "student") {
-    logMessage(functionName, `User ${req.user?.id} is not a student`);
+    logger.warn(
+      { fn: functionName, userId: req.user?.id, role: req.user?.role },
+      `User ${req.user?.id} is not a student`
+    );
     res.status(403).json({ success: false, message: 'Forbidden: Student role required' });
     return;
   }
 
   const studentId = req.user.role_id as number;
 
-  logMessage(functionName, `Student ${studentId} submitting assignment ${assignmentId}`);
+  logger.info(
+    { fn: functionName, studentId, assignmentId },
+    `Student ${studentId} submitting assignment ${assignmentId}`
+  );
+  
 
   if (!code || !language || !assignmentId) {
     res.status(400).json({ error: "Missing required parameters" });
@@ -197,10 +240,16 @@ export const submitHandler = async (req: Request, res: Response): Promise<void> 
 
   try {
     const remainingAttempts = await getRemainingAttempts(assignmentId, studentId);
-    logMessage(functionName, `Student ${studentId} has ${remainingAttempts} attempts remaining for assignment ${assignmentId}`);
+    logger.info(
+      { fn: functionName, studentId, assignmentId, remainingAttempts },
+      `Student ${studentId} has ${remainingAttempts} attempts remaining for assignment ${assignmentId}`
+    );
     
     if (remainingAttempts <= 0) {
-      logMessage(functionName, `Student ${studentId} has no remaining attempts for assignment ${assignmentId}`);
+      logger.info(
+        { fn: functionName, studentId, assignmentId },
+        `Student ${studentId} has no remaining attempts for assignment ${assignmentId}`
+      );
       res.status(403).json({ 
         success: false, 
         message: 'Maximum submission attempts reached for this assignment' 
@@ -208,7 +257,10 @@ export const submitHandler = async (req: Request, res: Response): Promise<void> 
       return;
     }
   } catch (err) {
-    logMessage(functionName, `Error checking remaining attempts: ${err}`);
+    logger.error(
+      { fn: functionName, error: err },
+      `Error checking remaining attempts: ${err}`
+    );
   }
 
   let submissionId: number;
@@ -220,7 +272,10 @@ export const submitHandler = async (req: Request, res: Response): Promise<void> 
       code,
     });
 
-    logMessage(functionName, `Created submission ${submissionId}`);
+    logger.info(
+      { fn: functionName, submissionId, assignmentId, studentId },
+      `Created submission ${submissionId}`
+    );
 
     const createdEvent: SubmissionCreatedEvent = {
       type: 'SUBMISSION_CREATED',
@@ -230,13 +285,19 @@ export const submitHandler = async (req: Request, res: Response): Promise<void> 
     systemEventEmitter.emit('SUBMISSION_CREATED', createdEvent.payload);
 
   } catch (err) {
-    logMessage(functionName, `Error creating submission: ${err}`);
+    logger.error(
+      { fn: functionName, error: err },
+      `Error creating submission: ${err}`
+    );
     res.status(400).json({ error: (err as Error).message });
     return;
   }
 
   if (!redisClient.isReady) {
-    logMessage(functionName, "Redis not ready");
+    logger.error(
+      { fn: functionName },
+      'Redis not ready'
+    );
     res
       .status(503)
       .json({ error: "Service temporarily unavailable" });
@@ -250,7 +311,10 @@ export const submitHandler = async (req: Request, res: Response): Promise<void> 
       throw new Error("No test cases found for assignment");
     }
   } catch (err) {
-    logMessage(functionName, `Error fetching test cases: ${err}`);
+    logger.error(
+      { fn: functionName, assignmentId, error: err },
+      `Error fetching test cases: ${err}`
+    );
     res.status(500).json({ error: "Failed to load test cases" });
     return;
   }
@@ -261,9 +325,16 @@ export const submitHandler = async (req: Request, res: Response): Promise<void> 
       createdAt: Date.now().toString(),
     });
     await redisClient.lPush("judge:queue", submissionId.toString());
-    logMessage(functionName, `Enqueued job ${submissionId} for submission ${submissionId}`);
+    logger.info(
+      { fn: functionName, submissionId },
+      `Enqueued job ${submissionId} for submission ${submissionId}`
+    );
   } catch (err) {
-    logMessage(functionName, `Error enqueuing job: ${err}`);
+    logger.error(
+      { fn: functionName, submissionId, error: err },
+      `Error enqueuing job: ${err}`
+    );
+    
     res.status(500).json({ error: "Failed to queue grading job" });
     return;
   }
@@ -272,7 +343,10 @@ export const submitHandler = async (req: Request, res: Response): Promise<void> 
   try {
     attemptCount = await getSubmissionAttemptCount(assignmentId, studentId);
   } catch (err) {
-    logMessage(functionName, `Error getting attempt count: ${err}`);
+    logger.error(
+      { fn: functionName, assignmentId, studentId, error: err },
+      `Error getting attempt count: ${err}`
+    );
   }
 
   res.status(202).json({
@@ -290,10 +364,17 @@ export const getSubmitStatusHandler = async (
 ): Promise<void> => {
   const fn = 'getSubmitStatus'
   const submissionId = parseInt(req.params.jobId, 10);
-  logMessage(fn, `Checking submit status for job ${submissionId}`);
+  logger.info(
+    { fn, submissionId },
+    `Checking submit status for job ${submissionId}`
+  );
 
   if (!redisClient.isReady) {
-    logMessage(fn, "Redis client not ready");
+    
+    logger.error(
+      { fn },
+      'Redis client not ready'
+    );
     res.status(503).json({ error: "Service temporarily unavailable" });
     return;
   }
@@ -310,8 +391,8 @@ export const getSubmitStatusHandler = async (
     }
 
     const parsedData = JSON.parse(raw);
-    logMessage(
-      "getSubmitStatus",
+    logger.debug(
+      { fn: 'getSubmitStatus', submissionId, rawSnippet: raw.substring(0, 200) },
       `Raw verdict data: ${raw.substring(0, 200)}...`
     );
 
@@ -346,12 +427,13 @@ export const getSubmitStatusHandler = async (
         return;
       }
     } else {
-      logMessage(
-        fn,
-        `No valid test results in: ${JSON.stringify(parsedData).substring(
-          0,
-          200
-        )}`
+      logger.warn(
+        {
+          fn,
+          submissionId,
+          rawSnippet: JSON.stringify(parsedData).substring(0, 200)
+        },
+        `No valid test results in: ${JSON.stringify(parsedData).substring(0, 200)}`
       );
     }
 
@@ -409,14 +491,16 @@ export const getSubmitStatusHandler = async (
             submission.assignment_id
           );
           
-          logMessage(fn, `Grade calculated for submission ${submissionId}: ${gradeResult.autoScore}`);
+          logger.info(
+            { fn, submissionId, autoScore: gradeResult.autoScore },
+            `Grade calculated for submission ${submissionId}: ${gradeResult.autoScore}`
+          );
+          
           
         } catch (gradeError) {
-          logMessage(fn, `Error calculating grade: ${gradeError}`);
+          logger.error({fn}, `Error calculating grade: ${gradeError}`);
         }
 
-    console.log( submission);
-    console.log( submission.assignment_id);
     const completedEvent: SubmissionCompletedEvent = {
       type: 'SUBMISSION_COMPLETED',
       timestamp: new Date().toISOString(),
@@ -439,7 +523,10 @@ export const getSubmitStatusHandler = async (
     systemEventEmitter.emit('SUBMISSION_COMPLETED', completedEvent.payload);
 
   } catch (err) {
-    logMessage("getSubmitStatus", `Error fetching verdict: ${err}`);
+    logger.error(
+      { fn: 'getSubmitStatus', error: err },
+      `Error fetching verdict: ${err}`
+    );
     res.status(500).json({
       status: "system_error",
       error: {

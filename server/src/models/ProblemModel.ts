@@ -1,18 +1,15 @@
 import pool from "../config/db";
+import logger from "../config/logger";
 import { Problem, ProblemCreationData } from "../types";
 import { TestCase } from "../types";
 
-const logMessage = (functionName: string, message: string): void => {
-  const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] [ProblemModel.ts] [${functionName}] ${message}`);
-};
 
 export const createProblem = async (
   data: ProblemCreationData
 ): Promise<{ problemId: number }> => {
   const functionName = "createProblem";
   try {
-    logMessage(functionName, "Beginning transaction for problem creation.");
+    logger.info({ functionName }, "Beginning transaction for problem creation.");
     await pool.query("BEGIN");
 
     const insertProblemQuery = `
@@ -30,7 +27,7 @@ export const createProblem = async (
       data.tags || null,
     ]);
     const problemId: number = result.rows[0].problem_id;
-    logMessage(functionName, `Inserted problem with ID: ${problemId}`);
+    logger.info({ functionName, problemId }, `Inserted problem with ID: ${problemId}`);
 
     if (data.testCases && data.testCases.length > 0) {
       const insertTestCaseQuery = `
@@ -45,8 +42,8 @@ export const createProblem = async (
           tc.isPublic !== undefined ? tc.isPublic : false,
         ]);
       }
-      logMessage(
-        functionName,
+      logger.info(
+        { functionName, problemId, testCaseCount: data.testCases.length },
         `Inserted ${data.testCases.length} test case(s) for problem ID: ${problemId}`
       );
     }
@@ -55,7 +52,10 @@ export const createProblem = async (
     return { problemId };
   } catch (error) {
     await pool.query("ROLLBACK");
-    logMessage(functionName, `Transaction rolled back due to error: ${error}`);
+    logger.error(
+      { functionName, error },
+      `Transaction rolled back due to error: ${error}`
+    );
     throw error;
   }
 };
@@ -95,10 +95,10 @@ export const getProblemById = async (
       isPublic: tc.is_public,
     }));
 
-    logMessage(functionName, `Fetched problem with ID: ${problemId}`);
+    logger.info({ functionName, problemId }, `Fetched problem with ID: ${problemId}`);
     return problem;
   } catch (error) {
-    logMessage(functionName, `Error fetching problem: ${error}`);
+    logger.error({ functionName, problemId, error }, `Error fetching problem: ${error}`);
     throw error;
   }
 };
@@ -129,8 +129,8 @@ export const getProblemsByInstructor = async (
       ORDER BY p.created_at DESC
     `;
     const result = await pool.query(query, [instructorId]);
-    logMessage(
-      functionName,
+    logger.info(
+      { functionName, instructorId, count: result.rows.length },
       `Fetched ${result.rows.length} problems for instructor ID: ${instructorId}`
     );
     return result.rows.map((row: any) => ({
@@ -146,7 +146,7 @@ export const getProblemsByInstructor = async (
       testCases: row.testcases,
     }));
   } catch (error) {
-    logMessage(functionName, `Error fetching problems: ${error}`);
+    logger.error({ functionName, instructorId, error }, `Error fetching problems: ${error}`);
     throw error;
   }
 };
@@ -180,7 +180,7 @@ export const updateProblem = async (
     ]);
     return result.rows[0];
   } catch (error) {
-    logMessage(functionName, `Error updating problem: ${error}`);
+    logger.error({ functionName, problemId, error }, `Error updating problem: ${error}`);
     throw error;
   }
 };
@@ -190,9 +190,9 @@ export const deleteProblem = async (problemId: number): Promise<void> => {
   try {
     const query = `DELETE FROM problems WHERE problem_id = $1`;
     await pool.query(query, [problemId]);
-    logMessage(functionName, `Deleted problem with ID: ${problemId}`);
+    logger.info({ functionName, problemId }, `Deleted problem with ID: ${problemId}`);
   } catch (error) {
-    logMessage(functionName, `Error deleting problem: ${error}`);
+    logger.error({ functionName, problemId, error }, `Error deleting problem: ${error}`);
     throw error;
   }
 };

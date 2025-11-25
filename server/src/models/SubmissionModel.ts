@@ -1,10 +1,7 @@
 import pool from "../config/db";
+import logger from "../config/logger";
 import { FullSubmission, JudgeStatus, JudgeVerdict, PlagiarismReport, SubmissionRecord, SubmissionResult, TestCase, TestResult } from "../types";
 
-const logMessage = (functionName: string, message: string): void => {
-  const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] [SubmissionModel.ts] [${functionName}] ${message}`);
-};
 
 export interface CreateSubmissionArgs {
   studentId: number;
@@ -20,22 +17,37 @@ export const createSubmission = async ({
     code,
   }: CreateSubmissionArgs): Promise<number> => {
     const functionName = "createSubmission";
-    logMessage(functionName, `Attempting to create submission for student ${studentId}, assignment ${assignmentId}, language ${language}.`);
+    logger.info(
+      { functionName, studentId, assignmentId, language },
+      `Attempting to create submission for student ${studentId}, assignment ${assignmentId}, language ${language}.`
+    );
     try {
-        logMessage(functionName, `Querying for language ID for language: ${language}`);
+      logger.debug(
+        { functionName, language },
+        `Querying for language ID for language: ${language}`
+      );
         const langQueryResult = await pool.query(
           `SELECT language_id FROM languages WHERE name = $1`,
           [language]
         );
 
         if (langQueryResult.rowCount === 0) {
-          logMessage(functionName, `Unsupported language: ${language}. Throwing error.`);
+          logger.warn(
+            { functionName, language },
+            `Unsupported language: ${language}. Throwing error.`
+          );
           throw new Error("Unsupported language");
         }
         const languageId = langQueryResult.rows[0].language_id;
-        logMessage(functionName, `Found language ID: ${languageId} for language: ${language}.`);
+        logger.debug(
+          { functionName, language, languageId },
+          `Found language ID: ${languageId} for language: ${language}.`
+        );        
 
-        logMessage(functionName, `Deleting previous submissions for student ${studentId} and assignment ${assignmentId}`);
+        logger.info(
+          { functionName, studentId, assignmentId },
+          `Deleting previous submissions for student ${studentId} and assignment ${assignmentId}`
+        );
         const deleteResult = await pool.query(
           `DELETE FROM submissions 
           WHERE student_id = $1 AND assignment_id = $2
@@ -45,9 +57,15 @@ export const createSubmission = async ({
         const haveDeleted = deleteResult.rowCount ?? 0;
         if (haveDeleted > 0) {
           const deletedIds = deleteResult.rows.map(row => row.submission_id).join(', ');
-          logMessage(functionName, `Deleted previous submissions with IDs: ${deletedIds}`);
+          logger.info(
+            { functionName, studentId, assignmentId, haveDeleted, deletedIds },
+            `Deleted previous submissions with IDs: ${deletedIds}`
+          );
         } else {
-          logMessage(functionName, `No previous submissions found to delete`);
+          logger.debug(
+            { functionName, studentId, assignmentId },
+            `No previous submissions found to delete`
+          );
         }
         /*
         logMessage(functionName, `Setting previous submissions as non-main for student ${studentId} and assignment ${assignmentId}`);
@@ -70,7 +88,7 @@ export const createSubmission = async ({
 
         */
 
-        logMessage(functionName, `Inserting new submission record.`);
+        logger.info({ functionName }, `Inserting new submission record.`);
 
         const insertRes = await pool.query<{ submission_id: number }>( 
           `INSERT INTO submissions
@@ -81,7 +99,10 @@ export const createSubmission = async ({
         );
 
         const submissionId = insertRes.rows[0].submission_id;
-        logMessage(functionName, `New submission created with ID: ${submissionId}.`);
+        logger.info(
+          { functionName, submissionId, studentId, assignmentId },
+          `New submission created with ID: ${submissionId}.`
+        );
 
         await pool.query(
           `INSERT INTO submission_attempts
@@ -90,12 +111,21 @@ export const createSubmission = async ({
           [studentId, assignmentId]
         );
 
-        logMessage(functionName, `Inserted into submission_attempts`);
-        logMessage(functionName, `Returning submission ID ${submissionId}.`);
+        logger.debug(
+          { functionName, studentId, assignmentId },
+          `Inserted into submission_attempts`
+        );
+        logger.debug(
+          { functionName, submissionId },
+          `Returning submission ID ${submissionId}.`
+        );
         return submissionId;
 
     } catch (error) {
-        logMessage(functionName, `Error creating submission for student ${studentId}, assignment ${assignmentId}: ${error}`);
+      logger.error(
+        { functionName, studentId, assignmentId, error },
+        `Error creating submission for student ${studentId}, assignment ${assignmentId}: ${error}`
+      );
         throw error;
     }
   };
@@ -105,7 +135,7 @@ export const createSubmission = async ({
     submissionId: number
   ): Promise<SubmissionRecord> => {
     const fn = "getSubmissionById";
-    logMessage(fn, `Fetching submission ${submissionId}`);
+    logger.info({ fn, submissionId }, `Fetching submission ${submissionId}`);
     const { rows, rowCount } = await pool.query<SubmissionRecord>(
       `SELECT submission_id, assignment_id, code
          FROM submissions
@@ -114,10 +144,10 @@ export const createSubmission = async ({
     );
     if (rowCount === 0) {
       const err = `Submission ${submissionId} not found`;
-      logMessage(fn, err);
+      logger.warn({ fn, submissionId }, `Submission ${submissionId} not found`);
       throw new Error(err);
     }
-    logMessage(fn, `Found submission ${submissionId}`);
+    logger.info({ fn, submissionId }, `Found submission ${submissionId}`);
     return rows[0];
   };
   
@@ -125,7 +155,10 @@ export const createSubmission = async ({
 export const getSubmissionsFingerprintsByAssignment = async (assignmentId: number, excludeSubmissionId?: number): Promise<any[]> => {
   const functionName = "getSubmissionsFingerprintsByAssignment";
   try {
-    logMessage(functionName, `Fetching submissions with fingerprints for assignment ${assignmentId}`);
+    logger.info(
+      { functionName, assignmentId, excludeSubmissionId },
+      `Fetching submissions with fingerprints for assignment ${assignmentId}`
+    );
     
     let query = `
       SELECT s.submission_id, sf.fingerprint_hashes 
@@ -142,11 +175,17 @@ export const getSubmissionsFingerprintsByAssignment = async (assignmentId: numbe
     }
     
     const result = await pool.query(query, params);
-    logMessage(functionName, `Found ${result.rows.length} submissions with fingerprints`);
+    logger.info(
+      { functionName, assignmentId, excludeSubmissionId, count: result.rows.length },
+      `Found ${result.rows.length} submissions with fingerprints`
+    );
     
     return result.rows;
   } catch (error) {
-    logMessage(functionName, `Error fetching submissions: ${error}`);
+    logger.error(
+      { functionName, assignmentId, excludeSubmissionId, error },
+      `Error fetching submissions: ${error}`
+    );
     throw error;
   }
 };
@@ -164,7 +203,10 @@ export function updateSubmissionStatus(
     );
   }
 
-  logMessage(fn, `Attempting to update submission ${submissionId} → ${status}`);
+  logger.info(
+    { fn, submissionId, status },
+    `Attempting to update submission ${submissionId} → ${status}`
+  );
 
   const queryText = `
     UPDATE submissions
@@ -180,13 +222,22 @@ export function updateSubmissionStatus(
       if (result.rowCount === 0) {
         throw new Error(`Submission ${submissionId} not found`);
       }
-      logMessage(fn, `Successfully updated submission ${submissionId} to ${status}`);
+      logger.info(
+        { fn, submissionId, status },
+        `Successfully updated submission ${submissionId} to ${status}`
+      );
+      
     })
     .catch((err) => {
       const errorMessage = err instanceof Error ? err.message : String(err);
       const errorStack = err instanceof Error ? err.stack : undefined;
 
-      logMessage(fn, `FAILED updating submission ${submissionId}: ${errorMessage}`);
+      
+      logger.error(
+        { fn, submissionId, status, error: errorMessage, stack: errorStack },
+        `FAILED updating submission ${submissionId}: ${errorMessage}`
+      );
+
       console.error({
         context: fn,
         submissionId,
@@ -204,7 +255,10 @@ export async function getSubmissionsByAssignment(
   assignmentId: number
 ): Promise<FullSubmission[]> {
   const fn = "getSubmissionsByAssignment";
-  logMessage(fn, `Fetching submissions for assignment ${assignmentId}`);
+  logger.info(
+    { fn, assignmentId },
+    `Fetching submissions for assignment ${assignmentId}`
+  );
   
   const client = await pool.connect();
   try {
@@ -388,7 +442,10 @@ export async function getSubmissionsByAssignment(
       plagiarismReports: plagMap.get(row.submission_id) || []
     }));
   } catch (err) {
-    logMessage(fn, `Error fetching submissions: ${err}`);
+    logger.error(
+      { fn, assignmentId, error: err },
+      `Error fetching submissions: ${err}`
+    );
     throw err;
   } finally {
     client.release();
@@ -400,8 +457,8 @@ export function saveSubmissionResults(
   testResults: TestResult[]
 ): Promise<void> {
   const functionName = "saveSubmissionResults";
-  logMessage(
-    functionName,
+  logger.info(
+    { functionName, submissionId, testCaseCount: testResults.length },
     `Saving submission results for submission ${submissionId} with ${testResults.length} test cases.`
   );
 
@@ -458,13 +515,16 @@ export function saveSubmissionResults(
           ]
         )
         .then(() => {
-          logMessage(
-            functionName,
+          logger.info(
+            { functionName, submissionId, testCaseCount: testResults.length },
             `Successfully inserted ${testResults.length} test results for submission ${submissionId}.`
           );
         })
         .catch((err) => {
-          logMessage(functionName, `Error saving submission results: ${err}`);
+          logger.error(
+            { functionName, submissionId, error: err },
+            `Error saving submission results: ${err}`
+          );
           throw err;
         })
     })

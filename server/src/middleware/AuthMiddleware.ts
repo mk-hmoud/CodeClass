@@ -1,12 +1,9 @@
+import logger from '../config/logger';
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
 
-const logMessage = (functionName: string, message: string): void => {
-  const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] [AuthMiddleware.ts] [${functionName}] ${message}`);
-};
 
 declare global {
   namespace Express {
@@ -24,14 +21,14 @@ declare global {
 }
 
 export const authMiddleware = (req: Request, res: Response, next: NextFunction): void => {
-  const functionName = "authMiddleware";
-  logMessage(functionName, `Invoked for URL: ${req.originalUrl}`);
+  const fn = "authMiddleware";
+  logger.debug({ fn, url: req.originalUrl }, "Auth middleware invoked");
   try {
     const authHeader = req.headers.authorization;
-    logMessage(functionName, `Authorization header: ${authHeader}`);
+    logger.debug({ fn, authHeader }, "Authorization header received");
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      logMessage(functionName, "Missing or invalid Authorization header");
+      logger.warn({ fn }, "Missing or invalid Authorization header");
       res.status(401).json({
         success: false,
         message: 'Authorization token required'
@@ -40,7 +37,7 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction):
     }
     
     const token = authHeader.split(' ')[1];
-    logMessage(functionName, `Extracted token: ${token}`);
+    logger.trace({ fn }, "Extracted token from Authorization header");
     
     
     const decoded = jwt.verify(token, JWT_SECRET) as {
@@ -52,11 +49,10 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction):
       role_id: number;
     };
     
-    logMessage(functionName, `Token verified successfully. Decoded payload: ${JSON.stringify(decoded)}`);
-    req.user = decoded;
+    logger.info({ fn, userId: decoded.id, role: decoded.role, role_id: decoded.role_id }, "Token verified successfully");    req.user = decoded;
     next();
   } catch (error) {
-    logMessage(functionName, `Error during token verification: ${error}`);
+    logger.error({ fn, error }, "Error during token verification");
     res.status(401).json({
       success: false,
       message: 'Unauthorized'
@@ -67,11 +63,11 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction):
 
 export const requireRole = (roles: string[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
-    const functionName = "requireRole";
-    logMessage(functionName, `Checking roles for user: ${req.user ? JSON.stringify(req.user) : 'none'}`);
+    const fn= "requireRole";
+    logger.debug({ fn, requiredRoles: roles, user: req.user }, "Checking user roles");    
     
     if (!req.user) {
-      logMessage(functionName, "No user found on request");
+      logger.warn({ fn }, "No user found on request");
       res.status(401).json({
         success: false,
         message: 'Unauthorized'
@@ -80,7 +76,10 @@ export const requireRole = (roles: string[]) => {
     }
     
     if (!roles.includes(req.user.role)) {
-      logMessage(functionName, `User role (${req.user.role}) not authorized. Allowed roles: ${roles.join(', ')}`);
+      logger.warn(
+        { fn, userId: req.user.id, role: req.user.role, allowedRoles: roles },
+        "User role not authorized"
+      );
       res.status(403).json({
         success: false,
         message: 'Forbidden: insufficient permissions'
@@ -88,7 +87,7 @@ export const requireRole = (roles: string[]) => {
       return;
     }
     
-    logMessage(functionName, `User role (${req.user.role}) is authorized`);
+    logger.info({ fn, userId: req.user.id, role: req.user.role }, "User role authorized");
     next();
   };
 };

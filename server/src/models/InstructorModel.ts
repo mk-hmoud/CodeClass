@@ -1,9 +1,6 @@
 import pool from "../config/db";
+import logger from "../config/logger";
 
-const logMessage = (functionName: string, message: string): void => {
-  const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] [InstructorModel.ts] [${functionName}] ${message}`);
-};
 
 export interface Instructor {
   instructor_id: number;
@@ -13,7 +10,7 @@ export interface Instructor {
 export const createInstructor = async (instructorData: Instructor): Promise<number> => {
   const functionName = "createInstructor";
   try {
-    logMessage(functionName, "Creating instructor record.");
+    logger.info({ functionName, userId: instructorData.user_id }, "Creating instructor record.");
     const query = `
       INSERT INTO instructors (user_id)
       VALUES ($1)
@@ -21,10 +18,10 @@ export const createInstructor = async (instructorData: Instructor): Promise<numb
     `;
     const result = await pool.query(query, [instructorData.user_id]);
     const instructorId: number = result.rows[0].instructor_id;
-    logMessage(functionName, `Instructor created with ID: ${instructorId}.`);
+    logger.info({ functionName, instructorId }, `Instructor created with ID: ${instructorId}.`);
     return instructorId;
   } catch (error) {
-    logMessage(functionName, `Error creating instructor: ${error}`);
+    logger.error({ functionName, userId: instructorData.user_id, error }, `Error creating instructor: ${error}`);
     throw error;
   }
 };
@@ -32,17 +29,17 @@ export const createInstructor = async (instructorData: Instructor): Promise<numb
 export const getInstructorByUserId = async (userId: number): Promise<Instructor> => {
   const functionName = "getInstructorByUserId";
   try {
-    logMessage(functionName, `Fetching instructor for user ID: ${userId}.`);
+    logger.info({ functionName, userId }, `Fetching instructor for user ID: ${userId}.`);
     const query = `SELECT * FROM instructors WHERE user_id = $1`;
     const result = await pool.query(query, [userId]);
     if (result.rowCount === 0) {
-      logMessage(functionName, "Instructor not found.");
+      logger.warn({ functionName, userId }, "Instructor not found.");
       throw new Error("Instructor not found");
     }
-    logMessage(functionName, "Instructor fetched successfully.");
+    logger.info({ functionName, userId }, "Instructor fetched successfully.");
     return result.rows[0];
   } catch (error) {
-    logMessage(functionName, `Error fetching instructor: ${error}`);
+    logger.error({ functionName, userId, error }, `Error fetching instructor: ${error}`);
     throw error;
   }
 };
@@ -50,17 +47,17 @@ export const getInstructorByUserId = async (userId: number): Promise<Instructor>
 export const getInstructorById = async (instructorId: number): Promise<Instructor> => {
   const functionName = "getInstructorById";
   try {
-    logMessage(functionName, `Fetching instructor with ID: ${instructorId}.`);
+    logger.info({ functionName, instructorId }, `Fetching instructor with ID: ${instructorId}.`);
     const query = `SELECT * FROM instructors WHERE instructor_id = $1`;
     const result = await pool.query(query, [instructorId]);
     if (result.rowCount === 0) {
-      logMessage(functionName, "Instructor not found.");
+      logger.warn({ functionName, instructorId }, "Instructor not found.");
       throw new Error("Instructor not found");
     }
-    logMessage(functionName, "Instructor fetched successfully.");
+    logger.info({ functionName, instructorId }, "Instructor fetched successfully.");
     return result.rows[0];
   } catch (error) {
-    logMessage(functionName, `Error fetching instructor: ${error}`);
+    logger.error({ functionName, instructorId, error }, `Error fetching instructor: ${error}`);
     throw error;
   }
 };
@@ -68,7 +65,10 @@ export const getInstructorById = async (instructorId: number): Promise<Instructo
 export const getInstructorIdByClassroom = async (classroomId: number): Promise<number | null> => {
   const functionName = "getInstructorIdByClassroom";
   try {
-    logMessage(functionName, `Fetching instructor ID for classroom ID: ${classroomId}.`);
+    logger.info(
+      { functionName, classroomId },
+      `Fetching instructor ID for classroom ID: ${classroomId}.`
+    );
     const query = `
       SELECT instructor_id
       FROM classrooms
@@ -77,14 +77,24 @@ export const getInstructorIdByClassroom = async (classroomId: number): Promise<n
     const result = await pool.query(query, [classroomId]);
 
     if (result.rowCount === 0) {
-      logMessage(functionName, `Classroom with ID ${classroomId} not found.`);
+      logger.warn(
+        { functionName, classroomId },
+        `Classroom with ID ${classroomId} not found.`
+      );
+      
       return null;
     }
 
-    logMessage(functionName, `Instructor ID fetched successfully for classroom ID: ${classroomId}.`);
+    logger.info(
+      { functionName, classroomId },
+      `Instructor ID fetched successfully for classroom ID: ${classroomId}.`
+    );
     return result.rows[0].instructor_id;
   } catch (error) {
-    logMessage(functionName, `Error fetching instructor ID by classroom: ${error}`);
+    logger.error(
+      { functionName, classroomId, error },
+      `Error fetching instructor ID by classroom: ${error}`
+    );
     throw error;
   }
 };

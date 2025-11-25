@@ -1,16 +1,15 @@
 import pool from "../config/db";
+import logger from "../config/logger";
 import { PlagiarismReport } from "../types";
-
-const logMessage = (functionName: string, message: string): void => {
-  const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] [PlagiarismModel.ts] [${functionName}] ${message}`);
-};
 
 
 export const storeFingerprint = async (submissionId: number, fingerprint: number[]): Promise<void> => {
   const functionName = "storeFingerprint";
   try {
-    logMessage(functionName, `Storing fingerprint for submission ${submissionId}`);
+    logger.info(
+      { functionName, submissionId },
+      `Storing fingerprint for submission ${submissionId}`
+    );
     
     const query = `
       INSERT INTO submission_fingerprints (submission_id, fingerprint_hashes)
@@ -20,9 +19,15 @@ export const storeFingerprint = async (submissionId: number, fingerprint: number
     `;
     
     await pool.query(query, [submissionId, fingerprint]);
-    logMessage(functionName, `Fingerprint stored for submission ${submissionId}`);
+    logger.info(
+      { functionName, submissionId },
+      `Fingerprint stored for submission ${submissionId}`
+    );
   } catch (error) {
-    logMessage(functionName, `Error storing fingerprint: ${error}`);
+    logger.error(
+      { functionName, submissionId, error },
+      `Error storing fingerprint: ${error}`
+    );
     throw error;
   }
 };
@@ -34,7 +39,10 @@ export const storePlagiarismReport = async (
 ): Promise<number> => {
   const functionName = "storePlagiarismReport";
   try {
-    logMessage(functionName, `Storing plagiarism report: ${submissionId} compared with ${comparedSubmissionId}, similarity: ${similarity}%`);
+    logger.info(
+      { functionName, submissionId, comparedSubmissionId, similarity },
+      `Storing plagiarism report: ${submissionId} compared with ${comparedSubmissionId}, similarity: ${similarity}%`
+    );
     
     const query = `
       INSERT INTO plagiarism_reports (submission_id, compared_submission, similarity)
@@ -55,10 +63,16 @@ export const storePlagiarismReport = async (
     }
 
     const reportId = result.rows[0].report_id;
-    logMessage(functionName, `Plagiarism report stored with report_id ${reportId}`);
+    logger.info(
+      { functionName, reportId, submissionId, comparedSubmissionId },
+      `Plagiarism report stored with report_id ${reportId}`
+    );
     return reportId;
   } catch (error) {
-    logMessage(functionName, `Error storing plagiarism report: ${error}`);
+    logger.error(
+      { functionName, submissionId, comparedSubmissionId, similarity, error },
+      `Error storing plagiarism report: ${error}`
+    );
     throw error;
   }
 };
@@ -98,7 +112,10 @@ export const processPlagiarismResults = async (
   const insertedReports = [];
   
   try {
-    logMessage(functionName, `Processing ${results.length} plagiarism results for submission ${submissionId}`);
+    logger.info(
+      { functionName, submissionId, resultCount: results.length },
+      `Processing ${results.length} plagiarism results for submission ${submissionId}`
+    );
     
     for (const result of results) {
       const reportId = await storePlagiarismReport(
@@ -118,10 +135,17 @@ export const processPlagiarismResults = async (
       }
     }
     
-    logMessage(functionName, `Processed all plagiarism results for submission ${submissionId}`);
+    logger.info(
+      { functionName, submissionId, processedCount: insertedReports.length },
+      `Processed all plagiarism results for submission ${submissionId}`
+    );
+    
     return insertedReports;
   } catch (error) {
-    logMessage(functionName, `Error processing plagiarism results: ${error}`);
+    logger.error(
+      { functionName, submissionId, error },
+      `Error processing plagiarism results: ${error}`
+    );
     throw error;
   }
 };
@@ -129,7 +153,10 @@ export const processPlagiarismResults = async (
 
 export async function isPlagiarismEnabled(assignmentId: number): Promise<boolean> {
     const fn = "isPlagiarismEnabled";
-    logMessage(fn, `Checking plagiarism flag for assignment ${assignmentId}`);
+    logger.info(
+      { fn, assignmentId },
+      `Checking plagiarism flag for assignment ${assignmentId}`
+    );
     const { rows } = await pool.query< { plagiarism_detection: boolean } >(
       `SELECT plagiarism_detection
          FROM assignments
@@ -137,10 +164,16 @@ export async function isPlagiarismEnabled(assignmentId: number): Promise<boolean
       [assignmentId]
     );
     if (rows.length === 0) {
-      logMessage(fn, `Assignment ${assignmentId} not found, defaulting to false`);
+      logger.warn(
+        { fn, assignmentId },
+        `Assignment ${assignmentId} not found, defaulting to false`
+      );
       return false;
     }
-    logMessage(fn, `Assignment ${assignmentId} plagiarism_detection=${rows[0].plagiarism_detection}`);
+    logger.info(
+      { fn, assignmentId, plagiarism_detection: rows[0].plagiarism_detection },
+      `Assignment ${assignmentId} plagiarism_detection=${rows[0].plagiarism_detection}`
+    );
     return rows[0].plagiarism_detection;
   }
 
@@ -176,7 +209,10 @@ export async function isPlagiarismEnabled(assignmentId: number): Promise<boolean
         checkedAt: new Date(row.checkedAt).toISOString()
       }));
     } catch (error) {
-      console.error("Error fetching plagiarism reports:", error);
+      logger.error(
+        { assignmentId, error },
+        "Error fetching plagiarism reports"
+      );
       throw new Error("Failed to load plagiarism reports");
     }
   };

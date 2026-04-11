@@ -1,10 +1,6 @@
 import pool from "../config/db";
-import { QuizCreationData } from "../types";
-
-const logMessage = (functionName: string, message: string): void => {
-  const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] [QuizModel.ts] [${functionName}] ${message}`);
-};
+import { QuizCreationData, QuizUpdateData } from "../types";
+import logger from "../config/logger";
 
 export const createQuiz = async (
   quizData: QuizCreationData,
@@ -13,7 +9,7 @@ export const createQuiz = async (
   const fn = "createQuiz";
   const client = await pool.connect();
   try {
-    logMessage(fn, `Beginning transaction for instructor ${instructorId}`);
+    logger.info({ fn, instructorId }, "Beginning transaction");
     await client.query("BEGIN");
 
     const insertQuizSql = `
@@ -39,66 +35,226 @@ export const createQuiz = async (
       quizData.startDate,
       quizData.endDate,
       quizData.shuffleProblems,
-      true,// need to change later possibly, not important currently to allow instructor
-            // to create quizes which are not "published".
+      false,
     ]);
 
     const quizId = quizResult.rows[0].quiz_id;
-    logMessage(fn, `Inserted quiz with ID: ${quizId}`);
+    logger.info({ fn, quizId }, "Quiz row inserted");
 
-    if (quizData.problems && quizData.problems.length > 0) {
-      const insertProblemSql = `
-        INSERT INTO quiz_problems (
-          quiz_id,
-          problem_id,
-          points,
-          problem_order
-        ) VALUES ($1, $2, $3, $4);
-      `;
-      for (const problem of quizData.problems) {
-        await client.query(insertProblemSql, [
-          quizId,
-          problem.problemId,
-          problem.points,
-          problem.problemOrder,
-        ]);
-      }
-      logMessage(fn, `Inserted ${quizData.problems.length} problems for quiz ${quizId}`);
-    } else {
-        throw new Error("Cannot create a quiz with no problems.");
+    if (!quizData.problems || quizData.problems.length === 0) {
+      throw new Error("Cannot create a quiz with no problems.");
     }
 
+    const insertProblemSql = `
+      INSERT INTO quiz_problems (quiz_id, problem_id, points, problem_order)
+      VALUES ($1, $2, $3, $4);
+    `;
+    for (const problem of quizData.problems) {
+      await client.query(insertProblemSql, [
+        quizId,
+        problem.problemId,
+        problem.points,
+        problem.problemOrder,
+      ]);
+    }
+    logger.info({ fn, quizId, count: quizData.problems.length }, "Problems inserted");
+
     await client.query("COMMIT");
-    logMessage(fn, "Transaction committed successfully.");
+    logger.info({ fn, quizId }, "Transaction committed");
     return { quizId };
   } catch (err) {
     await client.query("ROLLBACK");
-    logMessage(fn, `Transaction rolled back due to error: ${err instanceof Error ? err.message : String(err)}`);
+    logger.error({ fn, err }, "Transaction rolled back");
     throw err;
   } finally {
     client.release();
   }
 };
 
-export const deleteQuiz = async (quizId: number, instructorId: number): Promise<{ success: boolean }> => {
-    const fn = "deleteQuiz";
-    logMessage(fn, `Attempting to delete quiz ${quizId} by instructor ${instructorId}`);
-    
-    const result = await pool.query(
-      'DELETE FROM quizzes WHERE quiz_id = $1 AND instructor_id = $2',
-      [quizId, instructorId]
+export const getQuizzesByClassroom = async (classroomId: number) => {
+  const fn = "getQuizzesByClassroom";
+  logger.debug({ fn, classroomId }, "Fetching quizzes for classroom");
+
+  const sql = `
+    SELECT
+      q.quiz_id        AS "quizId",
+      q.title,
+      q.description,
+      q.time_limit_minutes,
+      q.start_date     AS "startDate",
+      q.end_date       AS "endDate",
+      q.shuffle_problems AS "shuffleProblems",
+      q.is_published   AS "isPublished",
+      q.created_at     AS "createdAt",
+      COUNT(qp.quiz_problem_id)::int AS "problemCount"
+    FROM quizzes q
+    LEFT JOIN quiz_problems qp ON qp.quiz_id = q.quiz_id
+    WHERE q.classroom_id = $1
+    GROUP BY q.quiz_id
+    ORDER BY q.created_at DESC;
+  `;
+  const result = await pool.query(sql, [classroomId]);
+  logger.debug({ fn, classroomId, count: result.rowCount }, "Quizzes fetched");
+  return result.rows;
+};
+
+export const getQuizById = async (quizId: number) => {
+  const fn = "getQuizById";
+  logger.debug({ fn, quizId }, "Fetching quiz");
+
+  const quizSql = `
+    SELECT
+      q.quiz_id        AS "quizId",
+      q.classroom_id   AS "classroomId",
+      q.instructor_id  AS "instructorId",
+      q.title,
+      q.description,
+      q.time_limit_minutes,
+      q.start_date     AS "startDate",
+      q.end_date       AS "endDate",
+      q.shuffle_problems AS "shuffleProblems",
+      q.is_published   AS "isPublished",
+      q.created_at     AS "createdAt"
+    FROM quizzes q
+    WHERE q.quiz_id = $1;
+  `;
+  const quizResult = await pool.query(quizSql, [quizId]);
+  if (quizResult.rowCount === 0) {
+    throw new Error("Quiz not found.");
+  }
+  const quiz = quizResult.rows[0];
+
+  const problemsSql = `
+    SELECT
+      qp.quiz_problem_id AS "quizProblemId",
+      qp.problem_id      AS "problemId",
+      qp.points,
+      qp.problem_order   AS "problemOrder",
+      p.title            AS "problemTitle",
+      p.description      AS "problemDescription",
+      p.category
+    FROM quiz_problems qp
+    JOIN problems p ON p.problem_id = qp.problem_id
+    WHERE qp.quiz_id = $1
+    ORDER BY qp.problem_order;
+  `;
+  const problemsResult = await pool.query(problemsSql, [quizId]);
+  quiz.problems = problemsResult.rows;
+
+  logger.debug({ fn, quizId, problemCount: problemsResult.rowCount }, "Quiz fetched");
+  return quiz;
+};
+
+export const updateQuiz = async (
+  quizId: number,
+  instructorId: number,
+  data: QuizUpdateData
+): Promise<void> => {
+  const fn = "updateQuiz";
+  const client = await pool.connect();
+  try {
+    logger.info({ fn, quizId, instructorId }, "Beginning update transaction");
+    await client.query("BEGIN");
+
+    const checkResult = await client.query(
+      "SELECT instructor_id FROM quizzes WHERE quiz_id = $1",
+      [quizId]
+    );
+    if (checkResult.rowCount === 0) throw new Error("Quiz not found.");
+    if (checkResult.rows[0].instructor_id !== instructorId)
+      throw new Error("Forbidden: You are not the owner of this quiz.");
+
+    await client.query(
+      `UPDATE quizzes SET
+        title               = $1,
+        description         = $2,
+        time_limit_minutes  = $3,
+        start_date          = $4,
+        end_date            = $5,
+        shuffle_problems    = $6
+       WHERE quiz_id = $7`,
+      [
+        data.title,
+        data.description,
+        data.time_limit_minutes,
+        data.startDate,
+        data.endDate,
+        data.shuffleProblems,
+        quizId,
+      ]
     );
 
-    if (result.rowCount === 0) {
-        logMessage(fn, `Deletion failed. Quiz ${quizId} not found or instructor ${instructorId} is not the owner.`);
-        const check = await pool.query('SELECT instructor_id FROM quizzes WHERE quiz_id = $1', [quizId]);
-        if (check.rowCount && check.rowCount > 0) {
-            throw new Error("Forbidden: You are not the owner of this quiz.");
-        } else {
-            throw new Error("Quiz not found.");
-        }
+    if (data.problems) {
+      await client.query("DELETE FROM quiz_problems WHERE quiz_id = $1", [quizId]);
+      const insertSql = `
+        INSERT INTO quiz_problems (quiz_id, problem_id, points, problem_order)
+        VALUES ($1, $2, $3, $4);
+      `;
+      for (const p of data.problems) {
+        await client.query(insertSql, [quizId, p.problemId, p.points, p.problemOrder]);
+      }
+      logger.info({ fn, quizId, count: data.problems.length }, "Problems replaced");
     }
-    
-    logMessage(fn, `Successfully deleted quiz ${quizId}`);
-    return { success: true };
+
+    await client.query("COMMIT");
+    logger.info({ fn, quizId }, "Update committed");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    logger.error({ fn, quizId, err }, "Update rolled back");
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
+export const togglePublish = async (
+  quizId: number,
+  instructorId: number
+): Promise<{ isPublished: boolean }> => {
+  const fn = "togglePublish";
+  logger.info({ fn, quizId, instructorId }, "Toggling publish status");
+
+  const check = await pool.query(
+    "SELECT instructor_id, is_published FROM quizzes WHERE quiz_id = $1",
+    [quizId]
+  );
+  if (check.rowCount === 0) throw new Error("Quiz not found.");
+  if (check.rows[0].instructor_id !== instructorId)
+    throw new Error("Forbidden: You are not the owner of this quiz.");
+
+  const newStatus = !check.rows[0].is_published;
+  await pool.query("UPDATE quizzes SET is_published = $1 WHERE quiz_id = $2", [
+    newStatus,
+    quizId,
+  ]);
+  logger.info({ fn, quizId, isPublished: newStatus }, "Publish status updated");
+  return { isPublished: newStatus };
+};
+
+export const deleteQuiz = async (
+  quizId: number,
+  instructorId: number
+): Promise<{ success: boolean }> => {
+  const fn = "deleteQuiz";
+  logger.info({ fn, quizId, instructorId }, "Attempting to delete quiz");
+
+  const result = await pool.query(
+    "DELETE FROM quizzes WHERE quiz_id = $1 AND instructor_id = $2",
+    [quizId, instructorId]
+  );
+
+  if (result.rowCount === 0) {
+    const check = await pool.query(
+      "SELECT instructor_id FROM quizzes WHERE quiz_id = $1",
+      [quizId]
+    );
+    if (check.rowCount && check.rowCount > 0) {
+      throw new Error("Forbidden: You are not the owner of this quiz.");
+    } else {
+      throw new Error("Quiz not found.");
+    }
+  }
+
+  logger.info({ fn, quizId }, "Quiz deleted");
+  return { success: true };
 };

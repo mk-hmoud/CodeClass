@@ -387,3 +387,17 @@ export interface QuizCreationData {
     problemOrder: number;
   }>;
 }
+
+export interface QuizUpdateData {
+  title: string;
+  description?: string | null;
+  time_limit_minutes: number;
+  startDate?: Date | null;
+  endDate?: Date | null;
+  shuffleProblems: boolean;
+  problems?: Array<{
+    problemId: number;
+    points: number;
+    problemOrder: number;
+  }>;
+}

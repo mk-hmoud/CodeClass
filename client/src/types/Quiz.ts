@@ -40,6 +40,45 @@ export interface QuizCreationData {
   }>;
 }
 
+export interface QuizUpdateData {
+  title: string;
+  description?: string | null;
+  time_limit_minutes: number;
+  startDate?: Date | null;
+  endDate?: Date | null;
+  shuffleProblems: boolean;
+  problems?: Array<{
+    problemId: number;
+    points: number;
+    problemOrder: number;
+  }>;
+}
+
+export interface QuizListItem {
+  quizId: number;
+  title: string;
+  description?: string;
+  time_limit_minutes: number;
+  startDate?: string | null;
+  endDate?: string | null;
+  shuffleProblems: boolean;
+  isPublished: boolean;
+  createdAt: string;
+  problemCount: number;
+}
+
+export interface QuizSessionResult {
+  sessionId: number;
+  studentId: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  status: 'in_progress' | 'submitted' | 'graded';
+  startTime: string;
+  endTime?: string | null;
+  finalScore?: number | null;
+}
+
 export interface QuizSession {
     session_id: number;
     quiz_id: number;

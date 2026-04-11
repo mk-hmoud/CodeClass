@@ -25,6 +25,8 @@ import StudentDashboard from "./pages/student/StudentDashboard";
 import StudentClassroom from "./pages/student/StudentClassroom";
 import StudentAssignment from "./pages/student/StudentAssignment";
 import CodeEditor from "@/pages/student/CodeEditorPage";
+import QuizTakingPage from "./pages/student/QuizTakingPage";
+import QuizResultsPage from "./pages/student/QuizResultsPage";
 
 const queryClient = new QueryClient();
 
@@ -73,6 +75,10 @@ const App = () => (
               <Route path="view" element={<StudentClassroom />} />
               <Route path="assignments/:assignmentId">
                 <Route path="view" element={<StudentAssignment />} />
+              </Route>
+              <Route path="quizes/:quizId">
+                <Route path="take" element={<QuizTakingPage />} />
+                <Route path="results" element={<QuizResultsPage />} />
               </Route>
             </Route>
           </Route>

@@ -71,6 +71,26 @@ services:
       redis:
         condition: service_healthy
 
+  # Language runner images — built by `docker compose build`, never started as containers.
+  # The judge spawns these on the host Docker daemon when evaluating submissions.
+  runner-py:
+    build:
+      context: ./judge/docker_images/python
+    image: judge-py
+    profiles: ["runners"]
+
+  runner-cpp:
+    build:
+      context: "./judge/docker_images/c\\cpp"
+    image: judge-cpp
+    profiles: ["runners"]
+
+  runner-js:
+    build:
+      context: "./judge/docker_images/javascript\\typescript"
+    image: judge-js
+    profiles: ["runners"]
+
 volumes:
   db_data:
   redis_data:

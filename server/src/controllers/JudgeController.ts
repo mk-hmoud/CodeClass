@@ -363,7 +363,7 @@ export const getSubmitStatusHandler = async (
   res: Response
 ): Promise<void> => {
   const fn = 'getSubmitStatus'
-  const submissionId = parseInt(req.params.jobId, 10);
+  const submissionId = parseInt(req.params.jobId as string, 10);
   logger.info(
     { fn, submissionId },
     `Checking submit status for job ${submissionId}`

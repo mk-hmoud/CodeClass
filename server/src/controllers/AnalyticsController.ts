@@ -39,7 +39,7 @@ export const getAssignmentAnalyticsController = async (req: Request, res: Respon
       return;
     }
     
-    const assignmentId = parseInt(req.params.assignmentId);
+    const assignmentId = parseInt(req.params.assignmentId as string);
     if (isNaN(assignmentId)) {
       logger.warn({ fn: functionName, rawAssignmentId: req.params.assignmentId }, 'Invalid assignment ID');
       res.status(400).json({ success: false, message: 'Invalid assignment ID' });

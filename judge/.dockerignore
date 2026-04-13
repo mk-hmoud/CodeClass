@@ -1,0 +1,7 @@
+bin/
+cmake-build/
+dependencies/hiredis/build/
+dependencies/hiredis/lib/
+*.o
+*.a
+*.so*

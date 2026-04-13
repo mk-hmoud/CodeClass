@@ -5,8 +5,9 @@
 
 int main(int argc, char *argv[])
 {
-    const char *HOST = "127.0.0.1";
-    int PORT = 6379;
+    const char *HOST = std::getenv("REDIS_HOST") ? std::getenv("REDIS_HOST") : "127.0.0.1";
+    const char *portEnv = std::getenv("REDIS_PORT");
+    int PORT = portEnv ? std::atoi(portEnv) : 6379;
 
     const auto numThreads = std::thread::hardware_concurrency() ? std::thread::hardware_concurrency() : 4;
 

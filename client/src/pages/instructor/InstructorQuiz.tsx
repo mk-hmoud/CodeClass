@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Clock, Users, CheckCircle } from "lucide-react";
+import { ArrowLeft, Clock, Users, CheckCircle, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -65,14 +65,24 @@ const InstructorQuiz: React.FC = () => {
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
       <div className="mb-8">
-        <Button
-          variant="outline"
-          className="flex items-center gap-2 mb-4"
-          onClick={() => navigate(`/instructor/classrooms/${classroomId}/view`)}
-        >
-          <ArrowLeft size={16} />
-          Back to Classroom
-        </Button>
+        <div className="flex items-center justify-between mb-4">
+          <Button
+            variant="outline"
+            className="flex items-center gap-2"
+            onClick={() => navigate(`/instructor/classrooms/${classroomId}/view`)}
+          >
+            <ArrowLeft size={16} />
+            Back to Classroom
+          </Button>
+          <Button
+            variant="outline"
+            className="flex items-center gap-2"
+            onClick={() => navigate(`/instructor/classrooms/${classroomId}/quizes/${quizId}/edit`)}
+          >
+            <Pencil size={16} />
+            Edit Quiz
+          </Button>
+        </div>
         <h1 className="text-3xl font-bold">{quiz.title}</h1>
         {quiz.description && (
           <p className="text-gray-400 mt-2">{quiz.description}</p>

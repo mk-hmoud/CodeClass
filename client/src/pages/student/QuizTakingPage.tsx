@@ -39,7 +39,6 @@ import {
   getQuizSubmitStatus,
   submitSession,
 } from "@/services/QuizService";
-import { runCode, getRunStatus } from "@/services/JudgeService";
 
 const POLL_INTERVAL = 1000;
 
@@ -85,7 +84,6 @@ const QuizTakingPage: React.FC = () => {
   // Judge state per problem
   const [verdicts, setVerdicts] = useState<Record<number, JudgeVerdict>>({});
   const [submitting, setSubmitting] = useState<Record<number, boolean>>({});
-  const [running, setRunning] = useState(false);
 
   // Timer
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
@@ -196,21 +194,8 @@ const QuizTakingPage: React.FC = () => {
   );
 
   // ── Run (public tests only via existing judge/run) ────────────────────────────
-  const handleRun = async (src: string) => {
-    if (!activeProblem || !selectedLanguage) return;
-    setRunning(true);
-    setVerdicts((prev) => ({
-      ...prev,
-      [activeProblem.quizProblemId]: { status: "pending" },
-    }));
-
-    try {
-      // We don't have public test cases fetched here — inform the user
-      // to use Submit Problem for full judging. Run uses an empty test set.
-      toast.info("Run is not available for quizzes. Use 'Submit Problem' to judge against test cases.");
-    } finally {
-      setRunning(false);
-    }
+  const handleRun = async (_src: string) => {
+    toast.info("Run is not available for quizzes. Use 'Submit Problem' to judge against test cases.");
   };
 
   // ── Submit single problem ─────────────────────────────────────────────────────

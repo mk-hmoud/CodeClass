@@ -59,6 +59,7 @@ const App = () => (
                 <Route path="create" element={<LiveQuizCreator />} />
                 <Route path=":quizId">
                   <Route path="view" element={<InstructorQuiz />} />
+                  <Route path="edit" element={<LiveQuizCreator />} />
                 </Route>
               </Route>
               <Route path="analytics" element={<ClassroomAnalytics />} />

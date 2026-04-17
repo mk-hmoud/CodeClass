@@ -18,7 +18,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, Eye, MoreHorizontal, Trash2, Globe, EyeOff } from "lucide-react";
+import { Plus, Eye, MoreHorizontal, Trash2, Globe, EyeOff, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { getQuizzesByClassroom, deleteQuiz, togglePublishQuiz } from "@/services/QuizService";
 import { QuizListItem } from "@/types/Quiz";
@@ -170,6 +170,14 @@ const QuizzesTab: React.FC<QuizzesTabProps> = ({ classroomId }) => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() =>
+                                navigate(`/instructor/classrooms/${classroomId}/quizes/${quiz.quizId}/edit`)
+                              }
+                            >
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleTogglePublish(quiz.quizId)}>
                               {quiz.isPublished ? (
                                 <><EyeOff className="mr-2 h-4 w-4" /> Unpublish</>

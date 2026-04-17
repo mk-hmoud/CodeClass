@@ -8,6 +8,7 @@ import {
   updateQuizController,
 } from '../controllers/QuizController';
 import {
+  getMySessionController,
   getQuizResultsController,
   getQuizSubmitStatusController,
   getSessionController,
@@ -31,6 +32,7 @@ router.delete('/:quizId', authMiddleware, requireRole(['instructor']), deleteQui
 router.get('/:quizId/results', authMiddleware, requireRole(['instructor']), getQuizResultsController);
 
 // ── Student: session lifecycle ────────────────────────────────────────────────
+router.get('/:quizId/my-session', authMiddleware, requireRole(['student']), getMySessionController);
 router.post('/:quizId/sessions', authMiddleware, requireRole(['student']), startSessionController);
 
 // ── Submission status (student polls their own job) ───────────────────────────

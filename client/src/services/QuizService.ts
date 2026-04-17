@@ -42,6 +42,11 @@ export const getQuizResults = async (quizId: number): Promise<any[]> => {
 
 // ── Student: sessions ─────────────────────────────────────────────────────────
 
+export const getMySession = async (quizId: number): Promise<any | null> => {
+  const response = await apiClient.get(`/quizzes/${quizId}/my-session`);
+  return response.data.data;
+};
+
 export const startSession = async (quizId: number): Promise<any> => {
   const response = await apiClient.post(`/quizzes/${quizId}/sessions`);
   return response.data.data;

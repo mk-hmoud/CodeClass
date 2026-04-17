@@ -99,6 +99,16 @@ const QuizTakingPage: React.FC = () => {
           startSession(Number(quizId)),
           getLanguages(),
         ]);
+
+        // If the session was already submitted (or auto-expired), go straight to results
+        if (sess.status === "submitted" || sess.status === "graded") {
+          navigate(`/student/classrooms/${classroomId}/quizes/${quizId}/results`, {
+            state: { sessionId: sess.session_id },
+            replace: true,
+          });
+          return;
+        }
+
         setSession(sess);
         setLanguages(langs);
         if (langs.length > 0) setSelectedLanguage(langs[0]);

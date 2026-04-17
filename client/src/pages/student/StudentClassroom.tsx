@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { getClassroomById } from "../../services/ClassroomService";
-import { getQuizzesByClassroom } from "../../services/QuizService";
+import { getQuizzesByClassroom, getMySession } from "../../services/QuizService";
 import { Classroom } from "../../types/Classroom";
 import { Assignment } from "../../types/Assignment";
 import { QuizListItem } from "../../types/Quiz";
@@ -38,6 +38,8 @@ const StudentClassroom: React.FC = () => {
   const [classroom, setClassroom] = useState<Classroom | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [quizzes, setQuizzes] = useState<QuizListItem[]>([]);
+  // Maps quizId → session status ("in_progress" | "submitted" | "graded" | null)
+  const [quizSessions, setQuizSessions] = useState<Record<number, string | null>>({});
 
   const getButtonClass = (assignment: Assignment): string => {
     if (assignment.submitted) {
@@ -118,16 +120,27 @@ const StudentClassroom: React.FC = () => {
         // Load quizzes separately — don't block classroom render on failure
         try {
           const quizData = await getQuizzesByClassroom(parseInt(classroomId, 10));
-          // Only show published quizzes that are currently within their window
           const now = new Date();
-          setQuizzes(
-            quizData.filter((q: QuizListItem) => {
-              if (!q.isPublished) return false;
-              if (q.startDate && now < new Date(q.startDate)) return false;
-              if (q.endDate && now > new Date(q.endDate)) return false;
-              return true;
+          const active = quizData.filter((q: QuizListItem) => {
+            if (!q.isPublished) return false;
+            if (q.startDate && now < new Date(q.startDate)) return false;
+            if (q.endDate && now > new Date(q.endDate)) return false;
+            return true;
+          });
+          setQuizzes(active);
+
+          // Fetch session status for each active quiz in parallel
+          const sessionEntries = await Promise.all(
+            active.map(async (q: QuizListItem) => {
+              try {
+                const session = await getMySession(q.quizId);
+                return [q.quizId, session?.status ?? null] as [number, string | null];
+              } catch {
+                return [q.quizId, null] as [number, string | null];
+              }
             })
           );
+          setQuizSessions(Object.fromEntries(sessionEntries));
         } catch {
           // silently ignore — quizzes are optional
         }
@@ -801,14 +814,45 @@ const StudentClassroom: React.FC = () => {
                     </CardContent>
                     <Separator className="mb-4 bg-gray-800" />
                     <CardFooter className="pt-2">
-                      <Button
-                        className="w-full"
-                        onClick={() =>
-                          navigate(`/student/classrooms/${classroomId}/quizes/${quiz.quizId}/take`)
+                      {(() => {
+                        const status = quizSessions[quiz.quizId];
+                        if (status === "submitted" || status === "graded") {
+                          return (
+                            <Button
+                              className="w-full bg-green-500/20 text-green-400 hover:bg-green-500/30"
+                              variant="outline"
+                              onClick={() =>
+                                navigate(`/student/classrooms/${classroomId}/quizes/${quiz.quizId}/take`)
+                              }
+                            >
+                              View Results
+                            </Button>
+                          );
                         }
-                      >
-                        Start Quiz
-                      </Button>
+                        if (status === "in_progress") {
+                          return (
+                            <Button
+                              className="w-full bg-amber-500/20 text-amber-400 hover:bg-amber-500/30"
+                              variant="outline"
+                              onClick={() =>
+                                navigate(`/student/classrooms/${classroomId}/quizes/${quiz.quizId}/take`)
+                              }
+                            >
+                              Resume Quiz
+                            </Button>
+                          );
+                        }
+                        return (
+                          <Button
+                            className="w-full"
+                            onClick={() =>
+                              navigate(`/student/classrooms/${classroomId}/quizes/${quiz.quizId}/take`)
+                            }
+                          >
+                            Start Quiz
+                          </Button>
+                        );
+                      })()}
                     </CardFooter>
                   </Card>
                 ))}

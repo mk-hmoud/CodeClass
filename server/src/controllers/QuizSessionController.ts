@@ -3,7 +3,7 @@ import redisClient from "../config/redis";
 import pool from "../config/db";
 import logger from "../config/logger";
 import { JudgeVerdict, TestResult } from "../types";
-import { startSession, getSession, submitSession } from "../models/QuizSessionModel";
+import { startSession, getSession, submitSession, getMySession } from "../models/QuizSessionModel";
 import {
   createQuizSubmission,
   getQuizProblemTestCases,
@@ -14,6 +14,21 @@ import {
 } from "../models/QuizSubmissionModel";
 
 // ── Session management ────────────────────────────────────────────────────────
+
+export const getMySessionController = async (req: Request, res: Response): Promise<void> => {
+  const fn = "getMySessionController";
+  try {
+    const quizId = parseInt(req.params.quizId, 10);
+    if (isNaN(quizId)) { res.status(400).json({ success: false, message: "Invalid quiz ID." }); return; }
+    const studentId = req.user!.role_id;
+    const session = await getMySession(quizId, studentId);
+    res.status(200).json({ success: true, data: session });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    logger.error({ fn, error }, "Error fetching my session");
+    res.status(500).json({ success: false, message, });
+  }
+};
 
 export const startSessionController = async (req: Request, res: Response): Promise<void> => {
   const fn = "startSessionController";

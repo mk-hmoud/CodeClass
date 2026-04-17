@@ -13,6 +13,15 @@ function seededShuffle<T>(arr: T[], seed: number): T[] {
   return result;
 }
 
+export const getMySession = async (quizId: number, studentId: number) => {
+  const result = await pool.query(
+    `SELECT session_id, status, start_time, end_time, final_score
+     FROM quiz_sessions WHERE quiz_id = $1 AND student_id = $2`,
+    [quizId, studentId]
+  );
+  return result.rowCount ? result.rows[0] : null;
+};
+
 export const startSession = async (quizId: number, studentId: number) => {
   const fn = "startSession";
   logger.info({ fn, quizId, studentId }, "Starting or resuming quiz session");
@@ -41,6 +50,23 @@ export const startSession = async (quizId: number, studentId: number) => {
   );
   if (existing.rowCount && existing.rowCount > 0) {
     const session = existing.rows[0];
+
+    // Auto-expire: if time has run out and session is still in_progress, submit it now
+    if (session.status === "in_progress" && quiz.time_limit_minutes) {
+      const elapsedMinutes =
+        (now.getTime() - new Date(session.start_time).getTime()) / 60000;
+      if (elapsedMinutes >= quiz.time_limit_minutes) {
+        await pool.query(
+          `UPDATE quiz_sessions SET status = 'submitted', end_time = NOW()
+           WHERE session_id = $1`,
+          [session.session_id]
+        );
+        session.status = "submitted";
+        session.end_time = now.toISOString();
+        logger.info({ fn, sessionId: session.session_id }, "Session auto-expired on resume");
+      }
+    }
+
     logger.info({ fn, sessionId: session.session_id }, "Resuming existing session");
     const problems = await getSessionProblems(quizId, session.session_id, quiz.shuffle_problems);
     return { ...session, timeLimitMinutes: quiz.time_limit_minutes, problems };

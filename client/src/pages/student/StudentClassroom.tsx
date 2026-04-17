@@ -403,7 +403,7 @@ const StudentClassroom: React.FC = () => {
                               isExpired ? "border-b border-red-800/30" : ""
                             }`}
                           >
-                            <CardTitle className="text-white flex items-center gap-2">
+                            <CardTitle className="text-foreground flex items-center gap-2">
                               {assignment.submitted ? (
                                 <CheckCircle
                                   className="text-green-500"
@@ -562,7 +562,7 @@ const StudentClassroom: React.FC = () => {
                         className="bg-card border-2 border-green-500/50 hover:border-green-500/70 transition-all"
                       >
                         <CardHeader className="flex flex-row items-start justify-between pb-2">
-                          <CardTitle className="text-white flex items-center gap-2">
+                          <CardTitle className="text-foreground flex items-center gap-2">
                             <CheckCircle className="text-green-500" size={16} />
                             {assignment.title}
                           </CardTitle>
@@ -649,7 +649,7 @@ const StudentClassroom: React.FC = () => {
                               isExpired ? "border-b border-red-800/30" : ""
                             }`}
                           >
-                            <CardTitle className="text-white flex items-center gap-2">
+                            <CardTitle className="text-foreground flex items-center gap-2">
                               {isExpired && (
                                 <AlertCircle
                                   className="text-red-500"
@@ -792,7 +792,7 @@ const StudentClassroom: React.FC = () => {
                     className="bg-card border-2 border-[#00b7ff]/30 hover:border-[#00b7ff]/60 transition-all"
                   >
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-white flex items-center gap-2">
+                      <CardTitle className="text-foreground flex items-center gap-2">
                         <Clock size={16} className="text-[#00b7ff]" />
                         {quiz.title}
                       </CardTitle>

@@ -244,7 +244,7 @@ const ClassroomsSection = () => {
                 }
               >
                 <div className="flex justify-between items-start">
-                  <CardTitle className="text-white">{classroom.name}</CardTitle>
+                  <CardTitle className="text-foreground">{classroom.name}</CardTitle>
                   {classroom.status === "archived" && (
                     <Badge
                       variant="outline"

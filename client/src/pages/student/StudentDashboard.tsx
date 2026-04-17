@@ -347,7 +347,7 @@ const StudentDashboard = () => {
                   onClick={() => handleClassroomClick(classroom.id, classroom)}
                 >
                   <CardHeader>
-                    <CardTitle className="text-white">
+                    <CardTitle className="text-foreground">
                       {classroom.name}
                     </CardTitle>
                   </CardHeader>

@@ -11,12 +11,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ArrowLeft, Check, Eye, EyeOff, UserPlus, X } from "lucide-react";
+import { ArrowLeft, Check, Eye, EyeOff, UserPlus, X, Sun, Moon } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { signupUser } from "../../services/AuthService";
 import Logo from "@/components/Logo";
+import { useTheme } from "@/contexts/ThemeContext";
 
 const passwordRequirements = [
   { id: "length", text: "At least 8 characters long", regex: /.{8,}/ },
@@ -31,6 +32,7 @@ const passwordRequirements = [
 ];
 
 const Signup = () => {
+  const { theme, toggleTheme } = useTheme();
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -164,6 +166,11 @@ const Signup = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-background/90 flex flex-col items-center justify-center p-4">
+      <div className="absolute top-4 right-4">
+        <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Toggle theme">
+          {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+        </Button>
+      </div>
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-8">
           <Link to="/">

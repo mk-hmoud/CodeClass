@@ -35,7 +35,7 @@ export const createQuizController = async (req: Request, res: Response): Promise
 export const getQuizzesByClassroomController = async (req: Request, res: Response): Promise<void> => {
   const fn = "getQuizzesByClassroomController";
   try {
-    const classroomId = parseInt(req.params.classroomId, 10);
+    const classroomId = parseInt(req.params.classroomId as string, 10);
     if (isNaN(classroomId)) {
       res.status(400).json({ success: false, message: "Invalid classroom ID." });
       return;
@@ -53,7 +53,7 @@ export const getQuizzesByClassroomController = async (req: Request, res: Respons
 export const getQuizByIdController = async (req: Request, res: Response): Promise<void> => {
   const fn = "getQuizByIdController";
   try {
-    const quizId = parseInt(req.params.quizId, 10);
+    const quizId = parseInt(req.params.quizId as string, 10);
     if (isNaN(quizId)) {
       res.status(400).json({ success: false, message: "Invalid quiz ID." });
       return;
@@ -75,7 +75,7 @@ export const getQuizByIdController = async (req: Request, res: Response): Promis
 export const updateQuizController = async (req: Request, res: Response): Promise<void> => {
   const fn = "updateQuizController";
   try {
-    const quizId = parseInt(req.params.quizId, 10);
+    const quizId = parseInt(req.params.quizId as string, 10);
     if (isNaN(quizId)) {
       res.status(400).json({ success: false, message: "Invalid quiz ID." });
       return;
@@ -101,7 +101,7 @@ export const updateQuizController = async (req: Request, res: Response): Promise
 export const togglePublishController = async (req: Request, res: Response): Promise<void> => {
   const fn = "togglePublishController";
   try {
-    const quizId = parseInt(req.params.quizId, 10);
+    const quizId = parseInt(req.params.quizId as string, 10);
     if (isNaN(quizId)) {
       res.status(400).json({ success: false, message: "Invalid quiz ID." });
       return;
@@ -126,7 +126,7 @@ export const togglePublishController = async (req: Request, res: Response): Prom
 export const deleteQuizController = async (req: Request, res: Response): Promise<void> => {
   const fn = "deleteQuizController";
   try {
-    const quizId = parseInt(req.params.quizId, 10);
+    const quizId = parseInt(req.params.quizId as string, 10);
     if (isNaN(quizId)) {
       res.status(400).json({ success: false, message: "Invalid quiz ID." });
       return;

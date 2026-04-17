@@ -18,7 +18,7 @@ import {
 export const getMySessionController = async (req: Request, res: Response): Promise<void> => {
   const fn = "getMySessionController";
   try {
-    const quizId = parseInt(req.params.quizId, 10);
+    const quizId = parseInt(req.params.quizId as string, 10);
     if (isNaN(quizId)) { res.status(400).json({ success: false, message: "Invalid quiz ID." }); return; }
     const studentId = req.user!.role_id;
     const session = await getMySession(quizId, studentId);
@@ -33,7 +33,7 @@ export const getMySessionController = async (req: Request, res: Response): Promi
 export const startSessionController = async (req: Request, res: Response): Promise<void> => {
   const fn = "startSessionController";
   try {
-    const quizId = parseInt(req.params.quizId, 10);
+    const quizId = parseInt(req.params.quizId as string, 10);
     if (isNaN(quizId)) { res.status(400).json({ success: false, message: "Invalid quiz ID." }); return; }
 
     const studentId = req.user!.role_id;
@@ -55,7 +55,7 @@ export const startSessionController = async (req: Request, res: Response): Promi
 export const getSessionController = async (req: Request, res: Response): Promise<void> => {
   const fn = "getSessionController";
   try {
-    const sessionId = parseInt(req.params.sessionId, 10);
+    const sessionId = parseInt(req.params.sessionId as string, 10);
     if (isNaN(sessionId)) { res.status(400).json({ success: false, message: "Invalid session ID." }); return; }
 
     const studentId = req.user!.role_id;
@@ -75,7 +75,7 @@ export const getSessionController = async (req: Request, res: Response): Promise
 export const submitSessionController = async (req: Request, res: Response): Promise<void> => {
   const fn = "submitSessionController";
   try {
-    const sessionId = parseInt(req.params.sessionId, 10);
+    const sessionId = parseInt(req.params.sessionId as string, 10);
     if (isNaN(sessionId)) { res.status(400).json({ success: false, message: "Invalid session ID." }); return; }
 
     const studentId = req.user!.role_id;
@@ -99,8 +99,8 @@ export const submitSessionController = async (req: Request, res: Response): Prom
 export const submitProblemController = async (req: Request, res: Response): Promise<void> => {
   const fn = "submitProblemController";
   try {
-    const sessionId = parseInt(req.params.sessionId, 10);
-    const quizProblemId = parseInt(req.params.quizProblemId, 10);
+    const sessionId = parseInt(req.params.sessionId as string, 10);
+    const quizProblemId = parseInt(req.params.quizProblemId as string, 10);
     if (isNaN(sessionId) || isNaN(quizProblemId)) {
       res.status(400).json({ success: false, message: "Invalid session or problem ID." });
       return;
@@ -164,7 +164,7 @@ export const submitProblemController = async (req: Request, res: Response): Prom
 export const getQuizSubmitStatusController = async (req: Request, res: Response): Promise<void> => {
   const fn = "getQuizSubmitStatusController";
   try {
-    const submissionId = parseInt(req.params.submissionId, 10);
+    const submissionId = parseInt(req.params.submissionId as string, 10);
     if (isNaN(submissionId)) {
       res.status(400).json({ success: false, message: "Invalid submission ID." });
       return;
@@ -244,7 +244,7 @@ export const getQuizSubmitStatusController = async (req: Request, res: Response)
 export const getSessionResultsController = async (req: Request, res: Response): Promise<void> => {
   const fn = "getSessionResultsController";
   try {
-    const sessionId = parseInt(req.params.sessionId, 10);
+    const sessionId = parseInt(req.params.sessionId as string, 10);
     if (isNaN(sessionId)) { res.status(400).json({ success: false, message: "Invalid session ID." }); return; }
 
     const results = await getSessionResults(sessionId);
@@ -263,7 +263,7 @@ export const getSessionResultsController = async (req: Request, res: Response): 
 export const getQuizResultsController = async (req: Request, res: Response): Promise<void> => {
   const fn = "getQuizResultsController";
   try {
-    const quizId = parseInt(req.params.quizId, 10);
+    const quizId = parseInt(req.params.quizId as string, 10);
     if (isNaN(quizId)) { res.status(400).json({ success: false, message: "Invalid quiz ID." }); return; }
 
     const results = await getQuizResults(quizId);

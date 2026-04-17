@@ -5,30 +5,31 @@ import { ArrowLeft, CheckCircle, XCircle, Clock, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getSessionResults } from "@/services/QuizService";
+import { getMySession, getSessionResults } from "@/services/QuizService";
 
 const QuizResultsPage: React.FC = () => {
   const { classroomId, quizId } = useParams<{ classroomId: string; quizId: string }>();
   const navigate = useNavigate();
   const { state } = useLocation();
-  const sessionId: number | undefined = state?.sessionId;
+  const sessionIdFromState: number | undefined = state?.sessionId;
 
-  const { data: results, isLoading } = useQuery({
+  // If no sessionId in router state (e.g. page refresh), look it up via the quiz
+  const { data: mySession, isLoading: sessionLoading } = useQuery({
+    queryKey: ["mySession", quizId],
+    queryFn: () => getMySession(Number(quizId)),
+    enabled: !sessionIdFromState && !!quizId,
+  });
+
+  const sessionId: number | undefined =
+    sessionIdFromState ?? mySession?.session_id ?? undefined;
+
+  const { data: results, isLoading: resultsLoading } = useQuery({
     queryKey: ["sessionResults", sessionId],
     queryFn: () => getSessionResults(sessionId!),
     enabled: !!sessionId,
   });
 
-  if (!sessionId) {
-    return (
-      <div className="container mx-auto px-4 py-8 text-center">
-        <p className="text-muted-foreground mb-4">No session data found.</p>
-        <Button onClick={() => navigate(`/student/classrooms/${classroomId}/view`)}>
-          Back to Classroom
-        </Button>
-      </div>
-    );
-  }
+  const isLoading = sessionLoading || resultsLoading;
 
   if (isLoading) {
     return (
@@ -38,7 +39,16 @@ const QuizResultsPage: React.FC = () => {
     );
   }
 
-  if (!results) return null;
+  if (!sessionId || !results) {
+    return (
+      <div className="container mx-auto px-4 py-8 text-center">
+        <p className="text-muted-foreground mb-4">No results found for this quiz.</p>
+        <Button onClick={() => navigate(`/student/classrooms/${classroomId}/view`)}>
+          Back to Classroom
+        </Button>
+      </div>
+    );
+  }
 
   const totalPoints = (results.problems ?? []).reduce(
     (sum: number, p: any) => sum + (p.points ?? 0),

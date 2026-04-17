@@ -182,7 +182,7 @@ const QuizCreationPage: React.FC = () => {
         <h1 className="text-3xl font-bold">
           {isEditMode ? "Edit Quiz" : "Create New Quiz"}
         </h1>
-        <p className="text-gray-400 mt-2">
+        <p className="text-muted-foreground mt-2">
           {isEditMode
             ? "Update the quiz details, problems, and settings."
             : "Assemble a quiz from your existing problems to assess student knowledge."}

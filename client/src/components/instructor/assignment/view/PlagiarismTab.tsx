@@ -190,8 +190,8 @@ const PlagiarismTab: React.FC<PlagiarismTabProps> = ({
               </div>
 
               {loading ? (
-                <div className="text-center py-8 border border-dashed border-gray-700 rounded-lg bg-[#0c121f]">
-                  <p className="text-gray-400">Loading plagiarism reports...</p>
+                <div className="text-center py-8 border border-dashed border-border rounded-lg bg-background">
+                  <p className="text-muted-foreground">Loading plagiarism reports...</p>
                 </div>
               ) : filteredReports.length > 0 ? (
                 <Table>
@@ -233,12 +233,12 @@ const PlagiarismTab: React.FC<PlagiarismTabProps> = ({
                   </TableBody>
                 </Table>
               ) : (
-                <div className="text-center py-8 border border-dashed border-gray-700 rounded-lg bg-[#0c121f]">
-                  <p className="text-gray-400">No plagiarism reports found</p>
+                <div className="text-center py-8 border border-dashed border-border rounded-lg bg-background">
+                  <p className="text-muted-foreground">No plagiarism reports found</p>
                 </div>
               )}
 
-              <div className="mt-6 text-sm text-gray-400">
+              <div className="mt-6 text-sm text-muted-foreground">
                 <p>
                   The system compares code submissions and generates similarity
                   scores based on syntax tokens and code fingerprints.
@@ -262,17 +262,17 @@ const PlagiarismTab: React.FC<PlagiarismTabProps> = ({
                 </DialogTitle>
                 <DialogDescription>
                   {selectedReport && (
-                    <div className="text-sm text-gray-400">
-                      <span className="font-medium text-white">
+                    <div className="text-sm text-muted-foreground">
+                      <span className="font-medium text-foreground">
                         {selectedReport?.studentName || "Unknown Student"}
                       </span>{" "}
                       and{" "}
-                      <span className="font-medium text-white">
+                      <span className="font-medium text-foreground">
                         {selectedReport?.comparedStudentName ||
                           "Unknown Student"}
                       </span>{" "}
                       submissions have a{" "}
-                      <span className="font-medium text-white">
+                      <span className="font-medium text-foreground">
                         {selectedReport?.similarity ?? 0}%
                       </span>{" "}
                       similarity score
@@ -325,8 +325,8 @@ const PlagiarismTab: React.FC<PlagiarismTabProps> = ({
             <CardTitle>Plagiarism Detection</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-center py-8 border border-dashed border-gray-700 rounded-lg bg-[#0c121f]">
-              <p className="text-gray-400">
+            <div className="text-center py-8 border border-dashed border-border rounded-lg bg-background">
+              <p className="text-muted-foreground">
                 Plagiarism detection is not enabled for this assignment.
               </p>
             </div>

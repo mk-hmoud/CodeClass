@@ -307,7 +307,7 @@ const QuizTakingPage: React.FC = () => {
         ? <CheckCircle className="h-3.5 w-3.5 text-green-500" />
         : <XCircle className="h-3.5 w-3.5 text-amber-400" />;
     }
-    return <div className="h-3.5 w-3.5 rounded-full border border-gray-500" />;
+    return <div className="h-3.5 w-3.5 rounded-full border border-border" />;
   };
 
   // ── Render verdict panel ──────────────────────────────────────────────────────

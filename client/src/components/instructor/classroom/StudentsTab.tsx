@@ -58,7 +58,7 @@ const StudentsTab: React.FC<StudentsTabProps> = ({
         return <Badge className="bg-green-600">Active</Badge>;
       case "inactive":
         return (
-          <Badge variant="outline" className="border-gray-500 text-gray-400">
+          <Badge variant="outline" className="border-border text-muted-foreground">
             Inactive
           </Badge>
         );

@@ -69,7 +69,7 @@ const ProblemsSection = ({ activeTab }: ProblemsSectionProps) => {
   };
 
   return (
-    <div className="bg-[#0b0f1a] text-white rounded-lg border border-gray-800 p-6">
+    <div className="bg-background text-foreground rounded-lg border border-border p-6">
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-2">
           <h2 className="text-xl font-semibold flex items-center gap-2">
@@ -107,11 +107,11 @@ const ProblemsSection = ({ activeTab }: ProblemsSectionProps) => {
       )}
 
       {showProblems && problems.length === 0 && (
-        <div className="text-center py-8 border border-dashed border-gray-700 rounded-lg bg-[#0c121f]">
-          <div className="bg-[#123651]/20 rounded-full p-3 inline-flex mb-4">
+        <div className="text-center py-8 border border-dashed border-border rounded-lg bg-background">
+          <div className="bg-primary/10 rounded-full p-3 inline-flex mb-4">
             <Book className="text-[#00b7ff]" size={24} />
           </div>
-          <p className="text-gray-400 mb-4">No problems found</p>
+          <p className="text-muted-foreground mb-4">No problems found</p>
           <Button onClick={() => openNewProblemDialog()}>
             Create Your First Problem
           </Button>

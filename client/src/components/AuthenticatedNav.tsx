@@ -28,10 +28,10 @@ const AuthenticatedNav = ({ userName = "User" }: AuthenticatedNavProps) => {
   };
 
   return (
-    <header className="border-b border-gray-800 bg-[#0b0f1a] py-3 px-4 flex items-center justify-between w-full">
+    <header className="border-b border-border bg-background py-3 px-4 flex items-center justify-between w-full">
       <div className="flex items-center gap-2">
         <div className="text-[#00b7ff] text-2xl font-mono">{`<>`}</div>
-        <h1 className="text-lg font-medium text-white">
+        <h1 className="text-lg font-medium text-foreground">
           Problem Solver Studio
         </h1>
       </div>
@@ -39,7 +39,7 @@ const AuthenticatedNav = ({ userName = "User" }: AuthenticatedNavProps) => {
       <div className="flex items-center gap-4">
         <Link
           to={isInstructorPath ? "/instructor" : "/student"}
-          className="text-gray-300 hover:text-white transition-colors"
+          className="text-foreground/80 hover:text-foreground transition-colors"
         >
           Dashboard
         </Link>
@@ -47,8 +47,8 @@ const AuthenticatedNav = ({ userName = "User" }: AuthenticatedNavProps) => {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="rounded-full">
-              <Avatar className="h-8 w-8 bg-[#123651]">
-                <AvatarFallback className="bg-[#123651] text-white">
+              <Avatar className="h-8 w-8 bg-primary/20">
+                <AvatarFallback className="bg-primary/20 text-foreground">
                   {getInitials(userName)}
                 </AvatarFallback>
               </Avatar>

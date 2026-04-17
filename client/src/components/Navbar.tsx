@@ -37,7 +37,7 @@ const Navbar = () => {
           <>
             <Link
               to="/signup"
-              className="bg-[#00b7ff] hover:bg-[#00a7ea] text-black font-medium py-1.5 px-4 rounded-md transition-colors"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-1.5 px-4 rounded-md transition-colors"
             >
               Get Started
             </Link>

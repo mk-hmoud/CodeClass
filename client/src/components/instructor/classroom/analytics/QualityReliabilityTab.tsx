@@ -136,7 +136,7 @@ const QualityReliabilityTab: React.FC<QualityReliabilityTabProps> = ({
                 ? safeData.runtimeErrorRate.toFixed(1) + "%"
                 : "N/A"}
             </div>
-            <div className="w-2/3 bg-gray-700 rounded-full h-4">
+            <div className="w-2/3 bg-muted rounded-full h-4">
               <div
                 className="bg-amber-600 h-4 rounded-full"
                 style={{ width: `${safeData.runtimeErrorRate ?? 0}%` }}
@@ -188,11 +188,11 @@ const QualityReliabilityTab: React.FC<QualityReliabilityTabProps> = ({
               </ResponsiveContainer>
             </div>
           ) : (
-            <div className="h-80 flex items-center justify-center bg-slate-800 bg-opacity-20 rounded-lg">
-              <p className="text-gray-400">No language usage data available</p>
+            <div className="h-80 flex items-center justify-center bg-muted bg-opacity-20 rounded-lg">
+              <p className="text-muted-foreground">No language usage data available</p>
             </div>
           )}
-          <p className="text-sm text-gray-400 mt-4">
+          <p className="text-sm text-muted-foreground mt-4">
             Proportion of submissions in each programming language across all
             assignments
           </p>

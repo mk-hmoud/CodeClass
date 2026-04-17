@@ -139,7 +139,7 @@ const StudentAssignment = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b0f1a] text-white flex flex-col">
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
       <div className="container mx-auto py-6 px-4">
         <Button
           variant="outline"
@@ -153,7 +153,7 @@ const StudentAssignment = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Left sidebar with problem info */}
           <div className="md:col-span-1">
-            <Card className="bg-[#0d1224] border-gray-700 shadow-lg overflow-hidden">
+            <Card className="bg-card border-border shadow-lg overflow-hidden">
               <div className="p-6">
                 <div className="flex justify-between items-start">
                   <h1 className="text-2xl font-bold">{assignment?.title}</h1>
@@ -172,17 +172,17 @@ const StudentAssignment = () => {
                 </div>
 
                 <div className="mt-4 space-y-4">
-                  <div className="flex items-center gap-2 text-gray-400">
+                  <div className="flex items-center gap-2 text-muted-foreground">
                     <Calendar size={16} />
                     <span>Published: {formatDate(publishDate)}</span>
                   </div>
 
-                  <div className="flex items-center gap-2 text-gray-400">
+                  <div className="flex items-center gap-2 text-muted-foreground">
                     <Clock size={16} />
                     <span>Due: {formatDate(dueDate)}</span>
                   </div>
 
-                  <div className="flex items-center gap-2 text-gray-400">
+                  <div className="flex items-center gap-2 text-muted-foreground">
                     <BookOpen size={16} />
                     <span>{assignment?.points} points</span>
                   </div>
@@ -202,12 +202,12 @@ const StudentAssignment = () => {
                   )}
                 </div>
 
-                <Separator className="my-4 bg-gray-700" />
+                <Separator className="my-4 bg-muted" />
 
                 {/* Assignment details section */}
                 <div className="space-y-4">
                   <div className="flex flex-col gap-2">
-                    <h3 className="text-sm font-semibold text-gray-400">
+                    <h3 className="text-sm font-semibold text-muted-foreground">
                       Category
                     </h3>
                     <div className="flex flex-wrap gap-2">
@@ -224,7 +224,7 @@ const StudentAssignment = () => {
 
                   {tagList.length > 0 && (
                     <div className="flex flex-col gap-2">
-                      <h3 className="text-sm font-semibold text-gray-400">
+                      <h3 className="text-sm font-semibold text-muted-foreground">
                         Tags
                       </h3>
                       <div className="flex flex-wrap gap-2">
@@ -243,7 +243,7 @@ const StudentAssignment = () => {
                   )}
 
                   <div className="flex flex-col gap-2">
-                    <h3 className="text-sm font-semibold text-gray-400">
+                    <h3 className="text-sm font-semibold text-muted-foreground">
                       Languages Allowed
                     </h3>
                     <div className="flex flex-wrap gap-2">
@@ -269,7 +269,7 @@ const StudentAssignment = () => {
 
                   {assignment?.max_submissions !== undefined && (
                     <div className="flex flex-col gap-2">
-                      <h3 className="text-sm font-semibold text-gray-400">
+                      <h3 className="text-sm font-semibold text-muted-foreground">
                         Submission Attempts
                       </h3>
                       <div className="flex items-center gap-2">
@@ -282,7 +282,7 @@ const StudentAssignment = () => {
                   )}
                 </div>
 
-                <Separator className="my-4 bg-gray-700" />
+                <Separator className="my-4 bg-muted" />
 
                 <div className="flex flex-col gap-3 mt-4">
                   <Button className="w-full" onClick={handleStartCoding}>
@@ -301,29 +301,29 @@ const StudentAssignment = () => {
 
           {/* Main content area */}
           <div className="md:col-span-2">
-            <Card className="bg-[#0d1224] border-gray-700 shadow-lg h-full">
+            <Card className="bg-card border-border shadow-lg h-full">
               <Tabs
                 value={activeTab}
                 onValueChange={setActiveTab}
                 className="h-full flex flex-col"
               >
-                <div className="px-4 pt-4 border-b border-gray-700">
-                  <TabsList className="bg-[#0c121f]">
+                <div className="px-4 pt-4 border-b border-border">
+                  <TabsList className="bg-background">
                     <TabsTrigger
                       value="description"
-                      className="data-[state=active]:bg-[#123651]"
+                      className="data-[state=active]:bg-primary/20"
                     >
                       Problem
                     </TabsTrigger>
                     <TabsTrigger
                       value="prerequisites"
-                      className="data-[state=active]:bg-[#123651]"
+                      className="data-[state=active]:bg-primary/20"
                     >
                       Prerequisites
                     </TabsTrigger>
                     <TabsTrigger
                       value="learning"
-                      className="data-[state=active]:bg-[#123651]"
+                      className="data-[state=active]:bg-primary/20"
                     >
                       Learning Outcomes
                     </TabsTrigger>
@@ -353,7 +353,7 @@ const StudentAssignment = () => {
                           </pre>
                         </div>
                       ) : (
-                        <div className="text-gray-400 italic">
+                        <div className="text-muted-foreground italic">
                           No description available for this assignment.
                         </div>
                       )}
@@ -367,7 +367,7 @@ const StudentAssignment = () => {
                   <h3 className="text-xl font-semibold mb-4">Prerequisites</h3>
                   {prereqList.length > 0 ? (
                     <div className="space-y-4">
-                      <div className="border border-gray-700 rounded-lg p-4 bg-[#0c121f]">
+                      <div className="border border-border rounded-lg p-4 bg-background">
                         <ul className="list-disc pl-5 space-y-2">
                           {prereqList.map((prereq, idx) => (
                             <li key={idx}>{prereq}</li>
@@ -376,7 +376,7 @@ const StudentAssignment = () => {
                       </div>
                     </div>
                   ) : (
-                    <p className="text-gray-400 italic">No prerequisites.</p>
+                    <p className="text-muted-foreground italic">No prerequisites.</p>
                   )}
                 </TabsContent>
 
@@ -389,7 +389,7 @@ const StudentAssignment = () => {
                   </h3>
                   {outcomeList.length > 0 ? (
                     <div className="space-y-4">
-                      <div className="border border-gray-700 rounded-lg p-4 bg-[#0c121f]">
+                      <div className="border border-border rounded-lg p-4 bg-background">
                         <ul className="list-disc pl-5 space-y-2">
                           {outcomeList.map((outcome, idx) => (
                             <li key={idx} className="flex items-start gap-2">
@@ -404,7 +404,7 @@ const StudentAssignment = () => {
                       </div>
                     </div>
                   ) : (
-                    <p className="text-gray-400 italic">
+                    <p className="text-muted-foreground italic">
                       No learning outcomes.
                     </p>
                   )}

@@ -43,7 +43,7 @@ const ParticipationEngagementTab: React.FC<ParticipationEngagementTabProps> = ({
       <div className="space-y-6">
         <h2 className="text-2xl font-bold">Participation & Engagement</h2>
         <Card className="bg-card border-border">
-          <CardContent className="p-6 text-center text-gray-400">
+          <CardContent className="p-6 text-center text-muted-foreground">
             {isLoading
               ? "Loading participation data..."
               : "No participation data available."}
@@ -220,7 +220,7 @@ const ParticipationEngagementTab: React.FC<ParticipationEngagementTabProps> = ({
               </ResponsiveContainer>
             </div>
           ) : (
-            <div className="h-80 flex items-center justify-center text-gray-400">
+            <div className="h-80 flex items-center justify-center text-muted-foreground">
               No submission trend data available.
             </div>
           )}

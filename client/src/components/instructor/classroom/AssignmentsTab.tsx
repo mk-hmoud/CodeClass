@@ -84,7 +84,7 @@ const AssignmentsTab: React.FC<AssignmentsTabProps> = ({
         );
       case "expired":
         return (
-          <Badge variant="outline" className="border-gray-500 text-gray-400">
+          <Badge variant="outline" className="border-border text-muted-foreground">
             Expired
           </Badge>
         );
@@ -143,7 +143,7 @@ const AssignmentsTab: React.FC<AssignmentsTabProps> = ({
                       </TableCell>
                       <TableCell>
                         {formattedDue ?? (
-                          <span className="text-gray-400 italic">
+                          <span className="text-muted-foreground italic">
                             No due date
                           </span>
                         )}

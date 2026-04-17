@@ -27,7 +27,7 @@ const AssignmentCodeEditor: React.FC<AssignmentCodeEditorProps> = ({
   };
 
   return (
-    <div className="border border-gray-700 rounded-md overflow-hidden h-[200px]">
+    <div className="border border-border rounded-md overflow-hidden h-[200px]">
       <CodeEditorBase
         defaultLanguage={getMonacoLanguage(language)}
         defaultValue={value}

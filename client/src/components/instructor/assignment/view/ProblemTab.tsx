@@ -30,7 +30,7 @@ const ProblemTab: React.FC<ProblemTabProps> = ({ assignment }) => {
 
   return (
     <div className="space-y-4">
-      <Card className="bg-[#0d1224] border-gray-700">
+      <Card className="bg-card border-border">
         <CardHeader className="pb-0">
           <CardTitle>Problem Details</CardTitle>
           <CardDescription>
@@ -45,8 +45,8 @@ const ProblemTab: React.FC<ProblemTabProps> = ({ assignment }) => {
               <FileText className="h-5 w-5" />
               <h3>Description</h3>
             </div>
-            <div className="bg-[#0c121f] p-4 rounded-md">
-              <p className="whitespace-pre-line text-gray-300">
+            <div className="bg-background p-4 rounded-md">
+              <p className="whitespace-pre-line text-foreground/80">
                 {p.description}
               </p>
             </div>
@@ -70,7 +70,7 @@ const ProblemTab: React.FC<ProblemTabProps> = ({ assignment }) => {
                 <BookOpen className="h-5 w-5" />
                 <h3>Prerequisites</h3>
               </div>
-              <ul className="list-disc list-inside space-y-1 text-gray-300">
+              <ul className="list-disc list-inside space-y-1 text-foreground/80">
                 {prereqList.map((pr, i) => (
                   <li key={i}>{pr}</li>
                 ))}
@@ -84,7 +84,7 @@ const ProblemTab: React.FC<ProblemTabProps> = ({ assignment }) => {
                 <BookOpen className="h-5 w-5" />
                 <h3>Learning Outcomes</h3>
               </div>
-              <ul className="list-disc list-inside space-y-1 text-gray-300">
+              <ul className="list-disc list-inside space-y-1 text-foreground/80">
                 {outcomeList.map((lo, i) => (
                   <li key={i}>{lo}</li>
                 ))}
@@ -119,10 +119,10 @@ const ProblemTab: React.FC<ProblemTabProps> = ({ assignment }) => {
                 {p.testCases.map((testCase, index) => (
                   <div
                     key={testCase.testCaseId}
-                    className="bg-[#0c121f] border border-gray-700 rounded-md p-4"
+                    className="bg-background border border-border rounded-md p-4"
                   >
                     <div className="flex justify-between items-center mb-2 px-2">
-                      <span className="text-sm text-gray-400">
+                      <span className="text-sm text-muted-foreground">
                         Test Case #{index + 1}
                       </span>
                       {testCase.isPublic && (
@@ -137,16 +137,16 @@ const ProblemTab: React.FC<ProblemTabProps> = ({ assignment }) => {
                     </div>
                     <div className="grid grid-cols-2 gap-4 px-2">
                       <div>
-                        <h4 className="text-sm text-gray-400 mb-1">Input</h4>
-                        <pre className="bg-[#0a0d17] p-2 rounded-md text-sm">
+                        <h4 className="text-sm text-muted-foreground mb-1">Input</h4>
+                        <pre className="bg-background p-2 rounded-md text-sm">
                           {testCase.input}
                         </pre>
                       </div>
                       <div>
-                        <h4 className="text-sm text-gray-400 mb-1">
+                        <h4 className="text-sm text-muted-foreground mb-1">
                           Expected Output
                         </h4>
-                        <pre className="bg-[#0a0d17] p-2 rounded-md text-sm">
+                        <pre className="bg-background p-2 rounded-md text-sm">
                           {testCase.expectedOutput}
                         </pre>
                       </div>

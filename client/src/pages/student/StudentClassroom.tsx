@@ -64,7 +64,7 @@ const StudentClassroom: React.FC = () => {
     if (!isActive) {
       return "border-red-500/50";
     }
-    return "border-gray-700";
+    return "border-border";
   };
 
   const getStatusBadge = (assignment: Assignment) => {
@@ -87,7 +87,7 @@ const StudentClassroom: React.FC = () => {
       );
     } else {
       return (
-        <Badge className="bg-gray-900/40 text-gray-400 border border-gray-700">
+        <Badge className="bg-muted/40 text-muted-foreground border border-border">
           No Due Date
         </Badge>
       );
@@ -240,7 +240,7 @@ const StudentClassroom: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b0f1a] text-white flex flex-col">
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
       <div className="flex-1 p-6">
         <div className="max-w-6xl mx-auto">
           <Button
@@ -252,60 +252,60 @@ const StudentClassroom: React.FC = () => {
             Back to Dashboard
           </Button>
 
-          <div className="bg-[#0d1224] border border-gray-800 rounded-lg p-6 mb-8 shadow-lg">
+          <div className="bg-card border border-border rounded-lg p-6 mb-8 shadow-lg">
             <div className="flex justify-between items-start">
               <div>
                 <h1 className="text-3xl font-bold">{classroom.name}</h1>
                 <div className="flex items-center gap-2 mt-2">
-                  <span className="text-gray-400">Class Code:</span>
-                  <span className="font-mono bg-gray-800 px-2 py-1 rounded text-[#00b7ff] border border-[#00b7ff]/30">
+                  <span className="text-muted-foreground">Class Code:</span>
+                  <span className="font-mono bg-muted px-2 py-1 rounded text-[#00b7ff] border border-[#00b7ff]/30">
                     {classroom.code}
                   </span>
                 </div>
-                <p className="text-gray-400 mt-1">
+                <p className="text-muted-foreground mt-1">
                   Instructor: {classroom.instructor}
                 </p>
               </div>
             </div>
 
             <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-[#0c121f] border border-gray-700 rounded-lg p-4 flex items-center gap-3">
+              <div className="bg-background border border-border rounded-lg p-4 flex items-center gap-3">
                 <div className="bg-blue-500/20 rounded-full p-3">
                   <BookOpen className="text-blue-400" size={24} />
                 </div>
                 <div>
-                  <p className="text-gray-400 text-sm">Total Assignments</p>
+                  <p className="text-muted-foreground text-sm">Total Assignments</p>
                   <p className="text-xl font-semibold">
                     {classroom.assignments.length}
                   </p>
                 </div>
               </div>
 
-              <div className="bg-[#0c121f] border border-gray-700 rounded-lg p-4 flex items-center gap-3">
+              <div className="bg-background border border-border rounded-lg p-4 flex items-center gap-3">
                 <div className="bg-green-500/20 rounded-full p-3">
                   <CheckCircle className="text-green-400" size={24} />
                 </div>
                 <div>
-                  <p className="text-gray-400 text-sm">Completed</p>
+                  <p className="text-muted-foreground text-sm">Completed</p>
                   <p className="text-xl font-semibold">
                     {classroom.completedAssignments}
                   </p>
                 </div>
               </div>
 
-              <div className="bg-[#0c121f] border border-gray-700 rounded-lg p-4 flex items-center gap-3">
+              <div className="bg-background border border-border rounded-lg p-4 flex items-center gap-3">
                 <div className="bg-purple-500/20 rounded-full p-3">
                   <GraduationCap className="text-purple-400" size={24} />
                 </div>
                 <div>
-                  <p className="text-gray-400 text-sm">Completion Rate</p>
+                  <p className="text-muted-foreground text-sm">Completion Rate</p>
                   <p className="text-xl font-semibold">{completionRate}%</p>
                 </div>
               </div>
             </div>
 
             {upcomingAssignments.length > 0 && (
-              <div className="mt-6 bg-[#0c121f] border border-gray-700 rounded-lg p-4">
+              <div className="mt-6 bg-background border border-border rounded-lg p-4">
                 <h3 className="text-lg font-medium mb-2 flex items-center gap-2">
                   <Clock size={18} className="text-amber-400" />
                   Upcoming Deadlines
@@ -314,7 +314,7 @@ const StudentClassroom: React.FC = () => {
                   {upcomingAssignments.map((assignment) => (
                     <div
                       key={assignment.assignmentId}
-                      className="flex justify-between items-center border-b border-gray-700 pb-2"
+                      className="flex justify-between items-center border-b border-border pb-2"
                     >
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{assignment.title}</span>
@@ -361,7 +361,7 @@ const StudentClassroom: React.FC = () => {
               }
               className="w-full"
             >
-              <TabsList className="w-full bg-[#0d1224] border border-gray-800 mb-6">
+              <TabsList className="w-full bg-card border border-border mb-6">
                 <TabsTrigger
                   value="all"
                   className="flex-1 data-[state=active]:bg-blue-600"
@@ -394,7 +394,7 @@ const StudentClassroom: React.FC = () => {
                       return (
                         <Card
                           key={assignment.assignmentId}
-                          className={`bg-[#0d1224] border-2 hover:border-opacity-80 transition-all ${getCardBorderClass(
+                          className={`bg-card border-2 hover:border-opacity-80 transition-all ${getCardBorderClass(
                             assignment
                           )} ${isExpired ? "bg-red-950/10" : ""}`}
                         >
@@ -431,7 +431,7 @@ const StudentClassroom: React.FC = () => {
                           </CardHeader>
                           <CardContent>
                             <div className="flex justify-between text-sm mt-2 mb-3">
-                              <div className="text-gray-400">
+                              <div className="text-muted-foreground">
                                 <span className="text-white font-medium">
                                   {assignment.points}
                                 </span>{" "}
@@ -439,7 +439,7 @@ const StudentClassroom: React.FC = () => {
                               </div>
                               <div
                                 className={`${
-                                  isExpired ? "text-red-400" : "text-gray-400"
+                                  isExpired ? "text-red-400" : "text-muted-foreground"
                                 }`}
                               >
                                 Due:{" "}
@@ -502,7 +502,7 @@ const StudentClassroom: React.FC = () => {
                             {!assignment.submitted &&
                               !isExpired &&
                               assignment.dueDate && (
-                                <div className="flex items-center gap-2 text-sm text-gray-400 mb-3">
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
                                   <Clock size={14} />
                                   {getDaysRemaining(
                                     assignment.dueDate.toString()
@@ -520,7 +520,7 @@ const StudentClassroom: React.FC = () => {
                           </CardContent>
                           <Separator
                             className={`mb-4 ${
-                              isExpired ? "bg-red-800/50" : "bg-gray-800"
+                              isExpired ? "bg-red-800/50" : "bg-muted"
                             }`}
                           />
                           <CardFooter className="pt-2">
@@ -544,8 +544,8 @@ const StudentClassroom: React.FC = () => {
                       );
                     })
                   ) : (
-                    <div className="col-span-3 text-center py-10 bg-[#0d1224] border border-gray-700 rounded-lg">
-                      <p className="text-gray-400">
+                    <div className="col-span-3 text-center py-10 bg-card border border-border rounded-lg">
+                      <p className="text-muted-foreground">
                         No assignments in this category
                       </p>
                     </div>
@@ -559,7 +559,7 @@ const StudentClassroom: React.FC = () => {
                     filteredAssignments.map((assignment) => (
                       <Card
                         key={assignment.assignmentId}
-                        className="bg-[#0d1224] border-2 border-green-500/50 hover:border-green-500/70 transition-all"
+                        className="bg-card border-2 border-green-500/50 hover:border-green-500/70 transition-all"
                       >
                         <CardHeader className="flex flex-row items-start justify-between pb-2">
                           <CardTitle className="text-white flex items-center gap-2">
@@ -572,13 +572,13 @@ const StudentClassroom: React.FC = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="flex justify-between text-sm mt-2 mb-3">
-                            <div className="text-gray-400">
+                            <div className="text-muted-foreground">
                               <span className="text-white font-medium">
                                 {assignment.points}
                               </span>{" "}
                               points
                             </div>
-                            <div className="text-gray-400">
+                            <div className="text-muted-foreground">
                               Due:{" "}
                               {assignment.dueDate ? (
                                 formatDate(assignment.dueDate.toString())
@@ -622,8 +622,8 @@ const StudentClassroom: React.FC = () => {
                       </Card>
                     ))
                   ) : (
-                    <div className="col-span-3 text-center py-10 bg-[#0d1224] border border-gray-700 rounded-lg">
-                      <p className="text-gray-400">No completed assignments</p>
+                    <div className="col-span-3 text-center py-10 bg-card border border-border rounded-lg">
+                      <p className="text-muted-foreground">No completed assignments</p>
                     </div>
                   )}
                 </div>
@@ -638,10 +638,10 @@ const StudentClassroom: React.FC = () => {
                       return (
                         <Card
                           key={assignment.assignmentId}
-                          className={`bg-[#0d1224] border-2 hover:border-opacity-80 transition-all ${
+                          className={`bg-card border-2 hover:border-opacity-80 transition-all ${
                             isExpired
                               ? "border-red-500/50 bg-red-950/10"
-                              : "border-gray-700"
+                              : "border-border"
                           }`}
                         >
                           <CardHeader
@@ -675,7 +675,7 @@ const StudentClassroom: React.FC = () => {
                           </CardHeader>
                           <CardContent>
                             <div className="flex justify-between text-sm mt-2 mb-3">
-                              <div className="text-gray-400">
+                              <div className="text-muted-foreground">
                                 <span className="text-white font-medium">
                                   {assignment.points}
                                 </span>{" "}
@@ -683,7 +683,7 @@ const StudentClassroom: React.FC = () => {
                               </div>
                               <div
                                 className={`${
-                                  isExpired ? "text-red-400" : "text-gray-400"
+                                  isExpired ? "text-red-400" : "text-muted-foreground"
                                 }`}
                               >
                                 Due:{" "}
@@ -725,7 +725,7 @@ const StudentClassroom: React.FC = () => {
                               </div>
                             ) : (
                               assignment.dueDate && (
-                                <div className="flex items-center gap-2 text-sm text-gray-400 mb-3">
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
                                   <Clock size={14} />
                                   {getDaysRemaining(
                                     assignment.dueDate.toString()
@@ -744,7 +744,7 @@ const StudentClassroom: React.FC = () => {
                           </CardContent>
                           <Separator
                             className={`mb-4 ${
-                              isExpired ? "bg-red-800/50" : "bg-gray-800"
+                              isExpired ? "bg-red-800/50" : "bg-muted"
                             }`}
                           />
                           <CardFooter className="pt-2">
@@ -773,8 +773,8 @@ const StudentClassroom: React.FC = () => {
                       );
                     })
                   ) : (
-                    <div className="col-span-3 text-center py-10 bg-[#0d1224] border border-gray-700 rounded-lg">
-                      <p className="text-gray-400">No pending assignments</p>
+                    <div className="col-span-3 text-center py-10 bg-card border border-border rounded-lg">
+                      <p className="text-muted-foreground">No pending assignments</p>
                     </div>
                   )}
                 </div>
@@ -789,7 +789,7 @@ const StudentClassroom: React.FC = () => {
                 {quizzes.map((quiz) => (
                   <Card
                     key={quiz.quizId}
-                    className="bg-[#0d1224] border-2 border-[#00b7ff]/30 hover:border-[#00b7ff]/60 transition-all"
+                    className="bg-card border-2 border-[#00b7ff]/30 hover:border-[#00b7ff]/60 transition-all"
                   >
                     <CardHeader className="pb-2">
                       <CardTitle className="text-white flex items-center gap-2">
@@ -799,10 +799,10 @@ const StudentClassroom: React.FC = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="flex justify-between text-sm mb-3">
-                        <span className="text-gray-400">
+                        <span className="text-muted-foreground">
                           <span className="text-white font-medium">{quiz.problemCount}</span> problems
                         </span>
-                        <span className="text-gray-400">
+                        <span className="text-muted-foreground">
                           <span className="text-white font-medium">{quiz.time_limit_minutes}</span> min
                         </span>
                       </div>
@@ -812,7 +812,7 @@ const StudentClassroom: React.FC = () => {
                         </div>
                       )}
                     </CardContent>
-                    <Separator className="mb-4 bg-gray-800" />
+                    <Separator className="mb-4 bg-muted" />
                     <CardFooter className="pt-2">
                       {(() => {
                         const status = quizSessions[quiz.quizId];

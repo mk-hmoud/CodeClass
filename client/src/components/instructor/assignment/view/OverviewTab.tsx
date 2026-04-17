@@ -32,7 +32,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
   };
   return (
     <div className="space-y-4">
-      <Card className="bg-[#0d1224] border-gray-700">
+      <Card className="bg-card border-border">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Assignment Overview</CardTitle>
@@ -46,17 +46,17 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
         </CardHeader>
         <CardContent className="p-6 space-y-4">
           <div>
-            <h3 className="text-sm font-semibold text-gray-400 mb-2">
+            <h3 className="text-sm font-semibold text-muted-foreground mb-2">
               Description
             </h3>
             <p className="whitespace-pre-line">{assignment.description}</p>
           </div>
 
-          <Separator className="my-4 bg-gray-700" />
+          <Separator className="my-4 bg-muted" />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <h3 className="text-sm font-semibold text-gray-400 mb-2">
+              <h3 className="text-sm font-semibold text-muted-foreground mb-2">
                 Grading Method
               </h3>
               <div className="flex flex-wrap gap-2">
@@ -70,7 +70,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
             </div>
 
             <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-gray-400 mb-2">
+              <h3 className="text-sm font-semibold text-muted-foreground mb-2">
                 Plagiarism Detection
               </h3>{" "}
               <div className="flex flex-wrap gap-2">
@@ -84,10 +84,10 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
             </div>
           </div>
 
-          <Separator className="my-4 bg-gray-700" />
+          <Separator className="my-4 bg-muted" />
 
           <div>
-            <h3 className="text-sm font-semibold text-gray-400 mb-2">
+            <h3 className="text-sm font-semibold text-muted-foreground mb-2">
               Languages Allowed
             </h3>
             <div className="flex flex-wrap gap-2">

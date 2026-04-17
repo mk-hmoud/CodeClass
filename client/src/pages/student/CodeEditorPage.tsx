@@ -459,7 +459,7 @@ const CodeEditorPage = () => {
               className={`px-3 py-1.5 rounded-md text-sm flex items-center gap-1.5 transition-colors ${
                 activeTestCaseId === testCase.testCaseId
                   ? "bg-primary/10 text-primary border border-primary/30"
-                  : "hover:bg-muted border border-transparent hover:border-gray-200"
+                  : "hover:bg-muted border border-transparent hover:border-border"
               }`}
             >
               {testResults.length > 0 ? (
@@ -470,7 +470,7 @@ const CodeEditorPage = () => {
                   <XCircle className="h-3.5 w-3.5 text-red-500" />
                 )
               ) : (
-                <div className="h-3.5 w-3.5 rounded-full border border-gray-300"></div>
+                <div className="h-3.5 w-3.5 rounded-full border border-border"></div>
               )}
               Case {idx + 1}
             </button>
@@ -688,7 +688,7 @@ const CodeEditorPage = () => {
                           </pre>
                         </div>
                       ) : (
-                        <div className="text-gray-400 italic">
+                        <div className="text-muted-foreground italic">
                           No description available for this assignment.
                         </div>
                       )}

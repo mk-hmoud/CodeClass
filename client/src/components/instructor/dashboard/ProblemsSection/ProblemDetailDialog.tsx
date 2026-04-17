@@ -276,7 +276,7 @@ const ProblemDetailDialog = ({
                     className="mt-2 min-h-[150px]"
                   />
                 ) : (
-                  <div className="mt-1 bg-[#0c121f] p-4 rounded-md">
+                  <div className="mt-1 bg-background p-4 rounded-md">
                     <p className="whitespace-pre-line">
                       {editedProblem.description}
                     </p>
@@ -296,7 +296,7 @@ const ProblemDetailDialog = ({
                     className="mt-2"
                   />
                 ) : (
-                  <div className="mt-1 bg-[#0c121f] p-4 rounded-md">
+                  <div className="mt-1 bg-background p-4 rounded-md">
                     <p className="whitespace-pre-line">
                       {editedProblem.prerequisites}
                     </p>
@@ -316,7 +316,7 @@ const ProblemDetailDialog = ({
                     className="mt-2"
                   />
                 ) : (
-                  <div className="mt-1 bg-[#0c121f] p-4 rounded-md">
+                  <div className="mt-1 bg-background p-4 rounded-md">
                     <p className="whitespace-pre-line">
                       {editedProblem.learning_outcomes}
                     </p>
@@ -343,7 +343,7 @@ const ProblemDetailDialog = ({
                   {editedProblem.testCases?.map((testCase, index) => (
                     <div
                       key={testCase.testCaseId}
-                      className="border border-gray-700 rounded-md p-3"
+                      className="border border-border rounded-md p-3"
                     >
                       <div className="flex justify-between items-center mb-2">
                         <div className="flex items-center gap-2">
@@ -363,7 +363,7 @@ const ProblemDetailDialog = ({
                                       e.target.checked
                                     )
                                   }
-                                  className="rounded border-gray-700"
+                                  className="rounded border-border"
                                 />
                               ) : (
                                 <input
@@ -371,7 +371,7 @@ const ProblemDetailDialog = ({
                                   checked={testCase.isPublic}
                                   readOnly
                                   tabIndex={-1}
-                                  className="rounded border-gray-700"
+                                  className="rounded border-border"
                                   aria-label="Test case public/private"
                                 />
                               )}
@@ -410,10 +410,10 @@ const ProblemDetailDialog = ({
                                   e.target.value
                                 )
                               }
-                              className="mt-1 min-h-[80px] bg-[#0a0d17]"
+                              className="mt-1 min-h-[80px] bg-background"
                             />
                           ) : (
-                            <pre className="mt-1 text-sm bg-[#0a0d17] p-2 rounded-md">
+                            <pre className="mt-1 text-sm bg-background p-2 rounded-md">
                               {testCase.input}
                             </pre>
                           )}
@@ -436,10 +436,10 @@ const ProblemDetailDialog = ({
                                   e.target.value
                                 )
                               }
-                              className="mt-1 min-h-[80px] bg-[#0a0d17]"
+                              className="mt-1 min-h-[80px] bg-background"
                             />
                           ) : (
-                            <pre className="mt-1 text-sm bg-[#0a0d17] p-2 rounded-md">
+                            <pre className="mt-1 text-sm bg-background p-2 rounded-md">
                               {testCase.expectedOutput}
                             </pre>
                           )}

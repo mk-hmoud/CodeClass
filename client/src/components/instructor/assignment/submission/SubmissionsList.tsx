@@ -84,19 +84,19 @@ const SubmissionsList: React.FC<SubmissionsListProps> = ({
         onValueChange={setActiveTab}
         className="space-y-4"
       >
-        <TabsList className="bg-[#0c121f] p-1">
-          <TabsTrigger value="all" className="data-[state=active]:bg-[#123651]">
+        <TabsList className="bg-background p-1">
+          <TabsTrigger value="all" className="data-[state=active]:bg-primary/20">
             All Submissions
           </TabsTrigger>
           <TabsTrigger
             value="pending"
-            className="data-[state=active]:bg-[#123651]"
+            className="data-[state=active]:bg-primary/20"
           >
             Pending
           </TabsTrigger>
           <TabsTrigger
             value="graded"
-            className="data-[state=active]:bg-[#123651]"
+            className="data-[state=active]:bg-primary/20"
           >
             Graded
           </TabsTrigger>
@@ -104,7 +104,7 @@ const SubmissionsList: React.FC<SubmissionsListProps> = ({
 
         <TabsContent value={activeTab} className="space-y-4">
           <div className="flex justify-between items-center">
-            <div className="text-sm text-gray-400">
+            <div className="text-sm text-muted-foreground">
               {filteredSubmissions.length} submission
               {filteredSubmissions.length !== 1 ? "s" : ""}
             </div>

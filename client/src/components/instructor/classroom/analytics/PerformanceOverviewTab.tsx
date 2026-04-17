@@ -129,8 +129,8 @@ const PerformanceOverviewTab: React.FC<PerformanceOverviewTabProps> = ({
               </ResponsiveContainer>
             </div>
           ) : (
-            <div className="h-80 flex items-center justify-center bg-slate-800 bg-opacity-20 rounded-lg">
-              <p className="text-gray-400">No distribution data available</p>
+            <div className="h-80 flex items-center justify-center bg-muted bg-opacity-20 rounded-lg">
+              <p className="text-muted-foreground">No distribution data available</p>
             </div>
           )}
         </CardContent>
@@ -168,8 +168,8 @@ const PerformanceOverviewTab: React.FC<PerformanceOverviewTabProps> = ({
               </ResponsiveContainer>
             </div>
           ) : (
-            <div className="h-80 flex items-center justify-center bg-slate-800 bg-opacity-20 rounded-lg">
-              <p className="text-gray-400">No trend data available</p>
+            <div className="h-80 flex items-center justify-center bg-muted bg-opacity-20 rounded-lg">
+              <p className="text-muted-foreground">No trend data available</p>
             </div>
           )}
         </CardContent>

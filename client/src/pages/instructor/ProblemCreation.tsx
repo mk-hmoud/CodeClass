@@ -147,7 +147,7 @@ const ProblemCreation = () => {
           Back to Dashboard
         </Button>
         <h1 className="text-3xl font-bold">Create New Problem</h1>
-        <p className="text-gray-400 mt-2">
+        <p className="text-muted-foreground mt-2">
           Create a new coding problem for your students to solve.
         </p>
       </div>
@@ -306,10 +306,10 @@ const ProblemCreation = () => {
             </div>
 
             {testCases.map((testCase, index) => (
-              <Card key={index} className="bg-[#0d1224] border-gray-700">
+              <Card key={index} className="bg-card border-border">
                 <CardContent className="p-4">
                   <div className="flex justify-between items-start mb-4">
-                    <h3 className="text-sm font-semibold text-gray-400">
+                    <h3 className="text-sm font-semibold text-muted-foreground">
                       Test Case #{index + 1}
                     </h3>
                     <Button

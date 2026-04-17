@@ -138,7 +138,7 @@ const ClassroomsSection = () => {
     );
 
   return (
-    <div className="bg-[#0b0f1a] text-white rounded-lg border border-gray-800 p-6 mb-8">
+    <div className="bg-background text-foreground rounded-lg border border-border p-6 mb-8">
       <div className="flex justify-between items-center mb-8">
         <h2 className="text-2xl font-bold">Classrooms</h2>
         <div className="flex gap-2">
@@ -182,7 +182,7 @@ const ClassroomsSection = () => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="18"
@@ -205,22 +205,22 @@ const ClassroomsSection = () => {
           onValueChange={setActiveTab}
           className="w-full sm:w-auto"
         >
-          <TabsList className="border border-gray-700 bg-[#0d1224]">
+          <TabsList className="border border-border bg-card">
             <TabsTrigger
               value="active"
-              className="data-[state=active]:bg-[#123651]"
+              className="data-[state=active]:bg-primary/20"
             >
               Active
             </TabsTrigger>
             <TabsTrigger
               value="archived"
-              className="data-[state=active]:bg-[#123651]"
+              className="data-[state=active]:bg-primary/20"
             >
               Archived
             </TabsTrigger>
             <TabsTrigger
               value="all"
-              className="data-[state=active]:bg-[#123651]"
+              className="data-[state=active]:bg-primary/20"
             >
               All
             </TabsTrigger>
@@ -233,7 +233,7 @@ const ClassroomsSection = () => {
           {filteredClassrooms.map((classroom) => (
             <Card
               key={classroom.id}
-              className={`bg-[#0d1224] border-gray-700 hover:border-[#00b7ff] transition-colors ${
+              className={`bg-card border-border hover:border-[#00b7ff] transition-colors ${
                 classroom.status === "active" ? "opacity-80" : ""
               }`}
             >
@@ -248,7 +248,7 @@ const ClassroomsSection = () => {
                   {classroom.status === "archived" && (
                     <Badge
                       variant="outline"
-                      className="bg-gray-800 text-gray-400 border-gray-600"
+                      className="bg-muted text-muted-foreground border-border"
                     >
                       Archived
                     </Badge>
@@ -261,14 +261,14 @@ const ClassroomsSection = () => {
                   navigate(`/instructor/classrooms/${classroom.id}/view`)
                 }
               >
-                <p className="text-gray-400 mb-4">
+                <p className="text-muted-foreground mb-4">
                   Code:{" "}
-                  <span className="font-mono bg-gray-800 px-2 py-1 rounded text-[#00b7ff]">
+                  <span className="font-mono bg-muted px-2 py-1 rounded text-[#00b7ff]">
                     {classroom.code}
                   </span>
                 </p>
 
-                <div className="flex justify-between text-sm text-gray-400 mb-3">
+                <div className="flex justify-between text-sm text-muted-foreground mb-3">
                   <div className="flex items-center gap-1">
                     <Users size={16} />
                     <span>{classroom.students_num} Students </span>
@@ -279,7 +279,7 @@ const ClassroomsSection = () => {
                   </div>
                 </div>
               </CardContent>
-              <CardFooter className="border-t border-gray-700 pt-4 flex justify-between">
+              <CardFooter className="border-t border-border pt-4 flex justify-between">
                 <Button
                   variant="outline"
                   className="flex-1 mr-2"
@@ -330,20 +330,20 @@ const ClassroomsSection = () => {
           ))}
         </div>
       ) : (
-        <div className="text-center py-16 border border-dashed border-gray-700 rounded-lg bg-[#0c121f]">
-          <div className="bg-[#123651]/20 rounded-full p-3 inline-flex mb-4">
+        <div className="text-center py-16 border border-dashed border-border rounded-lg bg-background">
+          <div className="bg-primary/10 rounded-full p-3 inline-flex mb-4">
             <BookOpen className="text-[#00b7ff]" size={24} />
           </div>
           {searchQuery ? (
             <>
-              <p className="text-gray-400 mb-4">
+              <p className="text-muted-foreground mb-4">
                 No classrooms found matching "{searchQuery}"
               </p>
               <Button onClick={() => setSearchQuery("")}>Clear Search</Button>
             </>
           ) : activeTab === "active" ? (
             <>
-              <p className="text-gray-400 mb-4">
+              <p className="text-muted-foreground mb-4">
                 You don't have any active classrooms
               </p>
               <Button onClick={() => setOpen(true)}>
@@ -351,12 +351,12 @@ const ClassroomsSection = () => {
               </Button>
             </>
           ) : activeTab === "archived" ? (
-            <p className="text-gray-400">
+            <p className="text-muted-foreground">
               You don't have any archived classrooms
             </p>
           ) : (
             <>
-              <p className="text-gray-400 mb-4">
+              <p className="text-muted-foreground mb-4">
                 You don't have any classrooms yet
               </p>
               <Button onClick={() => setOpen(true)}>

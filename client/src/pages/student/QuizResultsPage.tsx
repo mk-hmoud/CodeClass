@@ -116,7 +116,7 @@ const QuizResultsPage: React.FC = () => {
               >
                 <div className="shrink-0">
                   {notAttempted ? (
-                    <div className="h-5 w-5 rounded-full border-2 border-gray-500" />
+                    <div className="h-5 w-5 rounded-full border-2 border-border" />
                   ) : allPassed ? (
                     <CheckCircle className="h-5 w-5 text-green-500" />
                   ) : (

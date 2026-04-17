@@ -26,7 +26,7 @@ const QuizPreviewSection: React.FC<QuizPreviewSectionProps> = ({ form, selectedP
       <CardContent className="space-y-6">
         <div className="space-y-2">
           <h2 className="text-xl font-bold">{formData.title || "Untitled Quiz"}</h2>
-          <p className="text-gray-400">{formData.description || "No description provided."}</p>
+          <p className="text-muted-foreground">{formData.description || "No description provided."}</p>
         </div>
         
         <div className="flex items-center gap-4 text-sm">
@@ -49,7 +49,7 @@ const QuizPreviewSection: React.FC<QuizPreviewSectionProps> = ({ form, selectedP
                   <span className="font-medium">Question {i + 1}: {problemDetails?.title}</span>
                   <Badge variant="outline">{problemDetails?.category}</Badge>
                 </div>
-                <div className="mt-2 flex items-center gap-4 text-sm text-gray-400">
+                <div className="mt-2 flex items-center gap-4 text-sm text-muted-foreground">
                   <span>{q.points} points</span>
                 </div>
               </div>

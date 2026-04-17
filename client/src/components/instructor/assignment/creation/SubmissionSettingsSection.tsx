@@ -88,7 +88,7 @@ const SubmissionSettingsSection: React.FC<SubmissionSettingsSectionProps> = ({
                   disabled={!watchEnableSubmissionAttempts}
                   className={
                     !watchEnableSubmissionAttempts
-                      ? "bg-gray-700 text-gray-400"
+                      ? "bg-muted text-muted-foreground"
                       : ""
                   }
                   {...field}

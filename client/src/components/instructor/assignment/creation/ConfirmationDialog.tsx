@@ -42,15 +42,15 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
           <div className="space-y-2">
             <h3 className="font-semibold">Basic Information</h3>
             <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="text-gray-400">Problem:</div>
+              <div className="text-muted-foreground">Problem:</div>
               <div>{problemTitle}</div>
 
               <div className="col-span-2 pl-4 space-y-1">
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="text-gray-400">Title:</div>
+                  <div className="text-muted-foreground">Title:</div>
                   <div>{formData.title || "Using problem title"}</div>
 
-                  <div className="text-gray-400">Description:</div>
+                  <div className="text-muted-foreground">Description:</div>
                   <div>
                     {formData.description
                       ? "Custom description"
@@ -59,13 +59,13 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
                 </div>
               </div>
 
-              <div className="text-gray-400">Difficulty:</div>
+              <div className="text-muted-foreground">Difficulty:</div>
               <div>{formData.difficulty_level}</div>
 
-              <div className="text-gray-400">Points:</div>
+              <div className="text-muted-foreground">Points:</div>
               <div>{formData.points}</div>
 
-              <div className="text-gray-400">Grading Method:</div>
+              <div className="text-muted-foreground">Grading Method:</div>
               <div>{formData.grading_method}</div>
             </div>
           </div>
@@ -73,17 +73,17 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
           <div className="space-y-2">
             <h3 className="font-semibold">Submission Settings</h3>
             <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="text-gray-400">Limit Submission Attempts:</div>
+              <div className="text-muted-foreground">Limit Submission Attempts:</div>
               <div>{formData.enable_max_submissions ? "Yes" : "No"}</div>
 
               {formData.enable_max_submissions && (
                 <>
-                  <div className="text-gray-400">Max Attempts:</div>
+                  <div className="text-muted-foreground">Max Attempts:</div>
                   <div>{formData.max_submissions}</div>
                 </>
               )}
 
-              <div className="text-gray-400">Plagiarism Detection:</div>
+              <div className="text-muted-foreground">Plagiarism Detection:</div>
               <div>
                 {formData.plagiarism_detection ? "Enabled" : "Disabled"}
               </div>
@@ -93,7 +93,7 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
           <div className="space-y-2">
             <h3 className="font-semibold">Schedule</h3>
             <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="text-gray-400">Publish:</div>
+              <div className="text-muted-foreground">Publish:</div>
               <div>
                 {formData.publish_immediately
                   ? "Immediately"
@@ -102,7 +102,7 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
                     }`}
               </div>
 
-              <div className="text-gray-400">Due Date:</div>
+              <div className="text-muted-foreground">Due Date:</div>
               <div>
                 {format(formData.due_date, "PPP")} at {formData.due_time}
               </div>

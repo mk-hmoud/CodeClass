@@ -19,17 +19,17 @@ const ProblemCard: React.FC<ProblemCardProps> = ({
 }) => {
   return (
     <Card
-      className="bg-[#0d1224] border-gray-700 cursor-pointer hover:bg-[#131a30] transition-colors"
+      className="bg-card border-border cursor-pointer hover:bg-muted transition-colors"
       onClick={() => onView(problem)}
     >
       <CardContent className="p-6">
         <div className="flex justify-between items-start">
           <div>
             <h3 className="text-lg font-semibold">{problem.title}</h3>
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-muted-foreground">
               Category: {problem.category || "Algorithms"}
             </p>
-            <p className="mt-2 text-gray-300 line-clamp-2">
+            <p className="mt-2 text-foreground/80 line-clamp-2">
               {problem.description}
             </p>
           </div>

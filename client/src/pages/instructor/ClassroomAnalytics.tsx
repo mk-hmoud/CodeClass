@@ -101,7 +101,7 @@ const ClassroomAnalytics = () => {
               {analytics.classroomName} Statistics
             </h1>
           </div>
-          <p className="text-gray-400 mt-1">
+          <p className="text-muted-foreground mt-1">
             Comprehensive analytics and insights for your classroom performance
           </p>
         </div>
@@ -112,34 +112,34 @@ const ClassroomAnalytics = () => {
         onValueChange={setActiveTab}
         className="space-y-4"
       >
-        <TabsList className="bg-[#0c121f] p-1 w-full md:w-auto flex flex-wrap">
+        <TabsList className="bg-background p-1 w-full md:w-auto flex flex-wrap">
           <TabsTrigger
             value="participation"
-            className="data-[state=active]:bg-[#123651]"
+            className="data-[state=active]:bg-primary/20"
           >
             Participation & Engagement
           </TabsTrigger>
           <TabsTrigger
             value="performance"
-            className="data-[state=active]:bg-[#123651]"
+            className="data-[state=active]:bg-primary/20"
           >
             Performance Overview
           </TabsTrigger>
           <TabsTrigger
             value="timings"
-            className="data-[state=active]:bg-[#123651]"
+            className="data-[state=active]:bg-primary/20"
           >
             Timings & Pacing
           </TabsTrigger>
           <TabsTrigger
             value="quality"
-            className="data-[state=active]:bg-[#123651]"
+            className="data-[state=active]:bg-primary/20"
           >
             Quality & Reliability
           </TabsTrigger>
           <TabsTrigger
             value="progress"
-            className="data-[state=active]:bg-[#123651]"
+            className="data-[state=active]:bg-primary/20"
           >
             Progress & Trends
           </TabsTrigger>

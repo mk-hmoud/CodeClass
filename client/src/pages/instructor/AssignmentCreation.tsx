@@ -205,7 +205,7 @@ const CreateAssignmentPage: React.FC = () => {
           Back to Classroom
         </Button>
         <h1 className="text-3xl font-bold">Create New Assignment</h1>
-        <p className="text-gray-400 mt-2">
+        <p className="text-muted-foreground mt-2">
           Create a new assignment for your students based on an existing
           problem.
         </p>
@@ -281,7 +281,7 @@ const CreateAssignmentPage: React.FC = () => {
                               ${
                                 selectedLanguages.includes(lang.name)
                                   ? "bg-primary/20 border-primary"
-                                  : "border-gray-700 hover:bg-muted"
+                                  : "border-border hover:bg-muted"
                               }
                             `}
                             onClick={() => toggleLanguage(lang.name)}

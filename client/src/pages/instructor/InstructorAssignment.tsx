@@ -109,7 +109,7 @@ const InstructorAssignment: React.FC = () => {
   const studentSubmissions = [];
 
   return (
-    <div className="min-h-screen bg-[#0b0f1a] text-white flex flex-col">
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
       <div className="container mx-auto py-6 px-4">
         <Button variant="outline" className="mb-6 gap-2" onClick={handleBack}>
           <ArrowLeft size={16} /> Back to Classroom
@@ -125,7 +125,7 @@ const InstructorAssignment: React.FC = () => {
               </h1>
             </div>
             {assignment && (
-              <div className="flex mt-2 gap-4 text-gray-400">
+              <div className="flex mt-2 gap-4 text-muted-foreground">
                 <div className="flex items-center gap-1">
                   <BookOpen size={14} />
                   <span>{assignment.points ?? 0} points</span>
@@ -182,34 +182,34 @@ const InstructorAssignment: React.FC = () => {
           onValueChange={setActiveTab}
           className="space-y-4"
         >
-          <TabsList className="bg-[#0c121f] p-1">
+          <TabsList className="bg-background p-1">
             <TabsTrigger
               value="overview"
-              className="data-[state=active]:bg-[#123651]"
+              className="data-[state=active]:bg-primary/20"
             >
               Overview
             </TabsTrigger>
             <TabsTrigger
               value="problem"
-              className="data-[state=active]:bg-[#123651]"
+              className="data-[state=active]:bg-primary/20"
             >
               Problem Details
             </TabsTrigger>
             <TabsTrigger
               value="submissions"
-              className="data-[state=active]:bg-[#123651]"
+              className="data-[state=active]:bg-primary/20"
             >
               Student Submissions
             </TabsTrigger>
             <TabsTrigger
               value="plagiarism"
-              className="data-[state=active]:bg-[#123651]"
+              className="data-[state=active]:bg-primary/20"
             >
               Plagiarism
             </TabsTrigger>
             <TabsTrigger
               value="export"
-              className="data-[state=active]:bg-[#123651]"
+              className="data-[state=active]:bg-primary/20"
             >
               Export
             </TabsTrigger>
@@ -263,7 +263,7 @@ const InstructorAssignment: React.FC = () => {
                 plagiarism_detection={assignment.plagiarism_detection}
               />
             ) : (
-              <div className="text-gray-400">No assignment loaded</div>
+              <div className="text-muted-foreground">No assignment loaded</div>
             )}
           </TabsContent>
 
@@ -271,7 +271,7 @@ const InstructorAssignment: React.FC = () => {
             {assignment ? (
               <ExportTab assignment={assignment} students={submissions || []} />
             ) : (
-              <div className="text-gray-400">No assignment to export</div>
+              <div className="text-muted-foreground">No assignment to export</div>
             )}
           </TabsContent>
         </Tabs>

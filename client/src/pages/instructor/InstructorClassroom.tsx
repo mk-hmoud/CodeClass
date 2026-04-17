@@ -185,7 +185,7 @@ const InstructorClassroom = () => {
         onValueChange={setActiveTab}
         className="space-y-6"
       >
-        <div className="border-b border-gray-700">
+        <div className="border-b border-border">
           <TabsList className="bg-transparent">
             <TabsTrigger
               value="assignments"

@@ -175,7 +175,7 @@ const StudentDashboard = () => {
                   placeholder="e.g. ABC123"
                   className="mt-2 font-mono"
                 />
-                <p className="text-sm text-gray-400 mt-2">
+                <p className="text-sm text-muted-foreground mt-2">
                   Ask your instructor for the class code
                 </p>
               </div>
@@ -190,32 +190,32 @@ const StudentDashboard = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-          <div className="bg-[#0c121f] border border-gray-700 rounded-lg p-4 flex items-center gap-3">
+          <div className="bg-background border border-border rounded-lg p-4 flex items-center gap-3">
             <div className="bg-blue-500/20 rounded-full p-3">
               <Book className="text-blue-400" size={24} />
             </div>
             <div>
-              <p className="text-gray-400 text-sm">Enrolled Courses</p>
+              <p className="text-muted-foreground text-sm">Enrolled Courses</p>
               <p className="text-xl font-semibold">{classrooms.length}</p>
             </div>
           </div>
 
-          <div className="bg-[#0c121f] border border-gray-700 rounded-lg p-4 flex items-center gap-3">
+          <div className="bg-background border border-border rounded-lg p-4 flex items-center gap-3">
             <div className="bg-amber-500/20 rounded-full p-3">
               <AlertTriangle className="text-amber-400" size={24} />
             </div>
             <div>
-              <p className="text-gray-400 text-sm">Uncompleted assignments</p>
+              <p className="text-muted-foreground text-sm">Uncompleted assignments</p>
               <p className="text-xl font-semibold">{uncompletedAssignments}</p>
             </div>
           </div>
 
-          <div className="bg-[#0c121f] border border-gray-700 rounded-lg p-4 flex items-center gap-3">
+          <div className="bg-background border border-border rounded-lg p-4 flex items-center gap-3">
             <div className="bg-purple-500/20 rounded-full p-3">
               <Clock className="text-purple-400" size={24} />
             </div>
             <div>
-              <p className="text-gray-400 text-sm">Upcoming Deadlines</p>
+              <p className="text-muted-foreground text-sm">Upcoming Deadlines</p>
               <p className="text-xl font-semibold">
                 {upcomingDeadlines.length}
               </p>
@@ -231,7 +231,7 @@ const StudentDashboard = () => {
                 {savedDrafts.map((draft) => (
                   <div
                     key={draft.assignmentId}
-                    className="bg-[#0d1224] border border-gray-800 rounded-lg p-6 shadow-lg"
+                    className="bg-card border border-border rounded-lg p-6 shadow-lg"
                   >
                     <div className="mb-3">
                       <div className="flex justify-between items-start">
@@ -239,7 +239,7 @@ const StudentDashboard = () => {
                           <h3 className="font-medium text-lg">
                             {draft.assignmentTitle}
                           </h3>
-                          <p className="text-sm text-gray-400">
+                          <p className="text-sm text-muted-foreground">
                             Last saved:{" "}
                             {new Date(draft.lastSaved).toLocaleString()}
                           </p>
@@ -256,7 +256,7 @@ const StudentDashboard = () => {
                         </Button>
                       </div>
                     </div>
-                    <div className="bg-[#0c121f] border border-gray-700 rounded-lg overflow-hidden h-[200px]">
+                    <div className="bg-background border border-border rounded-lg overflow-hidden h-[200px]">
                       <CodeEditorBase
                         defaultLanguage={draft.language}
                         defaultValue={draft.code}
@@ -267,7 +267,7 @@ const StudentDashboard = () => {
               </div>
             </div>
           )}
-          <div className="bg-[#0d1224] border border-gray-800 rounded-lg p-6 mb-8 shadow-lg">
+          <div className="bg-card border border-border rounded-lg p-6 mb-8 shadow-lg">
             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
               <Clock size={20} className="text-amber-400" />
               Approaching Deadlines (24h)
@@ -275,7 +275,7 @@ const StudentDashboard = () => {
 
             {deadlinesLoading ? (
               <div className="flex justify-center py-8">
-                <div className="animate-pulse text-gray-400">
+                <div className="animate-pulse text-muted-foreground">
                   Loading deadlines...
                 </div>
               </div>
@@ -287,7 +287,7 @@ const StudentDashboard = () => {
                   return (
                     <div
                       key={deadline.id}
-                      className="bg-[#0c121f] border border-gray-700 rounded-lg p-4 hover:border-blue-500 transition-colors cursor-pointer"
+                      className="bg-background border border-border rounded-lg p-4 hover:border-blue-500 transition-colors cursor-pointer"
                       onClick={() => handleAssignmentClick(deadline.id)}
                     >
                       <div className="flex justify-between items-start mb-1">
@@ -300,7 +300,7 @@ const StudentDashboard = () => {
                             : `${date.daysLeft} days left`}
                         </Badge>
                       </div>
-                      <p className="text-sm text-gray-400 mb-2">
+                      <p className="text-sm text-muted-foreground mb-2">
                         Course: {deadline.course}
                       </p>
                       <div className="flex justify-between items-center text-xs">
@@ -309,7 +309,7 @@ const StudentDashboard = () => {
                         </span>
                         <Badge
                           variant="outline"
-                          className="bg-gray-800 text-gray-300"
+                          className="bg-muted text-foreground/80"
                         >
                           {deadline.status}
                         </Badge>
@@ -319,7 +319,7 @@ const StudentDashboard = () => {
                 })}
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-400">
+              <div className="text-center py-8 text-muted-foreground">
                 <Calendar className="mx-auto mb-2 opacity-40" />
                 <p>No upcoming deadlines in the next 24 hours</p>
               </div>
@@ -332,9 +332,9 @@ const StudentDashboard = () => {
           </h2>
 
           {classrooms.length === 0 ? (
-            <div className="text-center py-16 bg-[#0c121f] border border-gray-700 rounded-lg">
+            <div className="text-center py-16 bg-background border border-border rounded-lg">
               <BookOpen className="mx-auto mb-4 text-gray-500" size={48} />
-              <p className="text-gray-400 mb-2">
+              <p className="text-muted-foreground mb-2">
                 You haven’t joined any classrooms yet.
               </p>
             </div>
@@ -343,7 +343,7 @@ const StudentDashboard = () => {
               {classrooms.map((classroom) => (
                 <Card
                   key={classroom.id}
-                  className="bg-[#0d1224] border-gray-700 hover:border-[#00b7ff] transition-colors cursor-pointer"
+                  className="bg-card border-border hover:border-[#00b7ff] transition-colors cursor-pointer"
                   onClick={() => handleClassroomClick(classroom.id, classroom)}
                 >
                   <CardHeader>
@@ -352,10 +352,10 @@ const StudentDashboard = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-gray-400 mb-4">
+                    <p className="text-muted-foreground mb-4">
                       Instructor: {classroom.instructor}
                     </p>
-                    <div className="flex justify-between text-sm text-gray-400">
+                    <div className="flex justify-between text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <BookOpen size={16} />
                         <span>{classroom.totalAssignments} Assignments</span>
@@ -368,11 +368,11 @@ const StudentDashboard = () => {
                     <div className="mt-4">
                       <Progress value={classroom.completion} className="h-2" />
                     </div>
-                    <div className="mt-1 text-right text-xs text-gray-400">
+                    <div className="mt-1 text-right text-xs text-muted-foreground">
                       {classroom.completion}% complete
                     </div>
                   </CardContent>
-                  <Separator className="bg-gray-800" />
+                  <Separator className="bg-muted" />
                   <CardFooter className="pt-4 flex gap-2">
                     <Button
                       variant="outline"

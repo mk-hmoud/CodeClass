@@ -28,7 +28,7 @@ const TimingsPacingTab: React.FC<TimingsPacingTabProps> = ({
       <div className="space-y-6">
         <h2 className="text-2xl font-bold">Timings & Pacing</h2>
         <Card className="bg-card border-border">
-          <CardContent className="p-6 text-center text-gray-400">
+          <CardContent className="p-6 text-center text-muted-foreground">
             {isLoading
               ? "Loading timings data..."
               : "No timings data available."}
@@ -202,8 +202,8 @@ const TimingsPacingTab: React.FC<TimingsPacingTabProps> = ({
           <div className="flex flex-col space-y-4">
             {hasData ? (
               <>
-                <div className="p-6 bg-[#0c121f] rounded-md text-center">
-                  <p className="text-gray-400 mb-4">
+                <div className="p-6 bg-background rounded-md text-center">
+                  <p className="text-muted-foreground mb-4">
                     Heatmap visualization showing when students submit most
                     frequently throughout the week
                   </p>
@@ -266,14 +266,14 @@ const TimingsPacingTab: React.FC<TimingsPacingTabProps> = ({
                   <div className="flex justify-center items-center mt-6">
                     <div className="flex items-center">
                       <div className="w-16 h-4 bg-gradient-to-r from-blue-900 via-blue-600 to-blue-400"></div>
-                      <div className="flex justify-between w-full text-xs text-gray-400 mt-1">
+                      <div className="flex justify-between w-full text-xs text-muted-foreground mt-1">
                         <span>Low Activity</span>
                         <span>High Activity</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex justify-center mt-4 text-sm text-gray-400">
+                  <div className="flex justify-center mt-4 text-sm text-muted-foreground">
                     <div className="flex space-x-6">
                       {Array.from({ length: 7 }).map((_, i) => (
                         <div key={i}>{i * 4}:00</div>
@@ -282,8 +282,8 @@ const TimingsPacingTab: React.FC<TimingsPacingTabProps> = ({
                   </div>
                 </div>
 
-                <div className="text-sm text-gray-400">
-                  <h3 className="font-semibold text-white mb-2">
+                <div className="text-sm text-muted-foreground">
+                  <h3 className="font-semibold text-foreground mb-2">
                     Key Insights:
                   </h3>
                   <ul className="list-disc pl-5 space-y-1">
@@ -314,8 +314,8 @@ const TimingsPacingTab: React.FC<TimingsPacingTabProps> = ({
                 </div>
               </>
             ) : (
-              <div className="text-center py-8 border border-dashed border-gray-700 rounded-lg bg-[#0c121f]">
-                <p className="text-gray-400">
+              <div className="text-center py-8 border border-dashed border-border rounded-lg bg-background">
+                <p className="text-muted-foreground">
                   No submission heatmap data available.
                 </p>
               </div>
@@ -333,9 +333,9 @@ const TimingsPacingTab: React.FC<TimingsPacingTabProps> = ({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="p-4 bg-[#0c121f] rounded-md">
+              <div className="p-4 bg-background rounded-md">
                 <div className="flex items-center space-x-2 mb-2">
-                  <div className="w-full bg-gray-700 rounded-full h-4">
+                  <div className="w-full bg-muted rounded-full h-4">
                     <div
                       className="bg-blue-600 h-4 rounded-full"
                       style={{
@@ -351,7 +351,7 @@ const TimingsPacingTab: React.FC<TimingsPacingTabProps> = ({
                     Math.min(100, deadlineProximity ?? 0)
                   )}%`}</span>
                 </div>
-                <p className="text-sm text-gray-400">
+                <p className="text-sm text-muted-foreground">
                   Percentage of submissions made within 24 hours of the deadline
                 </p>
               </div>
@@ -369,7 +369,7 @@ const TimingsPacingTab: React.FC<TimingsPacingTabProps> = ({
                 <div className="text-2xl font-bold">
                   {formatHourRange(peakHours.start, peakHours.end)}
                 </div>
-                <div className="text-gray-400">
+                <div className="text-muted-foreground">
                   <span className="block text-sm">Peak hours</span>
                   <span className="block text-xs">
                     Based on submission timestamps

@@ -78,7 +78,7 @@ const AssignmentAnalytics: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0b0f1a] text-white flex flex-col">
+      <div className="min-h-screen bg-background text-foreground flex flex-col">
         <div className="container mx-auto py-6 px-4 flex items-center justify-center h-full">
           <div className="text-center">
             <p className="text-xl">Loading analytics data...</p>
@@ -90,7 +90,7 @@ const AssignmentAnalytics: React.FC = () => {
 
   if (error || !analytics) {
     return (
-      <div className="min-h-screen bg-[#0b0f1a] text-white flex flex-col">
+      <div className="min-h-screen bg-background text-foreground flex flex-col">
         <div className="container mx-auto py-6 px-4">
           <Button variant="outline" className="mb-6 gap-2" onClick={handleBack}>
             <ArrowLeft size={16} />
@@ -114,7 +114,7 @@ const AssignmentAnalytics: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#0b0f1a] text-white flex flex-col">
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
       <div className="container mx-auto py-6 px-4">
         <Button variant="outline" className="mb-6 gap-2" onClick={handleBack}>
           <ArrowLeft size={16} />
@@ -125,7 +125,7 @@ const AssignmentAnalytics: React.FC = () => {
           <h1 className="text-3xl font-bold">
             {analytics.assignmentTitle} - Statistics
           </h1>
-          <p className="text-gray-400 mt-1">
+          <p className="text-muted-foreground mt-1">
             Detailed analytics and performance metrics for this assignment
           </p>
         </div>
@@ -135,28 +135,28 @@ const AssignmentAnalytics: React.FC = () => {
           onValueChange={setActiveTab}
           className="space-y-6"
         >
-          <TabsList className="bg-[#0c121f] p-1">
+          <TabsList className="bg-background p-1">
             <TabsTrigger
               value="overview"
-              className="data-[state=active]:bg-[#123651]"
+              className="data-[state=active]:bg-primary/20"
             >
               Overview
             </TabsTrigger>
             <TabsTrigger
               value="submissions"
-              className="data-[state=active]:bg-[#123651]"
+              className="data-[state=active]:bg-primary/20"
             >
               Submissions
             </TabsTrigger>
             <TabsTrigger
               value="performance"
-              className="data-[state=active]:bg-[#123651]"
+              className="data-[state=active]:bg-primary/20"
             >
               Performance
             </TabsTrigger>
             <TabsTrigger
               value="plagiarism"
-              className="data-[state=active]:bg-[#123651]"
+              className="data-[state=active]:bg-primary/20"
             >
               Integrity
             </TabsTrigger>

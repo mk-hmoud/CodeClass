@@ -80,7 +80,7 @@ const Home = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-background/90 flex flex-col md:flex-row">
       {/* left side */}
-      <div className="w-full md:w-1/2 flex items-center justify-center p-6 md:p-12 bg-gradient-to-br from-[#0b0f1a] to-[#121a2e]">
+      <div className="w-full md:w-1/2 flex items-center justify-center p-6 md:p-12 bg-gradient-to-br from-background to-muted">
         <motion.div
           className="max-w-lg"
           initial={{ opacity: 0, y: 20 }}
@@ -95,7 +95,7 @@ const Home = () => {
             Coding <span className="text-cyan-400">Mastery</span>
           </h1>
 
-          <p className="text-lg font-mono text-gray-400 mb-6 text-center md:text-left">
+          <p className="text-lg font-mono text-muted-foreground mb-6 text-center md:text-left">
             A powerful platform designed to make coding education engaging,
             effective, and accessible for students and instructors.
           </p>
@@ -152,9 +152,9 @@ const Home = () => {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.2 }}
         >
-          <div className="bg-black/20 border border-gray-800 rounded-lg backdrop-blur-sm p-6 md:p-8">
+          <div className="bg-muted/60 border border-border rounded-lg backdrop-blur-sm p-6 md:p-8">
             <h2 className="text-2xl font-bold mb-2">Welcome back</h2>
-            <p className="text-gray-400 mb-6">
+            <p className="text-muted-foreground mb-6">
               Sign in to your account to continue
             </p>
 
@@ -173,7 +173,7 @@ const Home = () => {
                   placeholder="your.email@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="bg-black/30"
+                  className="bg-muted/60"
                   required
                 />
               </div>
@@ -201,7 +201,7 @@ const Home = () => {
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="bg-black/30"
+                    className="bg-muted/60"
                     required
                   />
                   <Button
@@ -232,7 +232,7 @@ const Home = () => {
             </form>
 
             <div className="mt-6 text-center">
-              <p className="text-sm text-gray-400">
+              <p className="text-sm text-muted-foreground">
                 Don't have an account?{" "}
                 <Link
                   to="/signup"

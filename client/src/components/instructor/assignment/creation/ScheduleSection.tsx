@@ -96,7 +96,7 @@ const ScheduleSection: React.FC<ScheduleSectionProps> = ({
                           variant="outline"
                           className={`w-full pl-3 text-left font-normal ${
                             watchPublishImmediately
-                              ? "bg-gray-700 text-gray-400"
+                              ? "bg-muted text-muted-foreground"
                               : ""
                           }`}
                           disabled={watchPublishImmediately}
@@ -151,7 +151,7 @@ const ScheduleSection: React.FC<ScheduleSectionProps> = ({
                       disabled={watchPublishImmediately}
                       className={
                         watchPublishImmediately
-                          ? "bg-gray-700 text-gray-400"
+                          ? "bg-muted text-muted-foreground"
                           : ""
                       }
                       {...field}

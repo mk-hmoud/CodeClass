@@ -69,7 +69,7 @@ const ExportTab: React.FC<ExportTabProps> = ({ assignment, students }) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <GradesExport assignmentData={assignment} students={students} />
-      <Card className="bg-[#0d1224] border-gray-700">
+      <Card className="bg-card border-border">
         <CardHeader>
           <CardTitle>Export Options</CardTitle>
           <CardDescription>

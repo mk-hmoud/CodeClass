@@ -54,7 +54,7 @@ const QuizProblemsSection: React.FC<QuizProblemsSectionProps> = ({ form, selecte
                     <div key={problem.problemId} className="p-4 bg-muted/20 rounded-md border flex justify-between items-start">
                         <div>
                             <h3 className="font-semibold">{problem.title}</h3>
-                            <p className="mt-1 text-sm text-gray-400 line-clamp-2">{problem.description}</p>
+                            <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{problem.description}</p>
                             <Badge variant="outline" className="mt-2">{problem.category}</Badge>
                         </div>
                         <Button
@@ -88,7 +88,7 @@ const QuizProblemsSection: React.FC<QuizProblemsSectionProps> = ({ form, selecte
                     const problemDetails = selectedProblems.find(p => p.problemId === field.problemId);
                     return (
                         <div key={field.id} className="flex items-start gap-4 p-4 border rounded-lg bg-muted/40">
-                            <GripVertical className="h-5 w-5 mt-8 text-gray-400 cursor-grab shrink-0" />
+                            <GripVertical className="h-5 w-5 mt-8 text-muted-foreground cursor-grab shrink-0" />
                             <div className="flex-grow">
                                 <h4 className="font-semibold">{problemDetails?.title}</h4>
                                 <Badge variant="secondary" className="mt-1">{problemDetails?.category}</Badge>

@@ -25,7 +25,7 @@ const Profile = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b0f1a] text-white">
+    <div className="min-h-screen bg-background text-foreground">
       <Navbar />
       <div className="p-6 max-w-4xl mx-auto">
         <Button
@@ -43,7 +43,7 @@ const Profile = () => {
           </div>
           <div>
             <h1 className="text-3xl font-bold">{user.name}</h1>
-            <p className="text-gray-400">{user.email}</p>
+            <p className="text-muted-foreground">{user.email}</p>
             <p className="mt-1 text-[#00b7ff]">{user.role}</p>
           </div>
         </div>
@@ -56,7 +56,7 @@ const Profile = () => {
           </TabsList>
 
           <TabsContent value="account">
-            <Card className="bg-[#0d1224] border-gray-700">
+            <Card className="bg-card border-border">
               <CardHeader>
                 <CardTitle>Account Information</CardTitle>
                 <CardDescription>
@@ -66,21 +66,21 @@ const Profile = () => {
               <CardContent>
                 <div className="space-y-4">
                   <div>
-                    <h3 className="text-sm font-medium text-gray-400">Name</h3>
+                    <h3 className="text-sm font-medium text-muted-foreground">Name</h3>
                     <p>{user.name}</p>
                   </div>
                   <div>
-                    <h3 className="text-sm font-medium text-gray-400">Email</h3>
+                    <h3 className="text-sm font-medium text-muted-foreground">Email</h3>
                     <p>{user.email}</p>
                   </div>
                   <div>
-                    <h3 className="text-sm font-medium text-gray-400">
+                    <h3 className="text-sm font-medium text-muted-foreground">
                       User Type
                     </h3>
                     <p>{user.role}</p>
                   </div>
                   <div>
-                    <h3 className="text-sm font-medium text-gray-400">
+                    <h3 className="text-sm font-medium text-muted-foreground">
                       Member Since
                     </h3>
                     <p>{user.joinDate}</p>
@@ -97,7 +97,7 @@ const Profile = () => {
           </TabsContent>
 
           <TabsContent value="security">
-            <Card className="bg-[#0d1224] border-gray-700">
+            <Card className="bg-card border-border">
               <CardHeader>
                 <CardTitle>Security Settings</CardTitle>
                 <CardDescription>
@@ -107,13 +107,13 @@ const Profile = () => {
               <CardContent>
                 <div className="space-y-4">
                   <div>
-                    <h3 className="text-sm font-medium text-gray-400">
+                    <h3 className="text-sm font-medium text-muted-foreground">
                       Password
                     </h3>
                     <p>Last changed 3 months ago</p>
                   </div>
                   <div>
-                    <h3 className="text-sm font-medium text-gray-400">
+                    <h3 className="text-sm font-medium text-muted-foreground">
                       Two-Factor Authentication
                     </h3>
                     <p>Not enabled</p>
@@ -127,7 +127,7 @@ const Profile = () => {
           </TabsContent>
 
           <TabsContent value="preferences">
-            <Card className="bg-[#0d1224] border-gray-700">
+            <Card className="bg-card border-border">
               <CardHeader>
                 <CardTitle>User Preferences</CardTitle>
                 <CardDescription>Customize your experience</CardDescription>
@@ -135,13 +135,13 @@ const Profile = () => {
               <CardContent>
                 <div className="space-y-4">
                   <div>
-                    <h3 className="text-sm font-medium text-gray-400">
+                    <h3 className="text-sm font-medium text-muted-foreground">
                       Email Notifications
                     </h3>
                     <p>Enabled for important updates</p>
                   </div>
                   <div>
-                    <h3 className="text-sm font-medium text-gray-400">Theme</h3>
+                    <h3 className="text-sm font-medium text-muted-foreground">Theme</h3>
                     <p>Dark</p>
                   </div>
                 </div>

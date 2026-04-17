@@ -49,7 +49,7 @@ export const HybridGrading: React.FC<HybridGradingProps> = ({
           <h3 className="text-lg font-semibold text-purple-400 mb-1">
             Hybrid Grading
           </h3>
-          <p className="text-sm text-gray-300">
+          <p className="text-sm text-foreground/80">
             This submission has been automatically graded, but requires
             instructor review and final grade determination.
           </p>

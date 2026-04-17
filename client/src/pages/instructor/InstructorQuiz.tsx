@@ -85,7 +85,7 @@ const InstructorQuiz: React.FC = () => {
         </div>
         <h1 className="text-3xl font-bold">{quiz.title}</h1>
         {quiz.description && (
-          <p className="text-gray-400 mt-2">{quiz.description}</p>
+          <p className="text-muted-foreground mt-2">{quiz.description}</p>
         )}
       </div>
 

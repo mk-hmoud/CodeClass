@@ -131,11 +131,11 @@ const ProgressTrendsTab: React.FC<ProgressTrendsTabProps> = ({
               </ResponsiveContainer>
             </div>
           ) : (
-            <div className="h-80 flex items-center justify-center bg-slate-800 bg-opacity-20 rounded-lg">
-              <p className="text-gray-400">No improvement data available</p>
+            <div className="h-80 flex items-center justify-center bg-muted bg-opacity-20 rounded-lg">
+              <p className="text-muted-foreground">No improvement data available</p>
             </div>
           )}
-          <p className="text-sm text-gray-400 mt-4">
+          <p className="text-sm text-muted-foreground mt-4">
             Distribution of student performance improvements over the term
           </p>
         </CardContent>

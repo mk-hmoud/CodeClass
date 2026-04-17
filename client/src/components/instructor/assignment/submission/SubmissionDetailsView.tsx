@@ -93,7 +93,7 @@ const SubmissionDetailsView: React.FC<SubmissionDetailsViewProps> = ({
     return (
       <Card
         key={index}
-        className="mb-4 bg-[#13182a] border-border overflow-hidden"
+        className="mb-4 bg-card border-border overflow-hidden"
       >
         <CardContent className="p-0">
           <div className="border-b border-border p-3 flex justify-between items-center">
@@ -123,7 +123,7 @@ const SubmissionDetailsView: React.FC<SubmissionDetailsViewProps> = ({
               <div className="text-sm font-medium mb-1 text-muted-foreground">
                 Input
               </div>
-              <pre className="bg-[#0d1224] p-2 rounded text-sm overflow-x-auto">
+              <pre className="bg-card p-2 rounded text-sm overflow-x-auto">
                 {result.input || "[]"}
               </pre>
             </div>
@@ -132,7 +132,7 @@ const SubmissionDetailsView: React.FC<SubmissionDetailsViewProps> = ({
               <div className="text-sm font-medium mb-1 text-muted-foreground">
                 Output
               </div>
-              <pre className="bg-[#0d1224] p-2 rounded text-sm overflow-x-auto">
+              <pre className="bg-card p-2 rounded text-sm overflow-x-auto">
                 {result.actual || "None"}
               </pre>
             </div>
@@ -141,7 +141,7 @@ const SubmissionDetailsView: React.FC<SubmissionDetailsViewProps> = ({
               <div className="text-sm font-medium mb-1 text-muted-foreground">
                 Expected
               </div>
-              <pre className="bg-[#0d1224] p-2 rounded text-sm overflow-x-auto">
+              <pre className="bg-card p-2 rounded text-sm overflow-x-auto">
                 {result.expectedOutput || "0"}
               </pre>
             </div>
@@ -152,7 +152,7 @@ const SubmissionDetailsView: React.FC<SubmissionDetailsViewProps> = ({
                   <X size={14} />
                   <span className="font-medium">Error</span>
                 </div>
-                <pre className="bg-[#0d1224] p-2 rounded text-sm overflow-x-auto mt-1 text-red-400">
+                <pre className="bg-card p-2 rounded text-sm overflow-x-auto mt-1 text-red-400">
                   {result.errorMessage}
                 </pre>
               </div>
@@ -346,7 +346,7 @@ const SubmissionDetailsView: React.FC<SubmissionDetailsViewProps> = ({
                 <h3 className="text-lg font-semibold text-purple-400 mb-1">
                   Hybrid Grading
                 </h3>
-                <p className="text-sm text-gray-300">
+                <p className="text-sm text-foreground/80">
                   This submission has been graded using both automated tests and
                   instructor review.
                 </p>
@@ -409,7 +409,7 @@ const SubmissionDetailsView: React.FC<SubmissionDetailsViewProps> = ({
               <h3 className="text-lg font-semibold text-purple-400 mb-1">
                 Hybrid Grading
               </h3>
-              <p className="text-sm text-gray-300">
+              <p className="text-sm text-foreground/80">
                 This submission has been automatically graded, but requires
                 instructor review and final grade determination.
               </p>
@@ -579,10 +579,10 @@ const SubmissionDetailsView: React.FC<SubmissionDetailsViewProps> = ({
             onValueChange={setActiveTab}
             className="space-y-4"
           >
-            <TabsList className="bg-[#0c121f] p-1">
+            <TabsList className="bg-background p-1">
               <TabsTrigger
                 value="code"
-                className="data-[state=active]:bg-[#123651]"
+                className="data-[state=active]:bg-primary/20"
               >
                 <div className="flex items-center gap-2">
                   <Code size={14} />
@@ -591,7 +591,7 @@ const SubmissionDetailsView: React.FC<SubmissionDetailsViewProps> = ({
               </TabsTrigger>
               <TabsTrigger
                 value="test-results"
-                className="data-[state=active]:bg-[#123651]"
+                className="data-[state=active]:bg-primary/20"
               >
                 <div className="flex items-center gap-2">
                   <FileText size={14} />
@@ -600,7 +600,7 @@ const SubmissionDetailsView: React.FC<SubmissionDetailsViewProps> = ({
               </TabsTrigger>
               <TabsTrigger
                 value="plagiarism"
-                className="data-[state=active]:bg-[#123651]"
+                className="data-[state=active]:bg-primary/20"
               >
                 <div className="flex items-center gap-2">
                   <FileX size={14} />
@@ -612,8 +612,8 @@ const SubmissionDetailsView: React.FC<SubmissionDetailsViewProps> = ({
             <TabsContent value="code" className="mt-4">
               <Card className="bg-card border-border overflow-hidden">
                 <CardContent className="p-0">
-                  <pre className="overflow-auto text-sm bg-[#0d1224] p-4 max-h-[500px]">
-                    <code className="text-gray-200">{submission.code}</code>
+                  <pre className="overflow-auto text-sm bg-card p-4 max-h-[500px]">
+                    <code className="text-foreground/90">{submission.code}</code>
                   </pre>
                 </CardContent>
               </Card>
@@ -639,7 +639,7 @@ const SubmissionDetailsView: React.FC<SubmissionDetailsViewProps> = ({
                         <h3 className="text-lg font-medium mb-3">
                           Test Summary
                         </h3>
-                        <Card className="bg-[#0c121f] border-border">
+                        <Card className="bg-background border-border">
                           <CardContent className="p-4">
                             <div className="flex justify-between items-center mb-2">
                               <span>

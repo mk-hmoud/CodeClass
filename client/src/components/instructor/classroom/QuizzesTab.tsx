@@ -81,14 +81,14 @@ const QuizzesTab: React.FC<QuizzesTabProps> = ({ classroomId }) => {
 
   const getStatusBadge = (quiz: QuizListItem) => {
     if (!quiz.isPublished) {
-      return <Badge variant="outline" className="border-gray-500 text-gray-400">Draft</Badge>;
+      return <Badge variant="outline" className="border-border text-muted-foreground">Draft</Badge>;
     }
     const now = new Date();
     if (quiz.startDate && now < new Date(quiz.startDate)) {
       return <Badge variant="outline" className="border-amber-500 text-amber-400">Scheduled</Badge>;
     }
     if (quiz.endDate && now > new Date(quiz.endDate)) {
-      return <Badge variant="outline" className="border-gray-500 text-gray-400">Ended</Badge>;
+      return <Badge variant="outline" className="border-border text-muted-foreground">Ended</Badge>;
     }
     return <Badge className="bg-green-600">Live</Badge>;
   };
@@ -148,7 +148,7 @@ const QuizzesTab: React.FC<QuizzesTabProps> = ({ classroomId }) => {
                           {formatDate(quiz.startDate) ?? "—"} → {formatDate(quiz.endDate) ?? "—"}
                         </span>
                       ) : (
-                        <span className="text-gray-400 italic text-sm">No window</span>
+                        <span className="text-muted-foreground italic text-sm">No window</span>
                       )}
                     </TableCell>
                     <TableCell>{getStatusBadge(quiz)}</TableCell>

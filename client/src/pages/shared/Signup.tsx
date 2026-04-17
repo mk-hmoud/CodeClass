@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 import { signupUser } from "../../services/AuthService";
+import Logo from "@/components/Logo";
 
 const passwordRequirements = [
   { id: "length", text: "At least 8 characters long", regex: /.{8,}/ },
@@ -164,14 +165,9 @@ const Signup = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-background/90 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <Link to="/" className="inline-block">
-            <div className="flex items-center justify-center gap-2">
-              <div className="bg-primary/10 rounded-full p-2">
-                <div className="text-primary text-xl font-mono">{`<>`}</div>
-              </div>
-              <h1 className="text-xl font-bold">Problem Solver Studio</h1>
-            </div>
+        <div className="flex justify-center mb-8">
+          <Link to="/">
+            <Logo />
           </Link>
         </div>
 
@@ -179,7 +175,7 @@ const Signup = () => {
           <CardHeader>
             <CardTitle className="text-2xl">Create an Account</CardTitle>
             <CardDescription>
-              Sign up to start using Problem Solver Studio
+              Sign up to start using CodeClass
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -280,13 +276,13 @@ const Signup = () => {
                         {passwordStrength[req.id] ? (
                           <Check size={14} className="text-green-500" />
                         ) : (
-                          <X size={14} className="text-destructive" />
+                          <X size={14} className="text-orange-400" />
                         )}
                         <span
                           className={cn(
                             passwordStrength[req.id]
                               ? "text-muted-foreground"
-                              : "text-destructive"
+                              : "text-orange-400"
                           )}
                         >
                           {req.text}

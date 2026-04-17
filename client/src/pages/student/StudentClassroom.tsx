@@ -23,8 +23,10 @@ import {
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { getClassroomById } from "../../services/ClassroomService";
+import { getQuizzesByClassroom, getMySession } from "../../services/QuizService";
 import { Classroom } from "../../types/Classroom";
 import { Assignment } from "../../types/Assignment";
+import { QuizListItem } from "../../types/Quiz";
 import { toast } from "sonner";
 
 type AssignmentFilter = "all" | "completed" | "not-completed";
@@ -35,7 +37,9 @@ const StudentClassroom: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<AssignmentFilter>("all");
   const [classroom, setClassroom] = useState<Classroom | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const totalAssignments = useParams();
+  const [quizzes, setQuizzes] = useState<QuizListItem[]>([]);
+  // Maps quizId → session status ("in_progress" | "submitted" | "graded" | null)
+  const [quizSessions, setQuizSessions] = useState<Record<number, string | null>>({});
 
   const getButtonClass = (assignment: Assignment): string => {
     if (assignment.submitted) {
@@ -111,9 +115,35 @@ const StudentClassroom: React.FC = () => {
         const fetchedClassroom = await getClassroomById(
           parseInt(classroomId, 10)
         );
-        setClassroom({
-          ...fetchedClassroom,
-        });
+        setClassroom({ ...fetchedClassroom });
+
+        // Load quizzes separately — don't block classroom render on failure
+        try {
+          const quizData = await getQuizzesByClassroom(parseInt(classroomId, 10));
+          const now = new Date();
+          const active = quizData.filter((q: QuizListItem) => {
+            if (!q.isPublished) return false;
+            if (q.startDate && now < new Date(q.startDate)) return false;
+            if (q.endDate && now > new Date(q.endDate)) return false;
+            return true;
+          });
+          setQuizzes(active);
+
+          // Fetch session status for each active quiz in parallel
+          const sessionEntries = await Promise.all(
+            active.map(async (q: QuizListItem) => {
+              try {
+                const session = await getMySession(q.quizId);
+                return [q.quizId, session?.status ?? null] as [number, string | null];
+              } catch {
+                return [q.quizId, null] as [number, string | null];
+              }
+            })
+          );
+          setQuizSessions(Object.fromEntries(sessionEntries));
+        } catch {
+          // silently ignore — quizzes are optional
+        }
       } catch (error) {
         toast.error("Failed to load classroom");
         console.error("Error fetching classroom:", error);
@@ -751,6 +781,84 @@ const StudentClassroom: React.FC = () => {
               </TabsContent>
             </Tabs>
           </div>
+
+          {quizzes.length > 0 && (
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold mb-4">Active Quizzes</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {quizzes.map((quiz) => (
+                  <Card
+                    key={quiz.quizId}
+                    className="bg-[#0d1224] border-2 border-[#00b7ff]/30 hover:border-[#00b7ff]/60 transition-all"
+                  >
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-white flex items-center gap-2">
+                        <Clock size={16} className="text-[#00b7ff]" />
+                        {quiz.title}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex justify-between text-sm mb-3">
+                        <span className="text-gray-400">
+                          <span className="text-white font-medium">{quiz.problemCount}</span> problems
+                        </span>
+                        <span className="text-gray-400">
+                          <span className="text-white font-medium">{quiz.time_limit_minutes}</span> min
+                        </span>
+                      </div>
+                      {quiz.endDate && (
+                        <div className="text-sm text-amber-400 mb-3">
+                          Closes {formatDate(quiz.endDate)}
+                        </div>
+                      )}
+                    </CardContent>
+                    <Separator className="mb-4 bg-gray-800" />
+                    <CardFooter className="pt-2">
+                      {(() => {
+                        const status = quizSessions[quiz.quizId];
+                        if (status === "submitted" || status === "graded") {
+                          return (
+                            <Button
+                              className="w-full bg-green-500/20 text-green-400 hover:bg-green-500/30"
+                              variant="outline"
+                              onClick={() =>
+                                navigate(`/student/classrooms/${classroomId}/quizes/${quiz.quizId}/take`)
+                              }
+                            >
+                              View Results
+                            </Button>
+                          );
+                        }
+                        if (status === "in_progress") {
+                          return (
+                            <Button
+                              className="w-full bg-amber-500/20 text-amber-400 hover:bg-amber-500/30"
+                              variant="outline"
+                              onClick={() =>
+                                navigate(`/student/classrooms/${classroomId}/quizes/${quiz.quizId}/take`)
+                              }
+                            >
+                              Resume Quiz
+                            </Button>
+                          );
+                        }
+                        return (
+                          <Button
+                            className="w-full"
+                            onClick={() =>
+                              navigate(`/student/classrooms/${classroomId}/quizes/${quiz.quizId}/take`)
+                            }
+                          >
+                            Start Quiz
+                          </Button>
+                        );
+                      })()}
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -17,12 +17,16 @@ import InstructorAssignment from "./pages/instructor/InstructorAssignment";
 import AssignmentAnalytics from "./pages/instructor/AssignmentAnalytics";
 import ProblemCreation from "./pages/instructor/ProblemCreation";
 import AssignmentCreation from "./pages/instructor/AssignmentCreation";
+import LiveQuizCreator from "./pages/instructor/QuizCreation";
+import InstructorQuiz from "./pages/instructor/InstructorQuiz";
 
 import StudentLayout from "./layouts/StudentLayout";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import StudentClassroom from "./pages/student/StudentClassroom";
 import StudentAssignment from "./pages/student/StudentAssignment";
 import CodeEditor from "@/pages/student/CodeEditorPage";
+import QuizTakingPage from "./pages/student/QuizTakingPage";
+import QuizResultsPage from "./pages/student/QuizResultsPage";
 
 const queryClient = new QueryClient();
 
@@ -51,6 +55,13 @@ const App = () => (
                   <Route path="analytics" element={<AssignmentAnalytics />} />
                 </Route>
               </Route>
+              <Route path="quizes">
+                <Route path="create" element={<LiveQuizCreator />} />
+                <Route path=":quizId">
+                  <Route path="view" element={<InstructorQuiz />} />
+                  <Route path="edit" element={<LiveQuizCreator />} />
+                </Route>
+              </Route>
               <Route path="analytics" element={<ClassroomAnalytics />} />
             </Route>
             <Route path="problems">
@@ -65,6 +76,10 @@ const App = () => (
               <Route path="view" element={<StudentClassroom />} />
               <Route path="assignments/:assignmentId">
                 <Route path="view" element={<StudentAssignment />} />
+              </Route>
+              <Route path="quizes/:quizId">
+                <Route path="take" element={<QuizTakingPage />} />
+                <Route path="results" element={<QuizResultsPage />} />
               </Route>
             </Route>
           </Route>

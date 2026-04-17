@@ -35,9 +35,13 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
   language,
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
-  const monacoInstance = useRef<monaco.editor.IStandaloneCodeEditor | null>(
-    null
-  );
+  const monacoInstance = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  // Keep latest callbacks in refs so the Monaco listener never holds stale closures
+  const onChangeRef = useRef(onChange);
+  const onRunCodeRef = useRef(onRunCode);
+  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
+  useEffect(() => { onRunCodeRef.current = onRunCode; }, [onRunCode]);
+
   useEffect(() => {
     if (editorRef.current && !monacoInstance.current) {
       monacoInstance.current = monaco.editor.create(editorRef.current, {
@@ -68,11 +72,9 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
         if (monacoInstance.current) {
           const value = monacoInstance.current.getValue();
           if (!showButtons) {
-            onRunCode(value);
+            onRunCodeRef.current(value);
           }
-          if (onChange) {
-            onChange(value);
-          }
+          onChangeRef.current?.(value);
         }
       });
 

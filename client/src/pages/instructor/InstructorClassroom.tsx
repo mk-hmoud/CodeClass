@@ -7,6 +7,7 @@ import { Users, Book, Calendar, Settings, BarChart } from "lucide-react";
 
 import AssignmentsTab from "@/components/instructor/classroom/AssignmentsTab";
 import StudentsTab from "@/components/instructor/classroom/StudentsTab";
+import QuizzesTab from "@/components/instructor/classroom/QuizzesTab";
 
 import { getClassroomById } from "../../services/ClassroomService";
 import { Classroom } from "../../types/Classroom";
@@ -193,6 +194,12 @@ const InstructorClassroom = () => {
               Assignments
             </TabsTrigger>
             <TabsTrigger
+              value="quizzes"
+              className="data-[state=active]:border-b-2 data-[state=active]:border-[#00b7ff] data-[state=active]:text-white rounded-none border-b-2 border-transparent px-4 py-2"
+            >
+              Quizzes
+            </TabsTrigger>
+            <TabsTrigger
               value="students"
               className="data-[state=active]:border-b-2 data-[state=active]:border-[#00b7ff] data-[state=active]:text-white rounded-none border-b-2 border-transparent px-4 py-2"
             >
@@ -206,6 +213,10 @@ const InstructorClassroom = () => {
             classroom={classroom}
             onAssignmentDeleted={handleAssignmentDeleted}
           />
+        </TabsContent>
+
+        <TabsContent value="quizzes" className="space-y-6">
+          <QuizzesTab classroomId={parseInt(classroomId!, 10)} />
         </TabsContent>
 
         <TabsContent value="students" className="space-y-6">

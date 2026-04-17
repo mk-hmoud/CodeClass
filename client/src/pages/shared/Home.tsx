@@ -3,14 +3,16 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowRight, Eye, EyeOff, LogIn } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, LogIn, Sun, Moon } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { motion } from "framer-motion";
 import Logo from "@/components/Logo";
 import { loginUser } from "@/services/AuthService";
+import { useTheme } from "@/contexts/ThemeContext";
 
 const Home = () => {
+  const { theme, toggleTheme } = useTheme();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -78,7 +80,12 @@ const Home = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-background/90 flex flex-col md:flex-row">
+    <div className="min-h-screen bg-gradient-to-b from-background to-background/90 flex flex-col md:flex-row relative">
+      <div className="absolute top-4 right-4 z-10">
+        <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Toggle theme">
+          {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+        </Button>
+      </div>
       {/* left side */}
       <div className="w-full md:w-1/2 flex items-center justify-center p-6 md:p-12 bg-gradient-to-br from-background to-muted">
         <motion.div

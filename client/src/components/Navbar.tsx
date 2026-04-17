@@ -58,6 +58,11 @@ const Navbar = () => {
                   Dashboard
                 </DropdownMenuItem>
                 <DropdownMenuItem
+                  onClick={() => (window.location.href = "/profile")}
+                >
+                  Profile
+                </DropdownMenuItem>
+                <DropdownMenuItem
                   onClick={() => {
                     logout();
                     window.location.href = "/";

@@ -189,19 +189,19 @@ const InstructorClassroom = () => {
           <TabsList className="bg-transparent">
             <TabsTrigger
               value="assignments"
-              className="data-[state=active]:border-b-2 data-[state=active]:border-[#00b7ff] data-[state=active]:text-white rounded-none border-b-2 border-transparent px-4 py-2"
+              className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-foreground rounded-none border-b-2 border-transparent px-4 py-2"
             >
               Assignments
             </TabsTrigger>
             <TabsTrigger
               value="quizzes"
-              className="data-[state=active]:border-b-2 data-[state=active]:border-[#00b7ff] data-[state=active]:text-white rounded-none border-b-2 border-transparent px-4 py-2"
+              className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-foreground rounded-none border-b-2 border-transparent px-4 py-2"
             >
               Quizzes
             </TabsTrigger>
             <TabsTrigger
               value="students"
-              className="data-[state=active]:border-b-2 data-[state=active]:border-[#00b7ff] data-[state=active]:text-white rounded-none border-b-2 border-transparent px-4 py-2"
+              className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-foreground rounded-none border-b-2 border-transparent px-4 py-2"
             >
               Students
             </TabsTrigger>

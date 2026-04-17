@@ -343,7 +343,7 @@ const StudentDashboard = () => {
               {classrooms.map((classroom) => (
                 <Card
                   key={classroom.id}
-                  className="bg-card border-border hover:border-[#00b7ff] transition-colors cursor-pointer"
+                  className="bg-card border-border hover:border-primary transition-colors cursor-pointer"
                   onClick={() => handleClassroomClick(classroom.id, classroom)}
                 >
                   <CardHeader>

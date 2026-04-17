@@ -233,7 +233,7 @@ const ClassroomsSection = () => {
           {filteredClassrooms.map((classroom) => (
             <Card
               key={classroom.id}
-              className={`bg-card border-border hover:border-[#00b7ff] transition-colors ${
+              className={`bg-card border-border hover:border-primary transition-colors ${
                 classroom.status === "active" ? "opacity-80" : ""
               }`}
             >
@@ -263,7 +263,7 @@ const ClassroomsSection = () => {
               >
                 <p className="text-muted-foreground mb-4">
                   Code:{" "}
-                  <span className="font-mono bg-muted px-2 py-1 rounded text-[#00b7ff]">
+                  <span className="font-mono bg-muted px-2 py-1 rounded text-primary">
                     {classroom.code}
                   </span>
                 </p>
@@ -332,7 +332,7 @@ const ClassroomsSection = () => {
       ) : (
         <div className="text-center py-16 border border-dashed border-border rounded-lg bg-background">
           <div className="bg-primary/10 rounded-full p-3 inline-flex mb-4">
-            <BookOpen className="text-[#00b7ff]" size={24} />
+            <BookOpen className="text-primary" size={24} />
           </div>
           {searchQuery ? (
             <>

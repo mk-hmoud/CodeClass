@@ -9,14 +9,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import Logo from "./Logo";
-import { logout } from "@/services/AuthService";
+import { logout, isAuthenticated } from "@/services/AuthService";
 import { useTheme } from "@/contexts/ThemeContext";
 
 const Navbar = () => {
   const location = useLocation();
   const isInstructorPath = location.pathname.includes("/instructor");
   const isStudentPath = location.pathname.includes("/student");
-  const isLoggedIn = isInstructorPath || isStudentPath;
+  const isLoggedIn = isInstructorPath || isStudentPath || isAuthenticated();
   const { theme, toggleTheme } = useTheme();
 
   const dashboardPath = isInstructorPath

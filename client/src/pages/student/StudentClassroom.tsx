@@ -258,7 +258,7 @@ const StudentClassroom: React.FC = () => {
                 <h1 className="text-3xl font-bold">{classroom.name}</h1>
                 <div className="flex items-center gap-2 mt-2">
                   <span className="text-muted-foreground">Class Code:</span>
-                  <span className="font-mono bg-muted px-2 py-1 rounded text-[#00b7ff] border border-[#00b7ff]/30">
+                  <span className="font-mono bg-muted px-2 py-1 rounded text-primary border border-primary/30">
                     {classroom.code}
                   </span>
                 </div>
@@ -789,11 +789,11 @@ const StudentClassroom: React.FC = () => {
                 {quizzes.map((quiz) => (
                   <Card
                     key={quiz.quizId}
-                    className="bg-card border-2 border-[#00b7ff]/30 hover:border-[#00b7ff]/60 transition-all"
+                    className="bg-card border-2 border-primary/30 hover:border-primary/60 transition-all"
                   >
                     <CardHeader className="pb-2">
                       <CardTitle className="text-foreground flex items-center gap-2">
-                        <Clock size={16} className="text-[#00b7ff]" />
+                        <Clock size={16} className="text-primary" />
                         {quiz.title}
                       </CardTitle>
                     </CardHeader>

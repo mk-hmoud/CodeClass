@@ -1,214 +1,234 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
-  ArrowLeft,
-  CheckCircle,
-  XCircle,
-  Save,
-  FileCode,
-  Clock,
-  AlertTriangle,
+  ArrowLeft, CheckCircle, XCircle, Save, FileCode,
+  Clock, AlertTriangle, Play, Send, ChevronRight,
+  RotateCcw, Terminal, BookOpen, Loader2, CheckCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-} from "@/components/ui/resizable";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import CodeEditor from "@/components/CodeEditor";
-
-import "@/lib/monacoConfig"; // Import the centralized Monaco config
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import * as monaco from "monaco-editor";
+import "@/lib/monacoConfig";
 import { TestCase, JudgeVerdict } from "@/types/TestCase";
 import { Assignment } from "@/types/Assignment";
-import {
-  runCode,
-  getRunStatus,
-  submit,
-  getSubmitStatus,
-} from "@/services/JudgeService";
+import { runCode, getRunStatus, submit, getSubmitStatus } from "@/services/JudgeService";
 import { getRemainingAttempts } from "@/services/AssignmentService";
-import { Progress } from "@radix-ui/react-progress";
-import {
-  getCodeDraft,
-  removeCodeDraft,
-  saveCodeDraft,
-} from "@/utils/CodeDraftManager";
+import { getCodeDraft, removeCodeDraft, saveCodeDraft } from "@/utils/CodeDraftManager";
+import { LANGUAGE_LABELS } from "@/lib/assignmentUtils";
+import { useTheme } from "@/contexts/ThemeContext";
+import { cn } from "@/lib/utils";
 
 const POLL_INTERVAL = 1000;
+const AUTO_SAVE_INTERVAL = 30000;
 
-//default
 const emptyVerdict: JudgeVerdict = {
   status: "pending",
   testResults: [],
-  metrics: {
-    passedTests: 0,
-    totalTests: 0,
-    averageRuntime: 0,
-  },
+  metrics: { passedTests: 0, totalTests: 0, averageRuntime: 0 },
 };
+
+type ResultTab = "cases" | "run" | "submit";
 
 const CodeEditorPage = () => {
   const navigate = useNavigate();
   const { classroomId, assignmentId } = useParams();
   const { state = {} } = useLocation();
+  const { theme } = useTheme();
   const [assignment] = useState<Assignment | null>(state as Assignment | null);
 
+  const editorRef = useRef<HTMLDivElement>(null);
+  const monacoInstance = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const onRunCodeRef = useRef<(src: string) => void>(() => {});
+
   const [isRunning, setIsRunning] = useState(false);
-  const [isSubmissionView, setIsSubmissionView] = useState(false);
-  const [activeTabIndex, setActiveTabIndex] = useState(0);
-  const [supportedLanguages] = useState(
-    assignment.languages.map((alang) => alang.language.name)
-  );
-  const [initialCodes] = useState(
-    assignment.languages.map((alang) => alang.initial_code)
-  );
-  const [code, setCode] = useState(initialCodes[0]);
-  const [publicTestCases] = useState<TestCase[]>(
-    assignment?.problem?.testCases
-  );
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [resultTab, setResultTab] = useState<ResultTab>("cases");
   const [activeTestCaseId, setActiveTestCaseId] = useState<number>(0);
-
   const [runVerdict, setRunVerdict] = useState<JudgeVerdict>(emptyVerdict);
-  const [submitVerdict, setSubmitVerdict] =
-    useState<JudgeVerdict>(emptyVerdict);
+  const [submitVerdict, setSubmitVerdict] = useState<JudgeVerdict>(emptyVerdict);
+  const [selectedLanguage, setSelectedLanguage] = useState(assignment?.languages?.[0]?.language?.name ?? "");
+  const [remainingAttempts, setRemainingAttempts] = useState<number | null>(null);
+  const [saveStatus, setSaveStatus] = useState<"saved" | "unsaved" | "saving">("saved");
+  const [descTab, setDescTab] = useState<"description" | "details">("description");
 
-  const [selectedLanguage, setSelectedLanguage] = useState(
-    supportedLanguages[0]
-  );
+  const supportedLanguages = assignment?.languages?.map((l) => l.language.name) ?? [];
+  const initialCodes = assignment?.languages?.map((l) => l.initial_code) ?? [];
+  const publicTestCases: TestCase[] = assignment?.problem?.testCases ?? [];
 
-  const [submissionStatus, setSubmissionStatus] = useState<
-    "idle" | "submitting" | "completed" | "error"
-  >("idle");
-  const [remainingAttempts, setRemainingAttempts] = useState(0);
-
+  // ── Monaco setup ──────────────────────────────────────────────────────────
   useEffect(() => {
-    if (assignmentId) {
-      const savedDraft = getCodeDraft(assignmentId);
-      if (savedDraft) {
-        const langIndex = supportedLanguages.findIndex(
-          (lang) => lang === savedDraft.language
-        );
-        if (langIndex !== -1) {
-          setSelectedLanguage(savedDraft.language);
-          setCode(savedDraft.code);
-          setActiveTabIndex(langIndex);
-          toast.info("Loaded your previously saved draft");
-        }
+    if (!editorRef.current || monacoInstance.current) return;
+
+    const savedDraft = assignmentId ? getCodeDraft(assignmentId) : null;
+    const initialLang = savedDraft?.language ?? selectedLanguage;
+    const initialCode = savedDraft?.code ?? initialCodes[0] ?? "";
+
+    if (savedDraft) {
+      const idx = supportedLanguages.findIndex((l) => l === savedDraft.language);
+      if (idx !== -1) {
+        setSelectedLanguage(savedDraft.language);
+        toast.info("Loaded your previously saved draft");
       }
     }
-  }, [assignmentId, supportedLanguages]);
 
+    monacoInstance.current = monaco.editor.create(editorRef.current, {
+      value: initialCode,
+      language: initialLang,
+      theme: theme === "dark" ? "vs-dark" : "vs",
+      minimap: { enabled: false },
+      scrollBeyondLastLine: false,
+      fontFamily: "'JetBrains Mono', 'Fira Code', Menlo, Monaco, 'Courier New', monospace",
+      fontSize: 14,
+      lineHeight: 22,
+      automaticLayout: true,
+      tabSize: 2,
+      cursorBlinking: "smooth",
+      cursorSmoothCaretAnimation: "on",
+      smoothScrolling: true,
+      renderLineHighlight: "gutter",
+      bracketPairColorization: { enabled: true },
+      scrollbar: { useShadows: false, verticalScrollbarSize: 6, horizontalScrollbarSize: 6 },
+      padding: { top: 16, bottom: 16 },
+    });
+
+    monacoInstance.current.onDidChangeModelContent(() => {
+      setSaveStatus("unsaved");
+      const value = monacoInstance.current?.getValue() ?? "";
+      onRunCodeRef.current(value);
+    });
+
+    // Ctrl+Enter = Run, Ctrl+Shift+Enter = Submit
+    monacoInstance.current.addCommand(
+      monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter,
+      () => { if (monacoInstance.current) handleRunCode(); }
+    );
+    monacoInstance.current.addCommand(
+      monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter,
+      () => { if (monacoInstance.current) handleSubmitCode(); }
+    );
+
+    if (publicTestCases.length > 0) setActiveTestCaseId(publicTestCases[0].testCaseId);
+
+    return () => { monacoInstance.current?.dispose(); monacoInstance.current = null; };
+  }, []);
+
+  // Theme sync
+  useEffect(() => {
+    monaco.editor.setTheme(theme === "dark" ? "vs-dark" : "vs");
+  }, [theme]);
+
+  // Language sync
+  useEffect(() => {
+    const model = monacoInstance.current?.getModel();
+    if (model) monaco.editor.setModelLanguage(model, selectedLanguage);
+  }, [selectedLanguage]);
+
+  // Auto-save
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (saveStatus === "unsaved") doSave(true);
+    }, AUTO_SAVE_INTERVAL);
+    return () => clearInterval(interval);
+  }, [saveStatus, selectedLanguage]);
+
+  // Lock scroll
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; document.documentElement.style.overflow = ""; };
+  }, []);
+
+  // Fetch remaining attempts
   useEffect(() => {
     if (!assignmentId) return;
-    (async () => {
-      try {
-        const attempts = await getRemainingAttempts(Number(assignmentId));
-        setRemainingAttempts(attempts);
-      } catch (err) {
-        console.error("Error fetching remaining attempts:", err);
-      }
-    })();
+    getRemainingAttempts(Number(assignmentId))
+      .then(setRemainingAttempts)
+      .catch(() => {});
   }, [assignmentId]);
 
-  const handleSaveCode = () => {
-    try {
-      const success = saveCodeDraft(
-        assignmentId,
-        code,
-        selectedLanguage,
-        assignment.dueDate ? new Date(assignment.dueDate) : null,
-        assignment.title,
-        assignment.classroomId
-      );
-      if (success) {
-        toast.success("Code saved successfully");
-      } else {
-        toast.error("Failed to save code");
-      }
-    } catch (error) {
-      toast.error("Failed to save code");
-      console.error("Save error:", error);
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  const getCode = () => monacoInstance.current?.getValue() ?? "";
+
+  const doSave = (silent = false) => {
+    setSaveStatus("saving");
+    const success = saveCodeDraft(
+      assignmentId, getCode(), selectedLanguage,
+      assignment?.dueDate ? new Date(assignment.dueDate) : null,
+      assignment?.title, assignment?.classroomId
+    );
+    setSaveStatus(success ? "saved" : "unsaved");
+    if (!silent) {
+      if (success) toast.success("Code saved");
+      else toast.error("Failed to save code");
     }
   };
 
-  const handleRunCode = async (src: string) => {
+  const handleLanguageChange = useCallback((lang: string) => {
+    const idx = supportedLanguages.indexOf(lang);
+    if (idx !== -1) {
+      setSelectedLanguage(lang);
+      const newCode = initialCodes[idx];
+      if (monacoInstance.current) monacoInstance.current.setValue(newCode);
+    }
+  }, [supportedLanguages, initialCodes]);
+
+  const handleResetCode = () => {
+    const idx = supportedLanguages.indexOf(selectedLanguage);
+    const defaultCode = initialCodes[idx] ?? "";
+    monacoInstance.current?.setValue(defaultCode);
+    toast.info("Code reset to default");
+  };
+
+  // ── Run ───────────────────────────────────────────────────────────────────
+  const handleRunCode = async () => {
+    const src = getCode();
     setIsRunning(true);
-    setIsSubmissionView(false);
+    setResultTab("run");
     setRunVerdict({ ...emptyVerdict });
 
     try {
       const { job_id } = await runCode(src, selectedLanguage, publicTestCases);
       let statusData: JudgeVerdict;
-
       do {
         await new Promise((r) => setTimeout(r, POLL_INTERVAL));
         statusData = await getRunStatus(job_id);
         setRunVerdict(statusData);
       } while (statusData.status === "pending");
 
-      if (statusData.status === "compile_error" && statusData.error) {
-        toast.error(`Compilation error: ${statusData.error.errorMessage}`);
-        setIsRunning(false);
-        return;
+      if (statusData.status === "compile_error") {
+        toast.error(`Compile error: ${statusData.error?.errorMessage}`);
+      } else if (statusData.status === "system_error") {
+        toast.error("System error — please try again");
+      } else if (statusData.status === "completed" && statusData.metrics) {
+        const { passedTests, totalTests } = statusData.metrics;
+        if (passedTests === totalTests) toast.success(`All ${totalTests} tests passed!`);
+        else toast.warning(`${passedTests}/${totalTests} tests passed`);
+        setActiveTestCaseId(publicTestCases[0]?.testCaseId ?? 0);
       }
-
-      if (statusData.status === "system_error" && statusData.error) {
-        toast.error(`System error: ${statusData.error.errorMessage}`);
-        setIsRunning(false);
-        return;
-      }
-
-      if (
-        statusData.status === "completed" &&
-        statusData.testResults &&
-        statusData.metrics
-      ) {
-        setRunVerdict(statusData);
-
-        if (statusData.metrics.passedTests === statusData.metrics.totalTests) {
-          toast.success("All tests passed! 🎉");
-        } else {
-          toast.error(
-            `${statusData.metrics.passedTests}/${statusData.metrics.totalTests} tests passed`
-          );
-        }
-      } else {
-        toast.error("Received unexpected response format from server");
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Error running or polling code");
+    } catch {
+      toast.error("Failed to run code");
     } finally {
       setIsRunning(false);
     }
   };
 
+  // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmitCode = async () => {
     if (remainingAttempts !== null && remainingAttempts <= 0) {
       toast.error("No submission attempts remaining");
       return;
     }
-
-    setSubmissionStatus("submitting");
-    setIsRunning(true);
-    setIsSubmissionView(true);
+    setIsSubmitting(true);
+    setResultTab("submit");
     setSubmitVerdict({ ...emptyVerdict });
 
     try {
-      const { job_id } = await submit(
-        assignment.assignmentId,
-        code,
-        selectedLanguage
-      );
-
+      const { job_id } = await submit(assignment!.assignmentId, getCode(), selectedLanguage);
       let statusData: JudgeVerdict;
       do {
         await new Promise((r) => setTimeout(r, POLL_INTERVAL));
@@ -216,537 +236,524 @@ const CodeEditorPage = () => {
         setSubmitVerdict(statusData);
       } while (statusData.status === "pending");
 
-      if (statusData.status === "compile_error" && statusData.error) {
-        toast.error(`Compilation error: ${statusData.error.errorMessage}`);
-        setSubmissionStatus("error");
-        setIsRunning(false);
-        return;
-      }
-
-      if (statusData.status === "system_error" && statusData.error) {
-        toast.error(`System error: ${statusData.error.errorMessage}`);
-        setSubmissionStatus("error");
-        setIsRunning(false);
-        return;
-      }
-
-      if (
-        statusData.status === "completed" &&
-        statusData.testResults &&
-        statusData.metrics
-      ) {
-        setSubmitVerdict(statusData);
+      if (statusData.status === "compile_error") {
+        toast.error(`Compile error: ${statusData.error?.errorMessage}`);
+      } else if (statusData.status === "completed" && statusData.metrics) {
         removeCodeDraft(assignmentId);
-        const privatePassed = statusData.metrics.privatePassedTests || 0;
-        const privateTotal = statusData.metrics.privateTestsTotal || 0;
-
-        if (
-          statusData.metrics.passedTests === statusData.metrics.totalTests &&
-          privatePassed === privateTotal
-        ) {
-          toast.success("Code submitted successfully! All tests passed! 🎉");
+        setSaveStatus("saved");
+        const { passedTests, totalTests, privatePassedTests = 0, privateTestsTotal = 0 } = statusData.metrics;
+        if (passedTests === totalTests && privatePassedTests === privateTestsTotal) {
+          toast.success("All tests passed! 🎉");
         } else {
-          toast.error(
-            `Submission result: ${statusData.metrics.passedTests}/${statusData.metrics.totalTests} public and ${privatePassed}/${privateTotal} private tests passed`
-          );
+          toast.warning(`${passedTests}/${totalTests} public, ${privatePassedTests}/${privateTestsTotal} private passed`);
         }
-      } else {
-        toast.error("Received unexpected response format from server");
-        setSubmissionStatus("error");
-        setIsRunning(false);
-        return;
+        if (remainingAttempts !== null) setRemainingAttempts((p) => (p ?? 1) - 1);
       }
-
-      if (remainingAttempts) {
-        setRemainingAttempts((prev) => prev - 1);
-      }
-      setSubmissionStatus("completed");
-    } catch (error) {
-      toast.error("Failed to submit code. Please try again.");
-      setSubmissionStatus("error");
+    } catch {
+      toast.error("Failed to submit code");
     } finally {
-      setIsRunning(false);
+      setIsSubmitting(false);
     }
   };
 
-  const handleCodeChange = (newCode: string) => {
-    setCode(newCode);
-  };
+  // ── Derived ───────────────────────────────────────────────────────────────
+  const currentVerdict = resultTab === "submit" ? submitVerdict : runVerdict;
+  const testResults = currentVerdict.testResults ?? [];
+  const testsPassed = currentVerdict.metrics?.passedTests ?? 0;
+  const totalTests = currentVerdict.metrics?.totalTests ?? 0;
+  const activeTestCase = publicTestCases.find((tc) => tc.testCaseId === activeTestCaseId);
+  const activeTestResult = testResults.find((r) => r.testCaseId === activeTestCaseId);
+  const isWorking = isRunning || isSubmitting;
 
-  const handleLanguageChange = useCallback(
-    (newLanguage: string) => {
-      const index = supportedLanguages.indexOf(newLanguage);
-      if (index !== -1) {
-        setSelectedLanguage(newLanguage);
-        setCode(initialCodes[index]);
-      }
-    },
-    [supportedLanguages, initialCodes]
+  const allPassed = totalTests > 0 && testsPassed === totalTests;
+  const hasResults = testResults.length > 0;
+
+  // ── Render helpers ────────────────────────────────────────────────────────
+  const MonoBlock = ({ children, className }: { children: React.ReactNode; className?: string }) => (
+    <div className={cn("bg-muted/60 border border-border rounded-md px-3 py-2 font-mono text-sm whitespace-pre-wrap break-all", className)}>
+      {children}
+    </div>
   );
 
-  const goBackToAssignment = () => {
-    navigate(
-      `/student/classrooms/${classroomId}/assignments/${assignmentId}/view`
+  const renderAttemptsLabel = () => {
+    if (remainingAttempts === null) return null;
+    if (remainingAttempts === 0 || remainingAttempts === Infinity) {
+      return (
+        <Badge variant="outline" className="gap-1 text-muted-foreground">
+          <FileCode size={12} /> Unlimited
+        </Badge>
+      );
+    }
+    return (
+      <Badge
+        variant="outline"
+        className={cn("gap-1", remainingAttempts <= 2 && "border-amber-500 text-amber-600 bg-amber-50 dark:bg-amber-950/30")}
+      >
+        <FileCode size={12} />
+        {remainingAttempts} attempt{remainingAttempts !== 1 ? "s" : ""} left
+      </Badge>
     );
   };
 
-  const handleTestCaseClick = (testCaseId: number) => {
-    setActiveTestCaseId(testCaseId);
+  const renderSaveStatus = () => {
+    if (saveStatus === "saving") return <span className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 size={11} className="animate-spin" />Saving…</span>;
+    if (saveStatus === "saved") return <span className="text-xs text-muted-foreground flex items-center gap-1"><CheckCheck size={11} className="text-green-500" />Saved</span>;
+    return <span className="text-xs text-amber-500 flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-amber-500" />Unsaved</span>;
   };
 
-  const activeTestCase = publicTestCases.find(
-    (tc) => tc.testCaseId === activeTestCaseId
-  );
+  const renderError = () => {
+    const err = currentVerdict.error;
+    if (!err) return null;
+    return (
+      <div className="rounded-lg border border-destructive/40 bg-destructive/5 overflow-hidden">
+        <div className="flex items-center gap-2 px-3 py-2 bg-destructive/10 border-b border-destructive/20">
+          <XCircle size={14} className="text-destructive" />
+          <span className="text-sm font-medium text-destructive">
+            {currentVerdict.status === "compile_error" ? "Compilation Failed" : "System Error"}
+          </span>
+        </div>
+        <div className="p-3 font-mono text-xs text-destructive whitespace-pre-wrap leading-relaxed">
+          {err.errorMessage}
+        </div>
+        {err.fullError && err.fullError !== err.errorMessage && (
+          <details className="border-t border-destructive/20">
+            <summary className="cursor-pointer px-3 py-1.5 text-xs text-destructive/70 hover:text-destructive select-none">
+              Full output
+            </summary>
+            <div className="p-3 font-mono text-xs text-destructive/80 whitespace-pre-wrap bg-destructive/5">
+              {err.fullError}
+            </div>
+          </details>
+        )}
+      </div>
+    );
+  };
 
-  const currentVerdict = isSubmissionView ? submitVerdict : runVerdict;
-  const testResults = currentVerdict.testResults || [];
-  const testsPassed = currentVerdict.metrics?.passedTests || 0;
-  const totalTests = currentVerdict.metrics?.totalTests || 0;
-  const averageRuntime = currentVerdict.metrics?.averageRuntime;
+  const renderCasesTab = () => {
+    if (currentVerdict.status === "compile_error" || currentVerdict.status === "system_error") return renderError();
 
-  const activeTestResult = testResults.find(
-    (tr) => tr.testCaseId === activeTestCaseId
-  );
-
-  const renderTestCasePanel = () => {
-    if (
-      (currentVerdict.status === "compile_error" ||
-        currentVerdict.status === "system_error") &&
-      currentVerdict.error
-    ) {
+    if (isWorking) {
       return (
-        <div className="p-4 rounded-md border bg-red-50">
-          <h3 className="font-medium text-red-700 mb-2">
-            {currentVerdict.status === "compile_error"
-              ? "Compilation Error"
-              : "System Error"}
-          </h3>
-          <div className="bg-red-100 p-3 rounded text-red-900 font-mono text-sm whitespace-pre-wrap">
-            {currentVerdict.error.errorMessage}
+        <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
+          <div className="relative">
+            <div className="w-10 h-10 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+          </div>
+          <p className="text-sm">{isRunning ? "Running your code…" : "Submitting…"}</p>
+        </div>
+      );
+    }
+
+    if (resultTab === "submit" && submitVerdict.status === "completed") {
+      const metrics = submitVerdict.metrics!;
+      const privPassed = metrics.privatePassedTests ?? 0;
+      const privTotal = metrics.privateTestsTotal ?? 0;
+
+      return (
+        <div className="space-y-4">
+          {typeof metrics.averageRuntime === "number" && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Clock size={12} />
+              Avg runtime: <strong>{metrics.averageRuntime} ms</strong>
+            </div>
+          )}
+
+          {/* Public tests */}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Public Tests</p>
+            <div className="space-y-1.5">
+              {testResults.filter((r) => r.isPublic).map((result, idx) => (
+                <div
+                  key={result.testCaseId ?? idx}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 rounded-md border text-sm",
+                    result.status === "passed"
+                      ? "bg-green-500/5 border-green-500/30 text-green-700 dark:text-green-400"
+                      : "bg-red-500/5 border-red-500/30 text-red-700 dark:text-red-400"
+                  )}
+                >
+                  {result.status === "passed"
+                    ? <CheckCircle size={14} />
+                    : <XCircle size={14} />}
+                  <span>Test {idx + 1}</span>
+                  <span className="ml-auto text-xs opacity-70 flex items-center gap-1">
+                    <Clock size={10} />{result.executionTime}ms
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
 
-          {currentVerdict.error.fullError && (
-            <details className="mt-3">
-              <summary className="cursor-pointer text-sm text-red-700">
-                Show full error
-              </summary>
-              <div className="bg-red-100 p-3 mt-2 rounded text-red-900 font-mono text-xs overflow-x-auto whitespace-pre-wrap">
-                {currentVerdict.error.fullError}
-              </div>
-            </details>
-          )}
-        </div>
-      );
-    }
-
-    if (isRunning) {
-      return (
-        <div className="text-center py-4">
-          <div className="animate-spin mb-2 mx-auto h-5 w-5 border-2 border-primary border-r-transparent rounded-full"></div>
-
-          <p>Running your code...</p>
-          {currentVerdict.status === "pending" && (
-            <p className="text-sm text-muted-foreground mt-2">
-              Waiting for results...
-            </p>
-          )}
-        </div>
-      );
-    }
-
-    if (isSubmissionView) {
-      return (
-        <>
-          <div className="space-y-4">
-            {typeof averageRuntime === "number" && (
-              <div className="text-sm text-muted-foreground flex items-center gap-1">
-                <Clock size={14} />
-                <span>
-                  Average runtime: <strong>{averageRuntime} ms</strong>
-                </span>
-              </div>
-            )}
-            <div className="space-y-2">
-              <h3 className="font-medium">Public Test Results</h3>
-
-              {testResults
-                .filter((result) => result.isPublic)
-                .map((result, idx) => (
+          {/* Private tests */}
+          {privTotal > 0 && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Private Tests</p>
+              <div className="rounded-md border border-border p-3 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Score</span>
+                  <span className={cn("font-semibold", privPassed === privTotal ? "text-green-600" : "text-amber-600")}>
+                    {privPassed} / {privTotal}
+                  </span>
+                </div>
+                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                   <div
-                    key={result.testCaseId ?? idx}
-                    className={`p-3 rounded-md border transition-colors ${
-                      result.status === "passed"
-                        ? "border-l-green-500 border-l-4"
-                        : "border-l-red-500 border-l-4"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      {result.status === "passed" ? (
-                        <CheckCircle className="h-5 w-5 text-green-500" />
-                      ) : (
-                        <XCircle className="h-5 w-5 text-red-500" />
-                      )}
-
-                      <span>
-                        Public Test Case {idx + 1} –{" "}
-                        {result.status === "passed" ? "Passed" : "Failed"}
-                      </span>
-
-                      <span className="ml-auto text-muted-foreground flex items-center gap-1">
-                        <Clock size={12} />
-                        {result.executionTime}ms
-                      </span>
-                    </div>
-
-                    {result.status !== "passed" && result.errorType && (
-                      <div className="mt-2 text-sm text-red-500 flex items-start gap-1">
-                        <AlertTriangle size={14} className="mt-0.5" />
-                        <span>{result.errorType}</span>
-                      </div>
-                    )}
-
-                    {result.status === "error" && result.errorMessage && (
-                      <div className="mt-2 text-sm text-red-500 flex items-start gap-1">
-                        <AlertTriangle size={14} className="mt-0.5" />
-                        <span>{result.errorMessage}</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-            </div>
-
-            {submitVerdict.metrics && (
-              <div>
-                <h3 className="font-medium mt-6 mb-2">Private Test Results</h3>
-
-                <div className="p-4 rounded-md border space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span>Results</span>
-
-                    <span className="font-medium">
-                      {submitVerdict.metrics.privatePassedTests} /{" "}
-                      {submitVerdict.metrics.privateTestsTotal} passed
-                    </span>
-                  </div>
-
-                  <Progress
-                    value={
-                      (submitVerdict.metrics.privatePassedTests /
-                        submitVerdict.metrics.privateTestsTotal) *
-                      100
-                    }
-                    className="h-2 bg-gray-100"
-                    style={{
-                      background:
-                        "linear-gradient(to right, #10b981 0%, #10b981 var(--value), #e5e7eb var(--value), #e5e7eb 100%)",
-                    }}
+                    className={cn("h-full rounded-full transition-all", privPassed === privTotal ? "bg-green-500" : "bg-amber-500")}
+                    style={{ width: `${privTotal > 0 ? (privPassed / privTotal) * 100 : 0}%` }}
                   />
                 </div>
               </div>
-            )}
-          </div>
-        </>
+            </div>
+          )}
+        </div>
       );
     }
 
+    // Run mode — show test case I/O
     return (
-      <>
-        <div className="mb-3 flex flex-wrap gap-2">
-          {publicTestCases.map((testCase, idx) => (
-            <button
-              key={testCase.testCaseId}
-              onClick={() => handleTestCaseClick(testCase.testCaseId)}
-              className={`px-3 py-1.5 rounded-md text-sm flex items-center gap-1.5 transition-colors ${
-                activeTestCaseId === testCase.testCaseId
-                  ? "bg-primary/10 text-primary border border-primary/30"
-                  : "hover:bg-muted border border-transparent hover:border-border"
-              }`}
-            >
-              {testResults.length > 0 ? (
-                testResults.find((r) => r.testCaseId === testCase.testCaseId)
-                  ?.status === "passed" ? (
-                  <CheckCircle className="h-3.5 w-3.5 text-green-500" />
-                ) : (
-                  <XCircle className="h-3.5 w-3.5 text-red-500" />
-                )
-              ) : (
-                <div className="h-3.5 w-3.5 rounded-full border border-border"></div>
-              )}
-              Case {idx + 1}
-            </button>
-          ))}
+      <div className="space-y-3">
+        {/* Test case selector pills */}
+        <div className="flex flex-wrap gap-1.5">
+          {publicTestCases.map((tc, idx) => {
+            const result = testResults.find((r) => r.testCaseId === tc.testCaseId);
+            const isActive = activeTestCaseId === tc.testCaseId;
+            const passed = result?.status === "passed";
+            const failed = result && result.status !== "passed";
+
+            return (
+              <button
+                key={tc.testCaseId}
+                onClick={() => setActiveTestCaseId(tc.testCaseId)}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all",
+                  isActive
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : passed
+                    ? "bg-green-500/10 border-green-500/40 text-green-700 dark:text-green-400 hover:bg-green-500/20"
+                    : failed
+                    ? "bg-red-500/10 border-red-500/40 text-red-700 dark:text-red-400 hover:bg-red-500/20"
+                    : "bg-muted border-border text-muted-foreground hover:bg-muted/80"
+                )}
+              >
+                {passed && <CheckCircle size={10} />}
+                {failed && <XCircle size={10} />}
+                {!result && <div className="w-2 h-2 rounded-full border border-current opacity-50" />}
+                Case {idx + 1}
+              </button>
+            );
+          })}
         </div>
 
         {activeTestCase && (
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             <div>
-              <div className="text-xs font-medium text-muted-foreground">
-                Input
-              </div>
-
-              <div className="bg-muted p-2 rounded-md whitespace-pre-wrap font-mono text-sm">
-                {activeTestCase.input}
-              </div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Input</p>
+              <MonoBlock>{activeTestCase.input || <span className="opacity-40 italic">empty</span>}</MonoBlock>
             </div>
 
-            {activeTestResult && (
+            {activeTestResult ? (
               <>
                 <div>
-                  <div className="text-xs font-medium text-muted-foreground">
-                    Output
-                  </div>
-
-                  <div className="bg-muted p-2 rounded-md whitespace-pre-wrap font-mono text-sm">
-                    {activeTestResult.actual || (
-                      <span className="text-red-500 italic">
-                        No output (execution error)
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Output</p>
+                    {activeTestResult.executionTime !== undefined && (
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Clock size={10} />{activeTestResult.executionTime}ms
                       </span>
                     )}
                   </div>
+                  <MonoBlock className={cn(
+                    activeTestResult.status === "passed" && "border-green-500/40 bg-green-500/5",
+                    activeTestResult.status !== "passed" && activeTestResult.actual && "border-red-500/40 bg-red-500/5",
+                  )}>
+                    {activeTestResult.actual || (
+                      <span className="text-muted-foreground italic">no output</span>
+                    )}
+                  </MonoBlock>
                 </div>
 
                 <div>
-                  <div className="text-xs font-medium text-muted-foreground">
-                    Expected
-                  </div>
-
-                  <div className="bg-muted p-2 rounded-md whitespace-pre-wrap font-mono text-sm">
-                    {activeTestCase.expectedOutput}
-                  </div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Expected</p>
+                  <MonoBlock>{activeTestCase.expectedOutput}</MonoBlock>
                 </div>
 
-                <div
-                  className={`text-sm flex items-center gap-1.5 ${
-                    activeTestResult.status === "passed"
-                      ? "text-green-600"
-                      : "text-red-600"
-                  }`}
-                >
-                  {activeTestResult.status === "passed" ? (
-                    <CheckCircle size={16} className="text-green-600" />
-                  ) : (
-                    <XCircle size={16} className="text-red-600" />
-                  )}
-
-                  <span>
-                    {activeTestResult.status === "passed"
-                      ? "Accepted"
-                      : activeTestResult.status === "runtime_error"
-                      ? `Runtime Error: ${
-                          activeTestResult.errorType || "Unknown error"
-                        }`
-                      : activeTestResult.status === "error"
-                      ? `Error: ${
-                          activeTestResult.errorMessage || "Unknown error"
-                        }`
-                      : activeTestResult.status === "timeout"
-                      ? "Time Limit Exceeded"
+                {/* Verdict chip */}
+                <div className={cn(
+                  "flex items-center gap-2 text-sm px-3 py-2 rounded-md",
+                  activeTestResult.status === "passed"
+                    ? "bg-green-500/10 text-green-700 dark:text-green-400"
+                    : "bg-red-500/10 text-red-700 dark:text-red-400"
+                )}>
+                  {activeTestResult.status === "passed"
+                    ? <CheckCircle size={14} />
+                    : <XCircle size={14} />}
+                  <span className="font-medium">
+                    {activeTestResult.status === "passed" ? "Accepted"
+                      : activeTestResult.status === "timeout" ? "Time Limit Exceeded"
+                      : activeTestResult.status === "runtime_error" ? "Runtime Error"
                       : "Wrong Answer"}
                   </span>
-
-                  {activeTestResult.executionTime !== undefined && (
-                    <span className="text-gray-500 ml-1 flex items-center gap-1">
-                      <Clock size={14} />
-                      {activeTestResult.executionTime}ms
-                    </span>
-                  )}
                 </div>
 
-                {activeTestResult.status === "runtime_error" &&
-                  activeTestResult.errorType && (
-                    <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
-                      <h4 className="text-sm font-medium text-red-700 mb-1 flex items-center gap-1.5">
-                        <AlertTriangle size={14} />
-                        Runtime Error Details
-                      </h4>
-                      <div className="bg-red-100 p-2 rounded text-red-900 font-mono text-xs whitespace-pre-wrap">
-                        {activeTestResult.error}
-                        {activeTestResult.fullError && (
-                          <div className="mt-2 pt-2 border-t border-red-200">
-                            {activeTestResult.fullError}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                {(activeTestResult.status === "runtime_error" || activeTestResult.status === "error") && activeTestResult.error && (
+                  <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3">
+                    <p className="text-xs font-semibold text-destructive mb-1 flex items-center gap-1">
+                      <AlertTriangle size={11} /> Error details
+                    </p>
+                    <p className="font-mono text-xs text-destructive/80 whitespace-pre-wrap">{activeTestResult.error}</p>
+                  </div>
+                )}
               </>
+            ) : (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Expected</p>
+                <MonoBlock>{activeTestCase.expectedOutput}</MonoBlock>
+              </div>
             )}
           </div>
         )}
-      </>
+
+        {publicTestCases.length === 0 && (
+          <div className="flex flex-col items-center gap-2 py-8 text-muted-foreground">
+            <Terminal size={24} className="opacity-30" />
+            <p className="text-sm">No public test cases</p>
+          </div>
+        )}
+      </div>
     );
   };
 
-  // not scrollable for a full-height layout
-  useEffect(() => {
-    document.body.style.overflow = "hidden";
-    document.documentElement.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = "";
-      document.documentElement.style.overflow = "";
-    };
-  }, []);
-
-  const formatAttemptsDisplay = () => {
-    if (!remainingAttempts) {
-      return (
-        <Badge
-          variant="outline"
-          className="font-normal flex items-center gap-1 py-1 px-2"
-        >
-          <FileCode size={14} />
-          <span>Unlimited Attempts</span>
-        </Badge>
-      );
-    } else if (remainingAttempts > 0) {
-      return (
-        <Badge
-          variant="outline"
-          className={`font-normal flex items-center gap-1 py-1 px-2 ${
-            remainingAttempts <= 2 ? "bg-amber-300" : ""
-          }`}
-        >
-          <FileCode size={14} />
-          <span>
-            {remainingAttempts} Attempt{remainingAttempts !== 1 ? "s" : ""}
-          </span>
-        </Badge>
-      );
-    } else {
-      return (
-        <Badge
-          variant="destructive"
-          className="font-normal flex items-center gap-1 py-1 px-2"
-        >
-          <AlertTriangle size={14} />
-          <span>No Attempts Left</span>
-        </Badge>
-      );
-    }
-  };
-
   return (
-    <div className="h-screen flex flex-col bg-background">
-      <div className="flex items-center justify-between px-4 py-2 border-b">
-        <div className="flex items-center">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={goBackToAssignment}
-            className="mr-2"
-          >
-            <ArrowLeft size={20} />
-          </Button>
+    <TooltipProvider>
+      <div className="h-screen flex flex-col bg-background overflow-hidden">
 
-          <h1 className="text-xl font-semibold">{assignment.title}</h1>
+        {/* ── Top bar ─────────────────────────────────────────────────── */}
+        <header className="shrink-0 flex items-center gap-3 px-3 py-2 border-b border-border bg-background">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"
+                onClick={() => navigate(`/student/classrooms/${classroomId}/assignments/${assignmentId}/view`)}>
+                <ArrowLeft size={16} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Back to assignment</TooltipContent>
+          </Tooltip>
 
-          <TooltipProvider>
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <ChevronRight size={14} className="text-muted-foreground shrink-0" />
+            <h1 className="font-semibold text-sm truncate">{assignment?.title}</h1>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {renderAttemptsLabel()}
+            {renderSaveStatus()}
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="ml-4">{formatAttemptsDisplay()}</div>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => doSave()}>
+                  <Save size={14} />
+                </Button>
               </TooltipTrigger>
-              <TooltipContent>
-                {!remainingAttempts
-                  ? "You have unlimited submission attempts"
-                  : remainingAttempts > 0
-                  ? `You have ${remainingAttempts} submission attempt${
-                      remainingAttempts !== 1 ? "s" : ""
-                    } remaining`
-                  : "You have no submission attempts remaining"}
-              </TooltipContent>
+              <TooltipContent>Save draft</TooltipContent>
             </Tooltip>
-          </TooltipProvider>
-        </div>
+          </div>
+        </header>
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={handleSaveCode}
-            className="flex items-center gap-1.5"
-          >
-            <Save size={16} />
-            Save
-          </Button>
-        </div>
-      </div>
+        {/* ── Main layout ──────────────────────────────────────────────── */}
+        <div className="flex-1 overflow-hidden">
+          <ResizablePanelGroup direction="horizontal" className="h-full">
 
-      <div className="flex-1 overflow-hidden">
-        <ResizablePanelGroup direction="horizontal" className="h-full">
-          <ResizablePanel defaultSize={40} minSize={20}>
-            <ResizablePanelGroup direction="vertical">
-              <ResizablePanel defaultSize={70} minSize={30}>
-                <div className="h-full overflow-y-auto p-6">
-                  <div className="space-y-4">
-                    <div>
-                      <h3 className="text-xl font-semibold mb-4 pb-2 border-b">
-                        Description
-                      </h3>
-                      {assignment?.description ? (
-                        <div className="prose dark:prose-invert max-w-none">
-                          <pre className="whitespace-pre-wrap break-words">
-                            {assignment.description}
-                          </pre>
+            {/* ── Left column ─────────────────────────────────────────── */}
+            <ResizablePanel defaultSize={38} minSize={22} maxSize={55}>
+              <ResizablePanelGroup direction="vertical" className="h-full">
+
+                {/* Description */}
+                <ResizablePanel defaultSize={58} minSize={25}>
+                  <div className="h-full flex flex-col overflow-hidden">
+                    <div className="flex items-center gap-1 px-3 pt-2 pb-1 border-b border-border shrink-0">
+                      <button
+                        onClick={() => setDescTab("description")}
+                        className={cn("flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium transition-colors",
+                          descTab === "description" ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground")}
+                      >
+                        <BookOpen size={12} />Description
+                      </button>
+                      <button
+                        onClick={() => setDescTab("details")}
+                        className={cn("flex items-center gap-1.5 px-2 py-1 rounded text-xs font-medium transition-colors",
+                          descTab === "details" ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground")}
+                      >
+                        Details
+                      </button>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-4">
+                      {descTab === "description" ? (
+                        <div className="prose prose-sm dark:prose-invert max-w-none">
+                          {assignment?.description ? (
+                            <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-relaxed text-foreground bg-transparent p-0 m-0">
+                              {assignment.description}
+                            </pre>
+                          ) : (
+                            <p className="text-muted-foreground italic text-sm">No description provided.</p>
+                          )}
                         </div>
                       ) : (
-                        <div className="text-muted-foreground italic">
-                          No description available for this assignment.
+                        <div className="space-y-3 text-sm">
+                          {assignment?.dueDate && (
+                            <div className="flex items-center justify-between py-2 border-b border-border">
+                              <span className="text-muted-foreground">Due date</span>
+                              <Badge variant="outline" className="text-xs">
+                                {new Date(assignment.dueDate).toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                              </Badge>
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between py-2 border-b border-border">
+                            <span className="text-muted-foreground">Languages</span>
+                            <div className="flex gap-1 flex-wrap justify-end">
+                              {supportedLanguages.map((l) => (
+                                <Badge key={l} variant="secondary" className="text-xs">{LANGUAGE_LABELS[l] ?? l}</Badge>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between py-2 border-b border-border">
+                            <span className="text-muted-foreground">Public tests</span>
+                            <span className="font-medium">{publicTestCases.length}</span>
+                          </div>
+                          {remainingAttempts !== null && remainingAttempts !== Infinity && (
+                            <div className="flex items-center justify-between py-2">
+                              <span className="text-muted-foreground">Remaining attempts</span>
+                              <span className="font-medium">{remainingAttempts ?? "∞"}</span>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
                   </div>
-                </div>
-              </ResizablePanel>
-              <ResizableHandle withHandle />
-              <ResizablePanel defaultSize={30} minSize={20}>
-                <div className="h-full overflow-hidden flex flex-col">
-                  {/* Header with count */}
-                  <div className="p-3 border-b flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <span className="font-semibold">Test Cases</span>
-                      {testResults.length > 0 && (
-                        <Badge
-                          variant={
-                            testsPassed === totalTests ? "outline" : "secondary"
-                          }
-                          className={`ml-2 ${
-                            testsPassed === totalTests
-                              ? "bg-green-50 text-green-700 hover:bg-green-50"
-                              : ""
-                          }`}
-                        >
-                          {testsPassed} / {totalTests} passed
+                </ResizablePanel>
+
+                <ResizableHandle withHandle />
+
+                {/* Test cases / Results */}
+                <ResizablePanel defaultSize={42} minSize={22}>
+                  <div className="h-full flex flex-col overflow-hidden">
+                    {/* Panel header */}
+                    <div className="flex items-center justify-between px-3 py-1.5 border-b border-border shrink-0">
+                      <Tabs value={resultTab} onValueChange={(v) => setResultTab(v as ResultTab)}>
+                        <TabsList className="h-7 bg-transparent gap-0 p-0">
+                          <TabsTrigger value="cases" className="h-7 px-2.5 text-xs data-[state=active]:bg-muted data-[state=active]:text-foreground rounded">
+                            <Terminal size={11} className="mr-1" />Cases
+                          </TabsTrigger>
+                          <TabsTrigger value="run" className="h-7 px-2.5 text-xs data-[state=active]:bg-muted data-[state=active]:text-foreground rounded">
+                            <Play size={11} className="mr-1" />Run
+                            {runVerdict.status === "completed" && (
+                              <span className={cn("ml-1 text-[10px] font-bold", allPassed ? "text-green-500" : "text-red-500")}>
+                                {runVerdict.metrics?.passedTests}/{runVerdict.metrics?.totalTests}
+                              </span>
+                            )}
+                          </TabsTrigger>
+                          <TabsTrigger value="submit" className="h-7 px-2.5 text-xs data-[state=active]:bg-muted data-[state=active]:text-foreground rounded">
+                            <Send size={11} className="mr-1" />Submit
+                          </TabsTrigger>
+                        </TabsList>
+                      </Tabs>
+
+                      {resultTab === "cases" && hasResults && (
+                        <Badge variant={allPassed ? "outline" : "secondary"}
+                          className={cn("text-[10px] h-5 px-1.5", allPassed && "border-green-500/50 text-green-600 bg-green-500/10")}>
+                          {testsPassed}/{totalTests}
                         </Badge>
                       )}
                     </div>
-                  </div>
 
-                  {/* Results panels */}
-                  <div className="flex-grow overflow-y-auto p-4 space-y-6">
-                    {renderTestCasePanel()}
+                    <div className="flex-1 overflow-y-auto p-3">
+                      {renderCasesTab()}
+                    </div>
                   </div>
+                </ResizablePanel>
+              </ResizablePanelGroup>
+            </ResizablePanel>
+
+            <ResizableHandle withHandle />
+
+            {/* ── Editor column ────────────────────────────────────────── */}
+            <ResizablePanel defaultSize={62} minSize={35}>
+              <div className="h-full flex flex-col">
+
+                {/* Editor toolbar */}
+                <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-background shrink-0">
+                  <Select value={selectedLanguage} onValueChange={handleLanguageChange}>
+                    <SelectTrigger className="h-7 w-36 text-xs border-border">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {supportedLanguages.map((lang) => (
+                        <SelectItem key={lang} value={lang} className="text-xs">
+                          {LANGUAGE_LABELS[lang] ?? lang}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={handleResetCode}>
+                        <RotateCcw size={13} />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Reset to default code</TooltipContent>
+                  </Tooltip>
+
+                  <div className="flex-1" />
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-3 text-xs gap-1.5 border-border"
+                        onClick={handleRunCode}
+                        disabled={isWorking}
+                      >
+                        {isRunning
+                          ? <Loader2 size={12} className="animate-spin" />
+                          : <Play size={12} className="text-green-500" />}
+                        Run
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Run code <kbd className="ml-1 text-[10px] bg-muted px-1 rounded">⌘↵</kbd></TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="sm"
+                        className="h-7 px-3 text-xs gap-1.5"
+                        onClick={handleSubmitCode}
+                        disabled={isWorking || (remainingAttempts !== null && remainingAttempts !== Infinity && remainingAttempts <= 0)}
+                      >
+                        {isSubmitting
+                          ? <Loader2 size={12} className="animate-spin" />
+                          : <Send size={12} />}
+                        Submit
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Submit <kbd className="ml-1 text-[10px] bg-muted px-1 rounded">⌘⇧↵</kbd></TooltipContent>
+                  </Tooltip>
                 </div>
-              </ResizablePanel>
-            </ResizablePanelGroup>
-          </ResizablePanel>
-          <ResizableHandle withHandle />
-          <ResizablePanel defaultSize={60} minSize={30}>
-            <div className="h-full flex flex-col">
-              <CodeEditor
-                defaultLanguage={supportedLanguages[0]}
-                defaultValue={code}
-                onRunCode={handleRunCode}
-                onSubmitCode={handleSubmitCode}
-                onChange={handleCodeChange}
-                showButtons={true}
-                supportedLanguages={supportedLanguages}
-                onLanguageChange={handleLanguageChange}
-                language={selectedLanguage}
-              />
-            </div>
-          </ResizablePanel>
-        </ResizablePanelGroup>
+
+                {/* Monaco editor */}
+                <div ref={editorRef} className="flex-1" />
+
+                {/* Status bar */}
+                <div className="flex items-center gap-4 px-3 py-0.5 border-t border-border bg-muted/30 text-[10px] text-muted-foreground shrink-0">
+                  <span>{LANGUAGE_LABELS[selectedLanguage] ?? selectedLanguage}</span>
+                  <span className="ml-auto">⌘↵ Run · ⌘⇧↵ Submit</span>
+                </div>
+              </div>
+            </ResizablePanel>
+
+          </ResizablePanelGroup>
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 };
 

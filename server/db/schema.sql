@@ -456,3 +456,12 @@ CREATE TABLE quiz_submission_results (
 
 --ALTER TABLE assignments
 --ADD COLUMN results_published BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Seed languages (must match judge docker image names)
+INSERT INTO languages (name, version) VALUES
+  ('python',     '3.11'),
+  ('c',          'GCC 12'),
+  ('cpp',        'GCC 12'),
+  ('javascript', 'Node 20'),
+  ('typescript', 'Node 20 / ts-node')
+ON CONFLICT DO NOTHING;

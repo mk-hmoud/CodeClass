@@ -10,7 +10,7 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ children }) => {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <Navbar />
-      <div className="container mx-auto py-8 px-4 flex-grow">
+      <div className="flex-grow flex flex-col">
         {children || <Outlet />}
       </div>
     </div>

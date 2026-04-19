@@ -3,255 +3,235 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowRight, Eye, EyeOff, LogIn, Sun, Moon } from "lucide-react";
-import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Eye, EyeOff, LogIn, Sun, Moon, ArrowRight, Zap, BarChart3, Users } from "lucide-react";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import Logo from "@/components/Logo";
 import { loginUser } from "@/services/AuthService";
 import { useTheme } from "@/contexts/ThemeContext";
 
+const FEATURES = [
+  { icon: Zap, label: "Multi-language code execution", desc: "Run Python, C++, JavaScript and more in isolated sandboxes." },
+  { icon: BarChart3, label: "Automated grading & analytics", desc: "Instant feedback with detailed classroom performance insights." },
+  { icon: Users, label: "Classroom management", desc: "Create classrooms, assign problems, and track every student." },
+];
+
+const CODE_LINES = [
+  { indent: 0, tokens: [{ t: "def ", c: "text-primary" }, { t: "solve", c: "text-yellow-400" }, { t: "(arr: list[int]) -> int:", c: "text-foreground/80" }] },
+  { indent: 1, tokens: [{ t: "# find max subarray sum", c: "text-muted-foreground" }] },
+  { indent: 1, tokens: [{ t: "best = cur = ", c: "text-foreground/80" }, { t: "arr", c: "text-cyan-400" }, { t: "[0]", c: "text-orange-400" }] },
+  { indent: 1, tokens: [{ t: "for ", c: "text-primary" }, { t: "n ", c: "text-cyan-400" }, { t: "in ", c: "text-primary" }, { t: "arr[1:]:", c: "text-foreground/80" }] },
+  { indent: 2, tokens: [{ t: "cur = ", c: "text-foreground/80" }, { t: "max", c: "text-yellow-400" }, { t: "(n, cur + n)", c: "text-foreground/80" }] },
+  { indent: 2, tokens: [{ t: "best = ", c: "text-foreground/80" }, { t: "max", c: "text-yellow-400" }, { t: "(best, cur)", c: "text-foreground/80" }] },
+  { indent: 1, tokens: [{ t: "return ", c: "text-primary" }, { t: "best", c: "text-cyan-400" }] },
+];
+
 const Home = () => {
   const { theme, toggleTheme } = useTheme();
+  const navigate = useNavigate();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
+  const [shake, setShake] = useState(false);
 
-  const validateForm = () => {
-    if (!email) {
-      setError("Email is required");
-      return false;
-    }
-
-    if (!password) {
-      setError("Password is required");
-      return false;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setError("Please enter a valid email address");
-      return false;
-    }
-
-    return true;
+  const triggerShake = () => {
+    setShake(true);
+    setTimeout(() => setShake(false), 600);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (!validateForm()) {
-      triggerShakeAnimation();
+    if (!email || !password) {
+      setError("Email and password are required");
+      triggerShake();
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError("Please enter a valid email address");
+      triggerShake();
       return;
     }
 
     setIsLoading(true);
-
     try {
       const result = await loginUser({ email, password });
-
       if (result.success) {
-        toast.success("Login successful");
-        if (result.user.role === "instructor") {
-          navigate("/instructor/dashboard");
-        } else {
-          navigate("/student/dashboard");
-        }
+        toast.success("Welcome back!");
+        navigate(result.user.role === "instructor" ? "/instructor/dashboard" : "/student/dashboard");
       } else {
         setError(result.message);
-        toast.error(result.message);
-        triggerShakeAnimation();
+        triggerShake();
       }
-    } catch (err) {
+    } catch {
       setError("An unexpected error occurred. Please try again.");
-      triggerShakeAnimation();
+      triggerShake();
     } finally {
       setIsLoading(false);
     }
   };
 
-  const triggerShakeAnimation = () => {
-    setShake(true);
-    setTimeout(() => setShake(false), 600);
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-background/90 flex flex-col md:flex-row relative">
-      <div className="absolute top-4 right-4 z-10">
-        <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Toggle theme">
-          {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+    <div className="min-h-screen flex flex-col md:flex-row bg-background relative overflow-hidden">
+      {/* Theme toggle */}
+      <div className="absolute top-4 right-4 z-20">
+        <Button variant="ghost" size="icon" onClick={toggleTheme} className="h-8 w-8">
+          {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
         </Button>
       </div>
-      {/* left side */}
-      <div className="w-full md:w-1/2 flex items-center justify-center p-6 md:p-12 bg-gradient-to-br from-background to-muted">
-        <motion.div
-          className="max-w-lg"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <div className="flex justify-center md:justify-start mb-6">
+
+      {/* ── Left panel: branding + features ─────────────────────────────── */}
+      <div className="relative w-full md:w-1/2 flex flex-col justify-between p-8 md:p-12 bg-gradient-to-br from-background to-muted/50 border-b md:border-b-0 md:border-r border-border overflow-hidden">
+        {/* Subtle grid background */}
+        <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.06]"
+          style={{ backgroundImage: "linear-gradient(#888 1px,transparent 1px),linear-gradient(90deg,#888 1px,transparent 1px)", backgroundSize: "32px 32px" }} />
+        {/* Glow */}
+        <div className="absolute top-0 left-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+
+        <div className="relative z-10">
+          <Link to="/" className="inline-block mb-10">
             <Logo />
-          </div>
+          </Link>
 
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-mono font-bold mb-4 text-center md:text-left">
-            Coding <span className="text-cyan-400">Mastery</span>
-          </h1>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-3 leading-tight">
+              Where coding<br />
+              <span className="text-primary">education</span> lives.
+            </h1>
+            <p className="text-muted-foreground text-base mb-10 max-w-sm">
+              A professional platform for instructors and students to teach, learn, and grow through code.
+            </p>
 
-          <p className="text-lg font-mono text-muted-foreground mb-6 text-center md:text-left">
-            A powerful platform designed to make coding education engaging,
-            effective, and accessible for students and instructors.
-          </p>
-
-          <div className="space-y-6 mb-8 font-mono">
-            <div className="flex items-start">
-              <div className="bg-cyan-500/20 rounded-full p-1 mr-3 mt-1">
-                <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
-              </div>
-              <p className="text-sm">
-                Powerful code editor with support for multiple languages
-              </p>
+            <div className="space-y-5">
+              {FEATURES.map(({ icon: Icon, label, desc }) => (
+                <div key={label} className="flex items-start gap-3">
+                  <div className="mt-0.5 rounded-lg p-1.5 bg-primary/10 shrink-0">
+                    <Icon size={14} className="text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">{label}</p>
+                    <p className="text-xs text-muted-foreground">{desc}</p>
+                  </div>
+                </div>
+              ))}
             </div>
+          </motion.div>
+        </div>
 
-            <div className="flex items-start">
-              <div className="bg-cyan-500/20 rounded-full p-1 mr-3 mt-1">
-                <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
-              </div>
-              <p className="text-sm">
-                Real-time feedback and automated grading
-              </p>
+        {/* Code snippet decoration */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+          className="relative z-10 mt-10 hidden md:block"
+        >
+          <div className="rounded-xl border border-border bg-card/80 backdrop-blur-sm overflow-hidden">
+            <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-border bg-muted/40">
+              <div className="w-2.5 h-2.5 rounded-full bg-red-400/70" />
+              <div className="w-2.5 h-2.5 rounded-full bg-yellow-400/70" />
+              <div className="w-2.5 h-2.5 rounded-full bg-green-400/70" />
+              <span className="ml-2 text-xs text-muted-foreground font-mono">kadane.py</span>
             </div>
-
-            <div className="flex items-start">
-              <div className="bg-cyan-500/20 rounded-full p-1 mr-3 mt-1">
-                <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
-              </div>
-              <p className="text-sm">
-                Comprehensive analytics for tracking progress
-              </p>
+            <div className="p-4 font-mono text-xs leading-6">
+              {CODE_LINES.map((line, i) => (
+                <div key={i} style={{ paddingLeft: `${line.indent * 16}px` }}>
+                  {line.tokens.map((tok, j) => (
+                    <span key={j} className={tok.c}>{tok.t}</span>
+                  ))}
+                </div>
+              ))}
             </div>
-          </div>
-
-          <div className="hidden md:block">
-            <Link
-              to="/signup"
-              className="text-cyan-400 hover:text-cyan-300 flex items-center group font-mono"
-            >
-              New to CodeClass? Sign up
-              <ArrowRight
-                size={16}
-                className="ml-1 group-hover:translate-x-1 transition-transform"
-              />
-            </Link>
           </div>
         </motion.div>
       </div>
 
-      {/* right side */}
-      <div className="w-full md:w-1/2 flex items-center justify-center p-6 md:p-12">
+      {/* ── Right panel: login form ───────────────────────────────────────── */}
+      <div className="w-full md:w-1/2 flex items-center justify-center p-8 md:p-12">
         <motion.div
           className="w-full max-w-md"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
+          transition={{ duration: 0.4, delay: 0.15 }}
         >
-          <div className="bg-muted/60 border border-border rounded-lg backdrop-blur-sm p-6 md:p-8">
-            <h2 className="text-2xl font-bold mb-2">Welcome back</h2>
-            <p className="text-muted-foreground mb-6">
-              Sign in to your account to continue
-            </p>
-
-            {error && (
-              <Alert variant="destructive" className="mb-4">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="your.email@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="bg-muted/60"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <Label htmlFor="password">Password</Label>
-                  <Button
-                    variant="link"
-                    className="p-0 h-auto text-xs"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      toast.info(
-                        "Password reset functionality not implemented"
-                      );
-                    }}
-                  >
-                    Forgot password?
-                  </Button>
-                </div>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="bg-muted/60"
-                    required
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                    onClick={() => setShowPassword(!showPassword)}
-                    tabIndex={-1}
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </Button>
-                </div>
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full gap-2 bg-blue-600 hover:bg-blue-700"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full"></div>
-                ) : (
-                  <LogIn size={18} />
-                )}
-                {isLoading ? "Signing in..." : "Sign in"}
-              </Button>
-            </form>
-
-            <div className="mt-6 text-center">
-              <p className="text-sm text-muted-foreground">
-                Don't have an account?{" "}
-                <Link
-                  to="/signup"
-                  className="text-cyan-400 hover:text-cyan-300"
-                >
-                  Sign up
-                </Link>
-              </p>
-            </div>
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold mb-1">Welcome back</h2>
+            <p className="text-sm text-muted-foreground">Sign in to your account to continue</p>
           </div>
 
-          <p className="text-xs text-center text-gray-500 mt-8">
+          {error && (
+            <Alert variant="destructive" className={cn("mb-5", shake && "animate-shake")}>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                disabled={isLoading}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center">
+                <Label htmlFor="password">Password</Label>
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => toast.info("Password reset not yet implemented")}
+                >
+                  Forgot password?
+                </button>
+              </div>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                  disabled={isLoading}
+                />
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+
+            <Button type="submit" className="w-full gap-2" disabled={isLoading}>
+              {isLoading
+                ? <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                : <LogIn size={16} />}
+              {isLoading ? "Signing in…" : "Sign in"}
+            </Button>
+          </form>
+
+          <div className="mt-6 text-center text-sm text-muted-foreground">
+            New to CodeClass?{" "}
+            <Link to="/signup" className="text-primary font-medium hover:text-primary/80 transition-colors inline-flex items-center gap-0.5">
+              Create an account <ArrowRight size={13} />
+            </Link>
+          </div>
+
+          <p className="text-center text-xs text-muted-foreground mt-10">
             © {new Date().getFullYear()} CodeClass. All rights reserved.
           </p>
         </motion.div>
@@ -261,6 +241,3 @@ const Home = () => {
 };
 
 export default Home;
-function setShake(arg0: boolean) {
-  throw new Error("Function not implemented.");
-}

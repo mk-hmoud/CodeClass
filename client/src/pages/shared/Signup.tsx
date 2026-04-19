@@ -3,36 +3,27 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { ArrowLeft, Check, Eye, EyeOff, UserPlus, X, Sun, Moon } from "lucide-react";
-import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ArrowLeft, Check, Eye, EyeOff, UserPlus, X, Sun, Moon, GraduationCap } from "lucide-react";
+import { toast } from "sonner";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { signupUser } from "../../services/AuthService";
+import { signupUser } from "@/services/AuthService";
 import Logo from "@/components/Logo";
 import { useTheme } from "@/contexts/ThemeContext";
 
-const passwordRequirements = [
-  { id: "length", text: "At least 8 characters long", regex: /.{8,}/ },
-  { id: "lowercase", text: "Contains lowercase letter", regex: /[a-z]/ },
-  { id: "uppercase", text: "Contains uppercase letter", regex: /[A-Z]/ },
-  { id: "number", text: "Contains a number", regex: /\d/ },
-  {
-    id: "special",
-    text: "Contains a special character",
-    regex: /[!@#$%^&*(),.?":{}|<>]/,
-  },
+const PASSWORD_REQS = [
+  { id: "length",    text: "At least 8 characters",    regex: /.{8,}/ },
+  { id: "lowercase", text: "Lowercase letter",          regex: /[a-z]/ },
+  { id: "uppercase", text: "Uppercase letter",          regex: /[A-Z]/ },
+  { id: "number",    text: "Contains a number",         regex: /\d/ },
+  { id: "special",   text: "Special character",         regex: /[!@#$%^&*(),.?":{}|<>]/ },
 ];
 
 const Signup = () => {
   const { theme, toggleTheme } = useTheme();
+  const navigate = useNavigate();
+
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -40,357 +31,248 @@ const Signup = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [role, setrole] = useState<"instructor" | "student">("instructor");
-  const [passwordStrength, setPasswordStrength] = useState<{
-    [key: string]: boolean;
-  }>({
-    length: false,
-    lowercase: false,
-    uppercase: false,
-    number: false,
-    special: false,
+  const [role, setRole] = useState<"instructor" | "student">("student");
+  const [strength, setStrength] = useState<Record<string, boolean>>({
+    length: false, lowercase: false, uppercase: false, number: false, special: false,
   });
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [shake, setShake] = useState(false);
-  const navigate = useNavigate();
 
-  // update password strength when pass changed
   useEffect(() => {
-    console.info(`[Signup] Updating password strength for: "${password}"`);
-    const newStrength = { ...passwordStrength };
-    passwordRequirements.forEach((req) => {
-      newStrength[req.id] = req.regex.test(password);
+    setStrength(prev => {
+      const next = { ...prev };
+      PASSWORD_REQS.forEach(r => { next[r.id] = r.regex.test(password); });
+      return next;
     });
-    console.debug(
-      `[Signup] New password strength: ${JSON.stringify(newStrength)}`
-    );
-    setPasswordStrength(newStrength);
   }, [password]);
 
-  const validateForm = () => {
-    if (!name) {
-      setError("Full name is required");
-      console.warn("[Signup] Validation failed: Full name is missing");
-      return false;
-    }
-    if (!email) {
-      setError("Email is required");
-      console.warn("[Signup] Validation failed: Email is missing");
-      return false;
-    }
-    if (!username) {
-      setError("Username is required");
-      console.warn("[Signup] Validation failed: Username is missing");
-      return false;
-    }
-    if (username.includes(" ")) {
-      setError("Username cannot contain spaces");
-      console.warn("[Signup] Validation failed: Username contains spaces");
-      return false;
-    }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setError("Please enter a valid email address");
-      console.warn(`[Signup] Validation failed: Invalid email ${email}`);
-      return false;
-    }
-    if (!password) {
-      setError("Password is required");
-      console.warn("[Signup] Validation failed: Password is missing");
-      return false;
-    }
-    const isPasswordValid = Object.values(passwordStrength).every(
-      (value) => value
-    );
-    if (!isPasswordValid) {
-      setError("Password doesn't meet all requirements");
-      console.warn("[Signup] Validation failed: Password requirements not met");
-      return false;
-    }
-    if (password !== confirmPassword) {
-      setError("Passwords don't match");
-      console.warn("[Signup] Validation failed: Passwords do not match");
-      return false;
-    }
+  const triggerShake = () => {
+    setShake(true);
+    setTimeout(() => setShake(false), 600);
+  };
+
+  const validate = () => {
+    if (!name.trim()) { setError("Full name is required"); return false; }
+    if (!username.trim()) { setError("Username is required"); return false; }
+    if (username.includes(" ")) { setError("Username cannot contain spaces"); return false; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError("Please enter a valid email address"); return false; }
+    if (!password) { setError("Password is required"); return false; }
+    if (!Object.values(strength).every(Boolean)) { setError("Password doesn't meet all requirements"); return false; }
+    if (password !== confirmPassword) { setError("Passwords don't match"); return false; }
     return true;
   };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.info(
-      `[Signup] handleSignup invoked with name: ${name}, email: ${email}, role: ${role}`
-    );
     setError(null);
-
-    if (!validateForm()) {
-      triggerShakeAnimation();
-      return;
-    }
+    if (!validate()) { triggerShake(); return; }
 
     setIsLoading(true);
     try {
-      console.info("[Signup] Calling signupUser service");
-      const result = await signupUser({
-        name,
-        username,
-        email,
-        password,
-        role,
-      });
-      console.debug(`[Signup] signupUser response: ${JSON.stringify(result)}`);
-
+      const result = await signupUser({ name, username, email, password, role });
       if (result.success) {
         toast.success(result.message || "Account created successfully!");
-        console.info("[Signup] Signup successful, redirecting to login page");
         navigate("/login");
       } else {
         setError(result.message);
-        toast.error(result.message);
-        console.warn(`[Signup] Signup failed: ${result.message}`);
-        triggerShakeAnimation();
+        triggerShake();
       }
-    } catch (err) {
-      console.error("[Signup] Error during signup:", err);
+    } catch {
       setError("An unexpected error occurred. Please try again.");
-      triggerShakeAnimation();
+      triggerShake();
     } finally {
       setIsLoading(false);
     }
   };
 
-  const triggerShakeAnimation = () => {
-    setShake(true);
-    setTimeout(() => setShake(false), 600);
-  };
+  const passwordStrengthCount = Object.values(strength).filter(Boolean).length;
+  const strengthColor =
+    passwordStrengthCount <= 2 ? "bg-destructive" :
+    passwordStrengthCount <= 3 ? "bg-orange-400" :
+    passwordStrengthCount === 4 ? "bg-yellow-400" : "bg-green-500";
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-background/90 flex flex-col items-center justify-center p-4">
-      <div className="absolute top-4 right-4">
-        <Button variant="ghost" size="icon" onClick={toggleTheme} aria-label="Toggle theme">
-          {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 relative">
+      {/* Background */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl translate-x-1/2 -translate-y-1/2" />
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl -translate-x-1/2 translate-y-1/2" />
+      </div>
+
+      <div className="absolute top-4 right-4 z-10">
+        <Button variant="ghost" size="icon" onClick={toggleTheme} className="h-8 w-8">
+          {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
         </Button>
       </div>
-      <div className="w-full max-w-md">
+
+      <motion.div
+        className="w-full max-w-md relative z-10"
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+      >
         <div className="flex justify-center mb-8">
-          <Link to="/">
-            <Logo />
-          </Link>
+          <Link to="/"><Logo /></Link>
         </div>
 
-        <Card className={cn("border-muted/30", shake && "animate-shake")}>
-          <CardHeader>
-            <CardTitle className="text-2xl">Create an Account</CardTitle>
-            <CardDescription>
-              Sign up to start using CodeClass
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {error && (
-              <Alert variant="destructive" className="mb-4">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            <form onSubmit={handleSignup} className="space-y-4">
-              <div className="space-y-2">
+        <div className={cn("bg-card border border-border rounded-2xl p-8 shadow-sm", shake && "animate-shake")}>
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold mb-1">Create an account</h1>
+            <p className="text-sm text-muted-foreground">Sign up to start using CodeClass</p>
+          </div>
+
+          {error && (
+            <Alert variant="destructive" className="mb-5">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          <form onSubmit={handleSignup} className="space-y-4">
+            {/* Role selector */}
+            <div className="space-y-1.5">
+              <Label>I am a</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRole("student")}
+                  disabled={isLoading}
+                  className={cn(
+                    "flex items-center justify-center gap-2 rounded-lg border py-2.5 text-sm font-medium transition-colors",
+                    role === "student"
+                      ? "bg-primary/10 border-primary text-primary"
+                      : "border-border hover:bg-muted text-muted-foreground"
+                  )}
+                >
+                  <GraduationCap size={15} />
+                  Student
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole("instructor")}
+                  disabled={isLoading}
+                  className={cn(
+                    "flex items-center justify-center gap-2 rounded-lg border py-2.5 text-sm font-medium transition-colors",
+                    role === "instructor"
+                      ? "bg-primary/10 border-primary text-primary"
+                      : "border-border hover:bg-muted text-muted-foreground"
+                  )}
+                >
+                  <UserPlus size={15} />
+                  Instructor
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
                 <Label htmlFor="name">Full Name</Label>
-                <Input
-                  id="name"
-                  placeholder="John Doe"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className={cn(
-                    error &&
-                      error.includes("name") &&
-                      "border-destructive focus-visible:ring-destructive"
-                  )}
-                  disabled={isLoading}
-                  required
-                />
+                <Input id="name" placeholder="Jane Doe" value={name} onChange={e => setName(e.target.value)} disabled={isLoading} />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="username">Username</Label>
-                <Input
-                  id="username"
-                  placeholder="johndoe123"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className={cn(
-                    error &&
-                      error.includes("username") &&
-                      "border-destructive focus-visible:ring-destructive"
-                  )}
-                  disabled={isLoading}
-                  required
-                />
+                <Input id="username" placeholder="janedoe" value={username} onChange={e => setUsername(e.target.value)} disabled={isLoading} />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" disabled={isLoading} />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="password">Password</Label>
+              <div className="relative">
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="your.email@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className={cn(
-                    error &&
-                      error.includes("email") &&
-                      "border-destructive focus-visible:ring-destructive"
-                  )}
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  autoComplete="new-password"
                   disabled={isLoading}
-                  required
                 />
+                <button type="button" tabIndex={-1} onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className={cn(
-                      error &&
-                        error.includes("Password doesn't meet") &&
-                        "border-destructive focus-visible:ring-destructive"
-                    )}
-                    disabled={isLoading}
-                    required
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                    onClick={() => setShowPassword(!showPassword)}
-                    tabIndex={-1}
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </Button>
-                </div>
-                {/* Password requirements */}
+
+              {/* Strength bar */}
+              {password && (
                 <div className="space-y-2 mt-2">
-                  <div className="text-xs text-muted-foreground">
-                    Password requirements:
+                  <div className="flex gap-1">
+                    {[1,2,3,4,5].map(i => (
+                      <div key={i} className={cn(
+                        "h-1 flex-1 rounded-full transition-colors duration-300",
+                        i <= passwordStrengthCount ? strengthColor : "bg-muted"
+                      )} />
+                    ))}
                   </div>
-                  <ul className="space-y-1.5">
-                    {passwordRequirements.map((req) => (
-                      <li
-                        key={req.id}
-                        className="flex items-center gap-2 text-xs"
-                      >
-                        {passwordStrength[req.id] ? (
-                          <Check size={14} className="text-green-500" />
-                        ) : (
-                          <X size={14} className="text-orange-400" />
-                        )}
-                        <span
-                          className={cn(
-                            passwordStrength[req.id]
-                              ? "text-muted-foreground"
-                              : "text-orange-400"
-                          )}
-                        >
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                    {PASSWORD_REQS.map(req => (
+                      <div key={req.id} className="flex items-center gap-1.5 text-xs">
+                        {strength[req.id]
+                          ? <Check size={11} className="text-green-500 shrink-0" />
+                          : <X size={11} className="text-orange-400 shrink-0" />}
+                        <span className={strength[req.id] ? "text-muted-foreground" : "text-orange-400"}>
                           {req.text}
                         </span>
-                      </li>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <div className="relative">
-                  <Input
-                    id="confirmPassword"
-                    type={showConfirmPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className={cn(
-                      error &&
-                        error.includes("match") &&
-                        "border-destructive focus-visible:ring-destructive"
-                    )}
-                    disabled={isLoading}
-                    required
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    tabIndex={-1}
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff size={18} />
-                    ) : (
-                      <Eye size={18} />
-                    )}
-                  </Button>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>I am a</Label>
-                <div className="flex gap-4">
-                  <Button
-                    type="button"
-                    variant={role === "instructor" ? "default" : "outline"}
-                    className="flex-1"
-                    onClick={() => setrole("instructor")}
-                    disabled={isLoading}
-                  >
-                    Instructor
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={role === "student" ? "default" : "outline"}
-                    className="flex-1"
-                    onClick={() => setrole("student")}
-                    disabled={isLoading}
-                  >
-                    Student
-                  </Button>
-                </div>
-              </div>
-              <Button
-                type="submit"
-                className="w-full gap-2"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full"></div>
-                ) : (
-                  <UserPlus size={18} />
-                )}
-                {isLoading ? "Creating Account..." : "Create Account"}
-              </Button>
-            </form>
-          </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
-            <div className="text-sm text-center w-full">
-              Already have an account?{" "}
-              <Link
-                to="/login"
-                className="text-primary underline hover:text-primary/80"
-              >
-                Login
-              </Link>
+              )}
             </div>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => navigate("/")}
-              disabled={isLoading}
-            >
-              <ArrowLeft size={18} className="mr-2" />
-              Back to Home
+
+            <div className="space-y-1.5">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  autoComplete="new-password"
+                  disabled={isLoading}
+                  className={cn(
+                    confirmPassword && password !== confirmPassword && "border-destructive focus-visible:ring-destructive"
+                  )}
+                />
+                <button type="button" tabIndex={-1} onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                  {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              {confirmPassword && password !== confirmPassword && (
+                <p className="text-xs text-destructive">Passwords don't match</p>
+              )}
+            </div>
+
+            <Button type="submit" className="w-full gap-2" disabled={isLoading}>
+              {isLoading
+                ? <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                : <UserPlus size={16} />}
+              {isLoading ? "Creating account…" : "Create account"}
             </Button>
-          </CardFooter>
-        </Card>
-      </div>
+          </form>
+
+          <div className="mt-5 text-center text-sm text-muted-foreground">
+            Already have an account?{" "}
+            <Link to="/login" className="text-primary font-medium hover:text-primary/80 transition-colors">
+              Sign in
+            </Link>
+          </div>
+        </div>
+
+        <div className="mt-4 text-center">
+          <Link to="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1">
+            <ArrowLeft size={13} />
+            Back to home
+          </Link>
+        </div>
+      </motion.div>
     </div>
   );
 };

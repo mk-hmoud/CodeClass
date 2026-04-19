@@ -1,407 +1,349 @@
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  BookOpen,
-  Book,
-  Calendar,
-  GraduationCap,
-  Clock,
-  AlertTriangle,
-  BarChart,
-  Code,
-} from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
+import {
+  BookOpen, Clock, AlertTriangle, GraduationCap, ChevronRight,
+  FileCode, Plus, Calendar, CheckCircle, Users, Code2, Layers,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Separator } from "@/components/ui/separator";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import CodeEditorBase from "@/components/editors/CodeEditorBase";
-
-import { Classroom } from "../../types/Classroom";
-import { getClassrooms } from "../../services/ClassroomService";
-import { joinClassroom } from "../../services/ClassroomService";
-import { getUpcomingDeadlines } from "../../services/AssignmentService";
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
+import { Classroom } from "@/types/Classroom";
+import { getClassrooms, joinClassroom } from "@/services/ClassroomService";
+import { getUpcomingDeadlines } from "@/services/AssignmentService";
 import { getAllCodeDrafts } from "@/utils/CodeDraftManager";
+import { getCurrentUser } from "@/services/AuthService";
+import { LANGUAGE_LABELS } from "@/lib/assignmentUtils";
 
+// ── Accent palette for classroom cards ───────────────────────────────────────
+const ACCENTS = [
+  { color: "#3b82f6", name: "blue" },
+  { color: "#8b5cf6", name: "violet" },
+  { color: "#10b981", name: "emerald" },
+  { color: "#f59e0b", name: "amber" },
+  { color: "#ef4444", name: "rose" },
+  { color: "#06b6d4", name: "cyan" },
+  { color: "#6366f1", name: "indigo" },
+  { color: "#f97316", name: "orange" },
+];
+
+const getAccent = (id: number) => ACCENTS[id % ACCENTS.length];
+
+const getGreeting = () => {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
+};
+
+const timeAgo = (iso: string) => {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+};
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 16 },
+  show: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.05, duration: 0.35 } }),
+};
+
+// ── Stat card ─────────────────────────────────────────────────────────────────
+const StatCard = ({ icon: Icon, label, value, color, custom }: any) => (
+  <motion.div variants={fadeUp} custom={custom}
+    className="bg-card border border-border rounded-xl p-4 flex items-center gap-4">
+    <div className="rounded-lg p-2.5 shrink-0" style={{ backgroundColor: color + "20" }}>
+      <Icon size={20} style={{ color }} />
+    </div>
+    <div>
+      <p className="text-xs text-muted-foreground font-medium">{label}</p>
+      <p className="text-2xl font-bold tracking-tight">{value}</p>
+    </div>
+  </motion.div>
+);
+
+// ── Classroom card ────────────────────────────────────────────────────────────
+const ClassroomCard = ({ classroom, index, onClick }: { classroom: Classroom; index: number; onClick: () => void }) => {
+  const accent = getAccent(classroom.id);
+  const pending = Number(classroom.uncompletedAssignments ?? 0);
+  const completion = classroom.completion ?? 0;
+
+  return (
+    <motion.div variants={fadeUp} custom={index}
+      onClick={onClick}
+      className="group relative bg-card border border-border rounded-xl overflow-hidden cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+      style={{ borderLeftWidth: 4, borderLeftColor: accent.color }}
+    >
+      <div className="p-5">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold shrink-0"
+              style={{ backgroundColor: accent.color + "18", color: accent.color }}>
+              {classroom.name.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <h3 className="font-semibold text-sm leading-tight line-clamp-1">{classroom.name}</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {classroom.instructor ?? "Instructor"}
+              </p>
+            </div>
+          </div>
+          {pending > 0 && (
+            <span className="shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full"
+              style={{ backgroundColor: "#f59e0b20", color: "#f59e0b" }}>
+              {pending} pending
+            </span>
+          )}
+        </div>
+
+        {/* Progress */}
+        <div className="mb-3">
+          <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
+            <span>Progress</span>
+            <span className="font-medium" style={{ color: accent.color }}>{completion}%</span>
+          </div>
+          <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+            <div className="h-full rounded-full transition-all duration-500"
+              style={{ width: `${completion}%`, backgroundColor: accent.color }} />
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <BookOpen size={12} /> {classroom.totalAssignments ?? 0} assignments
+          </span>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="px-5 py-3 border-t border-border bg-muted/20 flex items-center justify-between">
+        <span className="text-xs font-medium" style={{ color: accent.color }}>Open classroom</span>
+        <ChevronRight size={14} className="text-muted-foreground group-hover:translate-x-0.5 transition-transform" style={{ color: accent.color }} />
+      </div>
+    </motion.div>
+  );
+};
+
+// ── Main component ────────────────────────────────────────────────────────────
 const StudentDashboard = () => {
-  const [classrooms, setClassrooms] = useState<Classroom[]>([]);
-  const [upcomingDeadlines, setUpcomingDeadlines] = useState<any[]>([]);
-  const [classCode, setClassCode] = useState("");
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [deadlinesLoading, setDeadlinesLoading] = useState(true);
-  const [joining, setJoining] = useState(false);
-  const [savedDrafts, setSavedDrafts] = useState([]);
   const navigate = useNavigate();
+  const { user } = getCurrentUser();
+  const displayName = user?.username ?? "there";
+
+  const [classrooms, setClassrooms] = useState<Classroom[]>([]);
+  const [deadlines, setDeadlines] = useState<any[]>([]);
+  const [drafts, setDrafts] = useState<any[]>([]);
+  const [classCode, setClassCode] = useState("");
+  const [joinOpen, setJoinOpen] = useState(false);
+  const [joining, setJoining] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchClassrooms = async () => {
-      try {
-        setLoading(true);
-        const fetchedClassrooms = await getClassrooms();
-        console.log(fetchedClassrooms);
-        setClassrooms(fetchedClassrooms);
-        const drafts = getAllCodeDrafts();
-        setSavedDrafts(drafts);
-      } catch (error) {
-        toast.error("Failed to load classrooms");
-        console.error("Error fetching classrooms:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    Promise.all([
+      getClassrooms().then(setClassrooms),
+      getUpcomingDeadlines(48).then(setDeadlines),
+    ])
+      .catch(() => toast.error("Failed to load dashboard data"))
+      .finally(() => setLoading(false));
 
-    const fetchUpcomingDeadlines = async () => {
-      try {
-        setDeadlinesLoading(true);
-        const deadlines = await getUpcomingDeadlines(24);
-        setUpcomingDeadlines(deadlines);
-      } catch (error) {
-        toast.error("Failed to load upcoming deadlines");
-        console.error("Error fetching deadlines:", error);
-      } finally {
-        setDeadlinesLoading(false);
-      }
-    };
-
-    fetchClassrooms();
-    fetchUpcomingDeadlines();
+    setDrafts(getAllCodeDrafts());
   }, []);
 
-  const uncompletedAssignments = classrooms.reduce(
-    (total, c) => total + Number(c.uncompletedAssignments || 0),
-    0
-  );
+  const totalPending = classrooms.reduce((s, c) => s + Number(c.uncompletedAssignments ?? 0), 0);
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const today = new Date();
-
-    const diffTime = date.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    let badgeVariant: "default" | "destructive" | "outline" | "secondary" =
-      "default";
-    if (diffDays <= 0) badgeVariant = "destructive";
-    else if (diffDays <= 1) badgeVariant = "secondary";
-
-    return {
-      formatted: new Intl.DateTimeFormat("en-US", {
-        month: "short",
-        day: "numeric",
-      }).format(date),
-      daysLeft: diffDays,
-      badgeVariant,
-    };
-  };
-
-  const handleJoinClassroom = async () => {
-    if (!classCode.trim()) {
-      toast.error("Please enter a class code");
-      return;
-    }
+  const handleJoin = async () => {
+    if (!classCode.trim()) { toast.error("Please enter a class code"); return; }
+    setJoining(true);
     try {
-      setJoining(true);
       await joinClassroom(classCode.trim());
-      const updatedClassrooms = await getClassrooms();
-      setClassrooms(updatedClassrooms);
-
-      setClassCode("");
-      setOpen(false);
-      toast.success("Successfully joined classroom!");
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to join classroom"
-      );
-    } finally {
-      setJoining(false);
-    }
+      setClassrooms(await getClassrooms());
+      setClassCode(""); setJoinOpen(false);
+      toast.success("Joined classroom!");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to join classroom");
+    } finally { setJoining(false); }
   };
 
-  const handleClassroomClick = (classroomId, classroom) => {
-    navigate(`/student/classrooms/${classroomId}/view`, {
-      state: classroom.totalAssignments,
-    });
-  };
-
-  const handleContinueAssignment = (classroomId: any, assignmentId: any) => {
-    if (assignmentId) {
-      navigate(
-        `/student/classrooms/${classroomId}/assignments/${assignmentId}/solve`
-      );
-    }
-  };
-
-  const handleAssignmentClick = (assignmentId) => {
-    navigate(`/`);
+  const urgencyColor = (due: string) => {
+    const h = (new Date(due).getTime() - Date.now()) / 3600000;
+    if (h < 0) return { bg: "bg-red-500/10", text: "text-red-600", label: "Overdue" };
+    if (h < 6) return { bg: "bg-red-500/10", text: "text-red-600", label: `${Math.round(h)}h left` };
+    if (h < 24) return { bg: "bg-amber-500/10", text: "text-amber-600", label: `${Math.round(h)}h left` };
+    return { bg: "bg-blue-500/10", text: "text-blue-600", label: `${Math.ceil(h / 24)}d left` };
   };
 
   return (
-    <div className="flex-1 p-6">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Student Dashboard</h1>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">Join Classroom</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Join a Classroom</DialogTitle>
-              </DialogHeader>
-              <div className="py-4">
-                <Label htmlFor="class-code">Enter Class Code</Label>
-                <Input
-                  id="class-code"
-                  value={classCode}
-                  onChange={(e) => setClassCode(e.target.value)}
-                  placeholder="e.g. ABC123"
-                  className="mt-2 font-mono"
-                />
-                <p className="text-sm text-muted-foreground mt-2">
-                  Ask your instructor for the class code
-                </p>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleJoinClassroom}>Join</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
+    <div className="flex-1 p-6 min-h-0">
+      <div className="max-w-6xl mx-auto space-y-8">
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-          <div className="bg-background border border-border rounded-lg p-4 flex items-center gap-3">
-            <div className="bg-blue-500/20 rounded-full p-3">
-              <Book className="text-blue-400" size={24} />
-            </div>
+        {/* ── Hero ─────────────────────────────────────────────────────── */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+          className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/8 via-primary/4 to-transparent p-8">
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <p className="text-muted-foreground text-sm">Enrolled Courses</p>
-              <p className="text-xl font-semibold">{classrooms.length}</p>
-            </div>
-          </div>
-
-          <div className="bg-background border border-border rounded-lg p-4 flex items-center gap-3">
-            <div className="bg-amber-500/20 rounded-full p-3">
-              <AlertTriangle className="text-amber-400" size={24} />
-            </div>
-            <div>
-              <p className="text-muted-foreground text-sm">Uncompleted assignments</p>
-              <p className="text-xl font-semibold">{uncompletedAssignments}</p>
-            </div>
-          </div>
-
-          <div className="bg-background border border-border rounded-lg p-4 flex items-center gap-3">
-            <div className="bg-purple-500/20 rounded-full p-3">
-              <Clock className="text-purple-400" size={24} />
-            </div>
-            <div>
-              <p className="text-muted-foreground text-sm">Upcoming Deadlines</p>
-              <p className="text-xl font-semibold">
-                {upcomingDeadlines.length}
+              <p className="text-sm font-medium text-primary mb-1">{getGreeting()} 👋</p>
+              <h1 className="text-3xl font-bold tracking-tight mb-2">{displayName}</h1>
+              <p className="text-muted-foreground text-sm">
+                {totalPending > 0
+                  ? <>You have <span className="font-semibold text-foreground">{totalPending}</span> pending assignments across <span className="font-semibold text-foreground">{classrooms.length}</span> classroom{classrooms.length !== 1 ? "s" : ""}.</>
+                  : <>All caught up! Enrolled in <span className="font-semibold text-foreground">{classrooms.length}</span> classroom{classrooms.length !== 1 ? "s" : ""}.</>
+                }
               </p>
             </div>
+            <Dialog open={joinOpen} onOpenChange={setJoinOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2 shrink-0">
+                  <Plus size={16} /> Join Classroom
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Join a Classroom</DialogTitle></DialogHeader>
+                <div className="py-4 space-y-2">
+                  <Label htmlFor="code">Class Code</Label>
+                  <Input id="code" value={classCode} onChange={(e) => setClassCode(e.target.value)}
+                    placeholder="e.g. ABC123" className="font-mono"
+                    onKeyDown={(e) => e.key === "Enter" && handleJoin()} />
+                  <p className="text-xs text-muted-foreground">Ask your instructor for the class code.</p>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setJoinOpen(false)}>Cancel</Button>
+                  <Button onClick={handleJoin} disabled={joining}>
+                    {joining ? "Joining…" : "Join"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
-        </div>
-        <div className="space-y-8">
-          {savedDrafts.length > 0 && (
-            <div className="mt-8">
-              <h2 className="text-xl font-semibold mb-4">Your Saved Work</h2>
+          <GraduationCap size={180} className="absolute -right-8 -bottom-8 opacity-[0.04] pointer-events-none" />
+        </motion.div>
 
-              <div className="space-y-6">
-                {savedDrafts.map((draft) => (
-                  <div
-                    key={draft.assignmentId}
-                    className="bg-card border border-border rounded-lg p-6 shadow-lg"
-                  >
-                    <div className="mb-3">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-medium text-lg">
-                            {draft.assignmentTitle}
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            Last saved:{" "}
-                            {new Date(draft.lastSaved).toLocaleString()}
-                          </p>
-                        </div>
-                        <Button
-                          onClick={() =>
-                            handleContinueAssignment(
-                              draft.classroomId,
-                              draft.assignmentId
-                            )
-                          }
-                        >
-                          Continue Assignment
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="bg-background border border-border rounded-lg overflow-hidden h-[200px]">
-                      <CodeEditorBase
-                        defaultLanguage={draft.language}
-                        defaultValue={draft.code}
-                      />
-                    </div>
-                  </div>
+        {/* ── Stats row ────────────────────────────────────────────────── */}
+        <motion.div initial="hidden" animate="show" variants={{ show: { transition: { staggerChildren: 0.05 } } }}
+          className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard icon={Layers} label="Classrooms" value={classrooms.length} color="#3b82f6" custom={0} />
+          <StatCard icon={AlertTriangle} label="Pending" value={totalPending} color="#f59e0b" custom={1} />
+          <StatCard icon={Clock} label="Due in 48h" value={deadlines.length} color="#ef4444" custom={2} />
+          <StatCard icon={FileCode} label="Saved Drafts" value={drafts.length} color="#8b5cf6" custom={3} />
+        </motion.div>
+
+        {/* ── Main content grid ─────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+          {/* ── Classrooms ─────────────────────────────────────────────── */}
+          <div className="lg:col-span-2 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-lg">My Classrooms</h2>
+              <span className="text-xs text-muted-foreground">{classrooms.length} enrolled</span>
+            </div>
+
+            {loading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="h-40 rounded-xl bg-muted/40 animate-pulse border border-border" />
                 ))}
               </div>
-            </div>
-          )}
-          <div className="bg-card border border-border rounded-lg p-6 mb-8 shadow-lg">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-              <Clock size={20} className="text-amber-400" />
-              Approaching Deadlines (24h)
-            </h2>
-
-            {deadlinesLoading ? (
-              <div className="flex justify-center py-8">
-                <div className="animate-pulse text-muted-foreground">
-                  Loading deadlines...
+            ) : classrooms.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border py-16 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mb-4">
+                  <BookOpen size={24} className="text-muted-foreground" />
                 </div>
-              </div>
-            ) : upcomingDeadlines.length > 0 ? (
-              <div className="space-y-4">
-                {upcomingDeadlines.map((deadline) => {
-                  const date = formatDate(deadline.dueDate);
-
-                  return (
-                    <div
-                      key={deadline.id}
-                      className="bg-background border border-border rounded-lg p-4 hover:border-blue-500 transition-colors cursor-pointer"
-                      onClick={() => handleAssignmentClick(deadline.id)}
-                    >
-                      <div className="flex justify-between items-start mb-1">
-                        <h3 className="font-medium">{deadline.title}</h3>
-                        <Badge variant={date.badgeVariant} className="ml-2">
-                          {date.daysLeft <= 0
-                            ? "Due today"
-                            : date.daysLeft < 1
-                            ? "Due in hours"
-                            : `${date.daysLeft} days left`}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        Course: {deadline.course}
-                      </p>
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-gray-500">
-                          Due: {date.formatted}
-                        </span>
-                        <Badge
-                          variant="outline"
-                          className="bg-muted text-foreground/80"
-                        >
-                          {deadline.status}
-                        </Badge>
-                      </div>
-                    </div>
-                  );
-                })}
+                <p className="font-medium mb-1">No classrooms yet</p>
+                <p className="text-sm text-muted-foreground mb-4">Join your first classroom with a code from your instructor.</p>
+                <Button onClick={() => setJoinOpen(true)} size="sm" className="gap-2">
+                  <Plus size={14} /> Join Classroom
+                </Button>
               </div>
             ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Calendar className="mx-auto mb-2 opacity-40" />
-                <p>No upcoming deadlines in the next 24 hours</p>
-              </div>
+              <motion.div initial="hidden" animate="show"
+                variants={{ show: { transition: { staggerChildren: 0.06 } } }}
+                className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {classrooms.map((c, i) => (
+                  <ClassroomCard key={c.id} classroom={c} index={i}
+                    onClick={() => navigate(`/student/classrooms/${c.id}/view`, { state: c.totalAssignments })} />
+                ))}
+              </motion.div>
             )}
           </div>
 
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <BookOpen size={20} />
-            My Classrooms
-          </h2>
+          {/* ── Right column ───────────────────────────────────────────── */}
+          <div className="space-y-6">
 
-          {classrooms.length === 0 ? (
-            <div className="text-center py-16 bg-background border border-border rounded-lg">
-              <BookOpen className="mx-auto mb-4 text-gray-500" size={48} />
-              <p className="text-muted-foreground mb-2">
-                You haven’t joined any classrooms yet.
-              </p>
+            {/* Upcoming deadlines */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-semibold text-lg">Deadlines</h2>
+                <span className="text-xs text-muted-foreground">Next 48h</span>
+              </div>
+              <div className="space-y-2">
+                {deadlines.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-border p-6 text-center">
+                    <CheckCircle size={24} className="mx-auto mb-2 text-emerald-500 opacity-60" />
+                    <p className="text-sm text-muted-foreground">No upcoming deadlines</p>
+                  </div>
+                ) : (
+                  deadlines.map((d, i) => {
+                    const u = urgencyColor(d.dueDate);
+                    return (
+                      <motion.div key={d.id} variants={fadeUp} custom={i}
+                        className="group flex items-start gap-3 p-3 rounded-xl border border-border bg-card hover:border-primary/40 hover:shadow-sm cursor-pointer transition-all"
+                        onClick={() => navigate(`/student/classrooms/${d.classroomId}/assignments/${d.id}/view`)}>
+                        <div className={cn("mt-0.5 w-7 h-7 rounded-md flex items-center justify-center shrink-0", u.bg)}>
+                          <Clock size={13} className={u.text} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{d.title}</p>
+                          <p className="text-xs text-muted-foreground truncate">{d.course}</p>
+                        </div>
+                        <span className={cn("shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full", u.bg, u.text)}>
+                          {u.label}
+                        </span>
+                      </motion.div>
+                    );
+                  })
+                )}
+              </div>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {classrooms.map((classroom) => (
-                <Card
-                  key={classroom.id}
-                  className="bg-card border-border hover:border-primary transition-colors cursor-pointer"
-                  onClick={() => handleClassroomClick(classroom.id, classroom)}
-                >
-                  <CardHeader>
-                    <CardTitle className="text-foreground">
-                      {classroom.name}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground mb-4">
-                      Instructor: {classroom.instructor}
-                    </p>
-                    <div className="flex justify-between text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <BookOpen size={16} />
-                        <span>{classroom.totalAssignments} Assignments</span>
+
+            <Separator />
+
+            {/* Saved drafts */}
+            {drafts.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="font-semibold text-lg">Continue Working</h2>
+                  <span className="text-xs text-muted-foreground">{drafts.length} draft{drafts.length !== 1 ? "s" : ""}</span>
+                </div>
+                <div className="space-y-2">
+                  {drafts.map((draft, i) => (
+                    <motion.div key={draft.assignmentId} variants={fadeUp} custom={i}
+                      className="group flex items-center gap-3 p-3 rounded-xl border border-border bg-card hover:border-primary/40 hover:shadow-sm cursor-pointer transition-all"
+                      onClick={() => navigate(`/student/classrooms/${draft.classroomId}/assignments/${draft.assignmentId}/solve`)}>
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <Code2 size={15} className="text-primary" />
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Calendar size={16} />
-                        <span>Active</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{draft.assignmentTitle}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {LANGUAGE_LABELS[draft.language] ?? draft.language} · {timeAgo(draft.lastSaved)}
+                        </p>
                       </div>
-                    </div>
-                    <div className="mt-4">
-                      <Progress value={classroom.completion} className="h-2" />
-                    </div>
-                    <div className="mt-1 text-right text-xs text-muted-foreground">
-                      {classroom.completion}% complete
-                    </div>
-                  </CardContent>
-                  <Separator className="bg-muted" />
-                  <CardFooter className="pt-4 flex gap-2">
-                    <Button
-                      variant="outline"
-                      className="flex-1"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleClassroomClick(classroom.id, classroom);
-                      }}
-                    >
-                      View Classroom
-                    </Button>
-                    {/*
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleViewStatistics(classroom.id);
-                    }}
-                    title="View Statistics"
-                  >
-                    <BarChart size={16} />
-                  </Button>
-                  */}
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
-          )}
+                      <ChevronRight size={14} className="text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

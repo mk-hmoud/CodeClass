@@ -1,865 +1,452 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  ArrowLeft,
-  CheckCircle,
-  BookOpen,
-  GraduationCap,
-  Clock,
-  Calendar,
-  AlertCircle,
-  Eye,
-  FileText,
+  ArrowLeft, CheckCircle, BookOpen, GraduationCap, Clock,
+  AlertCircle, FileText, Eye, ChevronRight, Zap, Timer,
 } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
-import { getClassroomById } from "../../services/ClassroomService";
-import { getQuizzesByClassroom, getMySession } from "../../services/QuizService";
-import { Classroom } from "../../types/Classroom";
-import { Assignment } from "../../types/Assignment";
-import { QuizListItem } from "../../types/Quiz";
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
+import { getClassroomById } from "@/services/ClassroomService";
+import { getQuizzesByClassroom, getMySession } from "@/services/QuizService";
+import { Classroom } from "@/types/Classroom";
+import { Assignment } from "@/types/Assignment";
+import { QuizListItem } from "@/types/Quiz";
 import { toast } from "sonner";
 
-type AssignmentFilter = "all" | "completed" | "not-completed";
+// ── Accent palette (mirrors StudentDashboard) ─────────────────────────────────
+const ACCENTS = [
+  "#3b82f6", "#8b5cf6", "#10b981", "#f59e0b",
+  "#ef4444", "#06b6d4", "#6366f1", "#f97316",
+];
+const getAccent = (id: number) => ACCENTS[id % ACCENTS.length];
 
+type Filter = "all" | "completed" | "pending";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const fmtDate = (d: string) =>
+  new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(d));
+
+const hoursLeft = (d: string) => (new Date(d).getTime() - Date.now()) / 3_600_000;
+
+const daysLeft = (d: string) => Math.ceil((new Date(d).getTime() - Date.now()) / 86_400_000);
+
+// ── Skeleton ──────────────────────────────────────────────────────────────────
+const Skeleton = ({ className }: { className?: string }) => (
+  <div className={cn("animate-pulse rounded-lg bg-muted", className)} />
+);
+
+// ── Assignment card ───────────────────────────────────────────────────────────
+const AssignmentCard = ({
+  assignment,
+  accent,
+  onClick,
+}: {
+  assignment: Assignment;
+  accent: string;
+  onClick: () => void;
+}) => {
+  const submitted = !!assignment.submitted;
+  const expired =
+    !submitted && !!assignment.dueDate && hoursLeft(assignment.dueDate.toString()) < 0;
+  const urgent =
+    !submitted && !expired && !!assignment.dueDate && hoursLeft(assignment.dueDate.toString()) < 24;
+
+  const borderColor = submitted ? "#10b981" : expired ? "#ef4444" : urgent ? "#f59e0b" : accent;
+
+  const statusBadge = submitted ? (
+    <Badge className="bg-green-500/15 text-green-600 border-green-500/30 border text-[11px]">Completed</Badge>
+  ) : expired ? (
+    <Badge className="bg-red-500/15 text-red-500 border-red-500/30 border text-[11px]">Expired</Badge>
+  ) : urgent ? (
+    <Badge className="bg-amber-500/15 text-amber-600 border-amber-500/30 border text-[11px]">Due soon</Badge>
+  ) : (
+    <Badge className="bg-primary/10 text-primary border-primary/20 border text-[11px]">Active</Badge>
+  );
+
+  const buttonLabel = submitted
+    ? "View Feedback"
+    : expired
+    ? "View (Late)"
+    : "Solve";
+
+  const ButtonIcon = submitted ? FileText : expired ? Eye : ChevronRight;
+
+  return (
+    <motion.div
+      whileHover={{ y: -2 }}
+      transition={{ duration: 0.15 }}
+      onClick={onClick}
+      className="group cursor-pointer bg-card border border-border rounded-xl overflow-hidden hover:shadow-md transition-all duration-200"
+      style={{ borderLeftWidth: 3, borderLeftColor: borderColor }}
+    >
+      <div className="p-4">
+        {/* Top row */}
+        <div className="flex items-start justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2 min-w-0">
+            {submitted && <CheckCircle size={14} className="text-green-500 shrink-0" />}
+            {expired && <AlertCircle size={14} className="text-red-500 shrink-0" />}
+            {urgent && !submitted && <Clock size={14} className="text-amber-500 shrink-0" />}
+            <h3 className="font-medium text-sm leading-tight truncate">{assignment.title}</h3>
+          </div>
+          {statusBadge}
+        </div>
+
+        {/* Meta row */}
+        <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
+          <span>
+            <span className="font-semibold text-foreground">{assignment.points ?? "—"}</span> pts
+          </span>
+          <span>
+            {assignment.dueDate ? fmtDate(assignment.dueDate.toString()) : "No due date"}
+          </span>
+        </div>
+
+        {/* Grade box (submitted) */}
+        {submitted && (
+          <div className="rounded-lg bg-green-500/8 border border-green-500/20 px-3 py-2 flex items-center justify-between mb-3">
+            <span className="text-xs text-green-600">Grade</span>
+            <span className="text-sm font-bold text-green-600">
+              {assignment.finalScore != null
+                ? `${assignment.finalScore}/${assignment.points}`
+                : "Pending"}
+            </span>
+          </div>
+        )}
+
+        {/* Expired notice */}
+        {expired && (
+          <div className="rounded-lg bg-red-500/8 border border-red-500/20 px-3 py-2 flex items-center gap-2 mb-3">
+            <AlertCircle size={13} className="text-red-500 shrink-0" />
+            <span className="text-xs text-red-500">
+              Overdue by {Math.abs(daysLeft(assignment.dueDate!.toString()))}d
+            </span>
+          </div>
+        )}
+
+        {/* Time remaining */}
+        {!submitted && !expired && assignment.dueDate && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
+            <Clock size={12} />
+            {urgent
+              ? <span className="text-amber-600 font-medium">{Math.round(hoursLeft(assignment.dueDate.toString()))}h left</span>
+              : <span>{daysLeft(assignment.dueDate.toString())}d remaining</span>}
+          </div>
+        )}
+      </div>
+
+      {/* Footer CTA */}
+      <div
+        className="border-t border-border px-4 py-2.5 flex items-center justify-between transition-colors group-hover:bg-muted/40"
+      >
+        <span className="text-xs font-medium" style={{ color: borderColor }}>{buttonLabel}</span>
+        <ButtonIcon size={13} style={{ color: borderColor }} />
+      </div>
+    </motion.div>
+  );
+};
+
+// ── Quiz card ─────────────────────────────────────────────────────────────────
+const QuizCard = ({
+  quiz,
+  status,
+  classroomId,
+  onNavigate,
+}: {
+  quiz: QuizListItem;
+  status: string | null;
+  classroomId: string;
+  onNavigate: (path: string) => void;
+}) => {
+  const path = `/student/classrooms/${classroomId}/quizes/${quiz.quizId}/take`;
+  const done = status === "submitted" || status === "graded";
+  const inProgress = status === "in_progress";
+
+  return (
+    <div className="bg-card border border-primary/20 rounded-xl overflow-hidden hover:border-primary/40 hover:shadow-md transition-all duration-200"
+      style={{ borderLeftWidth: 3, borderLeftColor: "#8b5cf6" }}>
+      <div className="p-4">
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <div className="flex items-center gap-2">
+            <Zap size={14} className="text-violet-500 shrink-0" />
+            <h3 className="font-medium text-sm">{quiz.title}</h3>
+          </div>
+          {done && <Badge className="bg-green-500/15 text-green-600 border border-green-500/30 text-[11px]">Done</Badge>}
+          {inProgress && <Badge className="bg-amber-500/15 text-amber-600 border border-amber-500/30 text-[11px]">In Progress</Badge>}
+        </div>
+        <div className="flex items-center gap-4 text-xs text-muted-foreground mb-3">
+          <span><span className="font-semibold text-foreground">{quiz.problemCount}</span> problems</span>
+          {quiz.time_limit_minutes && (
+            <span className="flex items-center gap-1"><Timer size={11} />{quiz.time_limit_minutes} min</span>
+          )}
+          {quiz.endDate && <span>Closes {fmtDate(quiz.endDate)}</span>}
+        </div>
+      </div>
+      <div className="border-t border-border px-4 py-2.5">
+        <button
+          onClick={() => onNavigate(path)}
+          className={cn(
+            "text-xs font-medium transition-colors",
+            done ? "text-green-600" : inProgress ? "text-amber-600" : "text-violet-500"
+          )}
+        >
+          {done ? "View Results" : inProgress ? "Resume Quiz" : "Start Quiz →"}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ── Main component ────────────────────────────────────────────────────────────
 const StudentClassroom: React.FC = () => {
   const { classroomId } = useParams<{ classroomId: string }>();
   const navigate = useNavigate();
-  const [activeFilter, setActiveFilter] = useState<AssignmentFilter>("all");
+
   const [classroom, setClassroom] = useState<Classroom | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
   const [quizzes, setQuizzes] = useState<QuizListItem[]>([]);
-  // Maps quizId → session status ("in_progress" | "submitted" | "graded" | null)
   const [quizSessions, setQuizSessions] = useState<Record<number, string | null>>({});
+  const [filter, setFilter] = useState<Filter>("all");
 
-  const getButtonClass = (assignment: Assignment): string => {
-    if (assignment.submitted) {
-      return "bg-green-500/20 text-green-400 hover:bg-green-500/30";
-    }
-    const isActive = assignment.dueDate
-      ? getDaysRemaining(assignment.dueDate.toString()) > 0
-      : true;
-    if (!isActive) {
-      return "bg-red-500/20 text-red-400 hover:bg-red-500/30";
-    }
-    return "";
-  };
-
-  const getCardBorderClass = (assignment: Assignment): string => {
-    if (assignment.submitted) {
-      return "border-green-500/50";
-    }
-    const isActive = assignment.dueDate
-      ? getDaysRemaining(assignment.dueDate.toString()) > 0
-      : true;
-    if (!isActive) {
-      return "border-red-500/50";
-    }
-    return "border-border";
-  };
-
-  const getStatusBadge = (assignment: Assignment) => {
-    if (assignment.submitted) {
-      return (
-        <Badge className="bg-green-900/40 text-green-400 border border-green-700">
-          Completed
-        </Badge>
-      );
-    } else if (assignment.dueDate) {
-      const isActive = getDaysRemaining(assignment.dueDate.toString()) > 0;
-      return isActive ? (
-        <Badge className="bg-blue-900/40 text-blue-400 border border-blue-700">
-          Active
-        </Badge>
-      ) : (
-        <Badge className="bg-red-900/40 text-red-400 border border-red-700">
-          Expired
-        </Badge>
-      );
-    } else {
-      return (
-        <Badge className="bg-muted/40 text-muted-foreground border border-border">
-          No Due Date
-        </Badge>
-      );
-    }
-  };
-
-  const filteredAssignments = useMemo(() => {
-    const assignments = classroom?.assignments ?? [];
-
-    switch (activeFilter) {
-      case "completed":
-        return assignments.filter((a) => a.submitted);
-      case "not-completed":
-        return assignments.filter((a) => !a.submitted);
-      case "all":
-      default:
-        return assignments;
-    }
-  }, [classroom, activeFilter]);
   useEffect(() => {
-    const fetchClassroom = async () => {
-      if (!classroomId) return;
+    if (!classroomId) return;
+    (async () => {
       setLoading(true);
       try {
-        const fetchedClassroom = await getClassroomById(
-          parseInt(classroomId, 10)
-        );
-        setClassroom({ ...fetchedClassroom });
-
-        // Load quizzes separately — don't block classroom render on failure
+        const data = await getClassroomById(parseInt(classroomId, 10));
+        setClassroom(data);
         try {
-          const quizData = await getQuizzesByClassroom(parseInt(classroomId, 10));
           const now = new Date();
-          const active = quizData.filter((q: QuizListItem) => {
+          const qData = await getQuizzesByClassroom(parseInt(classroomId, 10));
+          const active = qData.filter((q: QuizListItem) => {
             if (!q.isPublished) return false;
             if (q.startDate && now < new Date(q.startDate)) return false;
             if (q.endDate && now > new Date(q.endDate)) return false;
             return true;
           });
           setQuizzes(active);
-
-          // Fetch session status for each active quiz in parallel
-          const sessionEntries = await Promise.all(
+          const entries = await Promise.all(
             active.map(async (q: QuizListItem) => {
               try {
-                const session = await getMySession(q.quizId);
-                return [q.quizId, session?.status ?? null] as [number, string | null];
-              } catch {
-                return [q.quizId, null] as [number, string | null];
-              }
+                const s = await getMySession(q.quizId);
+                return [q.quizId, s?.status ?? null] as [number, string | null];
+              } catch { return [q.quizId, null] as [number, string | null]; }
             })
           );
-          setQuizSessions(Object.fromEntries(sessionEntries));
-        } catch {
-          // silently ignore — quizzes are optional
-        }
-      } catch (error) {
+          setQuizSessions(Object.fromEntries(entries));
+        } catch { /* quizzes optional */ }
+      } catch {
         toast.error("Failed to load classroom");
-        console.error("Error fetching classroom:", error);
       } finally {
         setLoading(false);
       }
-    };
-    fetchClassroom();
+    })();
   }, [classroomId]);
 
   useEffect(() => {
-    if (!loading && !classroom) {
-      navigate("/student/dashboard");
-    }
+    if (!loading && !classroom) navigate("/student/dashboard");
   }, [loading, classroom, navigate]);
 
+  const filtered = useMemo(() => {
+    const all = classroom?.assignments ?? [];
+    if (filter === "completed") return all.filter(a => a.submitted);
+    if (filter === "pending") return all.filter(a => !a.submitted);
+    return all;
+  }, [classroom, filter]);
+
   if (loading) {
-    return <div>Loading classroom...</div>;
-  }
-
-  if (!classroom) {
-    return null;
-  }
-
-  const now = new Date();
-  const oneWeekFromNow = new Date();
-  oneWeekFromNow.setDate(now.getDate() + 7);
-
-  // 1 week period
-  const upcomingAssignments: Assignment[] = classroom.assignments
-    .filter((a) => {
-      if (!a.dueDate || a.completed) return false;
-      const due = new Date(a.dueDate);
-      return due > now && due <= oneWeekFromNow;
-    })
-    .sort((a, b) => {
-      return new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime();
-    });
-
-  const completionRate =
-    classroom.assignments.length > 0
-      ? Math.round(
-          (classroom.completedAssignments / classroom.assignments.length) * 100
-        )
-      : 0;
-
-  const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(date);
-  };
-
-  const getDaysRemaining = (dateString: string): number => {
-    const now = new Date();
-    const dueDate = new Date(dateString);
-    const diffTime = dueDate.getTime() - now.getTime();
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  };
-
-  const handleAssignmentClick = (assignmentId: number) => {
-    navigate(
-      `/student/classrooms/${classroomId}/assignments/${assignmentId}/view`
+    return (
+      <div className="p-6 max-w-6xl mx-auto space-y-6">
+        <Skeleton className="h-8 w-40" />
+        <Skeleton className="h-40 w-full" />
+        <div className="grid grid-cols-3 gap-4">
+          {[0,1,2].map(i => <Skeleton key={i} className="h-20" />)}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {[0,1,2,3].map(i => <Skeleton key={i} className="h-44" />)}
+        </div>
+      </div>
     );
-  };
+  }
 
-  const getButtonContent = (assignment: Assignment) => {
-    if (assignment.submitted) {
-      return (
-        <>
-          <FileText size={16} className="mr-2" />
-          View Feedback
-        </>
-      );
-    }
+  if (!classroom) return null;
 
-    const isExpired =
-      assignment.dueDate &&
-      getDaysRemaining(assignment.dueDate.toString()) <= 0;
+  const accent = getAccent(classroom.id);
+  const totalAssignments = classroom.assignments.length;
+  const completed = classroom.completedAssignments ?? 0;
+  const completionPct = totalAssignments > 0 ? Math.round((completed / totalAssignments) * 100) : 0;
+  const pending = totalAssignments - completed;
 
-    if (isExpired) {
-      return (
-        <>
-          <Eye size={16} className="mr-2" />
-          View Assignment (Late)
-        </>
-      );
-    }
-
-    return "Solve Assignment";
-  };
+  const FILTERS: { id: Filter; label: string; count: number }[] = [
+    { id: "all", label: "All", count: totalAssignments },
+    { id: "pending", label: "Pending", count: pending },
+    { id: "completed", label: "Completed", count: completed },
+  ];
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
-      <div className="flex-1 p-6">
-        <div className="max-w-6xl mx-auto">
-          <Button
-            variant="outline"
-            className="mb-6 gap-2"
+    <div className="flex-1 flex flex-col">
+      {/* ── Header ──────────────────────────────────────────────────────── */}
+      <div className="border-b border-border bg-gradient-to-br from-background via-background to-muted/30">
+        <div className="max-w-6xl mx-auto px-6 py-8">
+          <button
             onClick={() => navigate("/student/dashboard")}
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
           >
-            <ArrowLeft size={16} />
+            <ArrowLeft size={15} />
             Back to Dashboard
-          </Button>
+          </button>
 
-          <div className="bg-card border border-border rounded-lg p-6 mb-8 shadow-lg">
-            <div className="flex justify-between items-start">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold shrink-0"
+                style={{ backgroundColor: accent + "20", color: accent }}>
+                {classroom.name.charAt(0).toUpperCase()}
+              </div>
               <div>
-                <h1 className="text-3xl font-bold">{classroom.name}</h1>
-                <div className="flex items-center gap-2 mt-2">
-                  <span className="text-muted-foreground">Class Code:</span>
-                  <span className="font-mono bg-muted px-2 py-1 rounded text-primary border border-primary/30">
-                    {classroom.code}
-                  </span>
-                </div>
-                <p className="text-muted-foreground mt-1">
-                  Instructor: {classroom.instructor}
+                <h1 className="text-2xl font-bold">{classroom.name}</h1>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Instructor: {classroom.instructor ?? "—"}
                 </p>
               </div>
             </div>
-
-            <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-background border border-border rounded-lg p-4 flex items-center gap-3">
-                <div className="bg-blue-500/20 rounded-full p-3">
-                  <BookOpen className="text-blue-400" size={24} />
-                </div>
-                <div>
-                  <p className="text-muted-foreground text-sm">Total Assignments</p>
-                  <p className="text-xl font-semibold">
-                    {classroom.assignments.length}
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-background border border-border rounded-lg p-4 flex items-center gap-3">
-                <div className="bg-green-500/20 rounded-full p-3">
-                  <CheckCircle className="text-green-400" size={24} />
-                </div>
-                <div>
-                  <p className="text-muted-foreground text-sm">Completed</p>
-                  <p className="text-xl font-semibold">
-                    {classroom.completedAssignments}
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-background border border-border rounded-lg p-4 flex items-center gap-3">
-                <div className="bg-purple-500/20 rounded-full p-3">
-                  <GraduationCap className="text-purple-400" size={24} />
-                </div>
-                <div>
-                  <p className="text-muted-foreground text-sm">Completion Rate</p>
-                  <p className="text-xl font-semibold">{completionRate}%</p>
-                </div>
-              </div>
-            </div>
-
-            {upcomingAssignments.length > 0 && (
-              <div className="mt-6 bg-background border border-border rounded-lg p-4">
-                <h3 className="text-lg font-medium mb-2 flex items-center gap-2">
-                  <Clock size={18} className="text-amber-400" />
-                  Upcoming Deadlines
-                </h3>
-                <div className="space-y-2">
-                  {upcomingAssignments.map((assignment) => (
-                    <div
-                      key={assignment.assignmentId}
-                      className="flex justify-between items-center border-b border-border pb-2"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{assignment.title}</span>
-                        {assignment.dueDate ? (
-                          <Badge
-                            variant="outline"
-                            className="bg-amber-900/30 text-amber-400 border-amber-700"
-                          >
-                            Due {formatDate(assignment.dueDate.toString())}
-                          </Badge>
-                        ) : (
-                          <Badge
-                            variant="outline"
-                            className="text-gray-500 italic"
-                          >
-                            No due date
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="text-sm text-amber-400">
-                        {assignment.dueDate
-                          ? getDaysRemaining(assignment.dueDate.toString()) <= 1
-                            ? "Due today!"
-                            : `${getDaysRemaining(
-                                assignment.dueDate.toString()
-                              )} days left`
-                          : null}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+            {classroom.code && (
+              <button
+                onClick={() => { navigator.clipboard.writeText(classroom.code!); toast.success("Code copied"); }}
+                className="self-start flex items-center gap-2 text-xs font-mono px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors"
+              >
+                <span className="text-muted-foreground">Code:</span>
+                <span style={{ color: accent }}>{classroom.code}</span>
+              </button>
             )}
           </div>
 
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold mb-4">Assignments</h2>
-
-            <Tabs
-              defaultValue="all"
-              value={activeFilter}
-              onValueChange={(value) =>
-                setActiveFilter(value as AssignmentFilter)
-              }
-              className="w-full"
-            >
-              <TabsList className="w-full bg-card border border-border mb-6">
-                <TabsTrigger
-                  value="all"
-                  className="flex-1 data-[state=active]:bg-blue-600"
-                >
-                  All
-                </TabsTrigger>
-                <TabsTrigger
-                  value="completed"
-                  className="flex-1 data-[state=active]:bg-green-600"
-                >
-                  Completed
-                </TabsTrigger>
-                <TabsTrigger
-                  value="not-completed"
-                  className="flex-1 data-[state=active]:bg-amber-600"
-                >
-                  Not Completed
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="all" className="mt-0">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredAssignments.length > 0 ? (
-                    filteredAssignments.map((assignment) => {
-                      const isExpired =
-                        assignment.dueDate &&
-                        getDaysRemaining(assignment.dueDate.toString()) <= 0 &&
-                        !assignment.submitted;
-
-                      return (
-                        <Card
-                          key={assignment.assignmentId}
-                          className={`bg-card border-2 hover:border-opacity-80 transition-all ${getCardBorderClass(
-                            assignment
-                          )} ${isExpired ? "bg-red-950/10" : ""}`}
-                        >
-                          <CardHeader
-                            className={`flex flex-row items-start justify-between pb-2 ${
-                              isExpired ? "border-b border-red-800/30" : ""
-                            }`}
-                          >
-                            <CardTitle className="text-foreground flex items-center gap-2">
-                              {assignment.submitted ? (
-                                <CheckCircle
-                                  className="text-green-500"
-                                  size={16}
-                                />
-                              ) : isExpired ? (
-                                <AlertCircle
-                                  className="text-red-500"
-                                  size={16}
-                                />
-                              ) : null}
-                              {assignment.title}
-                            </CardTitle>
-                            <div className="flex flex-col gap-2 items-end">
-                              {getStatusBadge(assignment)}
-                              {isExpired && (
-                                <Badge
-                                  variant="outline"
-                                  className="text-red-400 border-red-700 bg-red-900/20"
-                                >
-                                  <Clock size={12} className="mr-1" /> Overdue
-                                </Badge>
-                              )}
-                            </div>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="flex justify-between text-sm mt-2 mb-3">
-                              <div className="text-muted-foreground">
-                                <span className="text-white font-medium">
-                                  {assignment.points}
-                                </span>{" "}
-                                points
-                              </div>
-                              <div
-                                className={`${
-                                  isExpired ? "text-red-400" : "text-muted-foreground"
-                                }`}
-                              >
-                                Due:{" "}
-                                {assignment.dueDate ? (
-                                  formatDate(assignment.dueDate.toString())
-                                ) : (
-                                  <span className="italic text-gray-500">
-                                    No due date
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            {assignment.submitted && (
-                              <div className="bg-green-900/20 border border-green-700 rounded-md p-3 mb-3">
-                                <div className="flex justify-between items-center">
-                                  <span className="text-sm text-green-400">
-                                    {assignment.finalScore === null
-                                      ? "Awaiting grade"
-                                      : "Your grade"}
-                                  </span>
-                                  <span className="text-xl font-bold text-green-400">
-                                    {assignment.finalScore !== null &&
-                                    assignment.finalScore !== undefined
-                                      ? `${assignment.finalScore}/${assignment.points}`
-                                      : "N/A"}
-                                  </span>
-                                </div>
-                              </div>
-                            )}
-
-                            {isExpired && (
-                              <div className="bg-red-900/20 border border-red-800 rounded-md p-3 mb-3">
-                                <div className="flex items-center gap-2">
-                                  <Calendar
-                                    size={16}
-                                    className="text-red-400"
-                                  />
-                                  <span className="text-red-400">
-                                    Deadline passed{" "}
-                                    {Math.abs(
-                                      getDaysRemaining(
-                                        assignment.dueDate.toString()
-                                      )
-                                    )}{" "}
-                                    day
-                                    {Math.abs(
-                                      getDaysRemaining(
-                                        assignment.dueDate.toString()
-                                      )
-                                    ) !== 1
-                                      ? "s"
-                                      : ""}{" "}
-                                    ago
-                                  </span>
-                                </div>
-                              </div>
-                            )}
-
-                            {!assignment.submitted &&
-                              !isExpired &&
-                              assignment.dueDate && (
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-                                  <Clock size={14} />
-                                  {getDaysRemaining(
-                                    assignment.dueDate.toString()
-                                  ) <= 1 ? (
-                                    <span className="text-amber-400">
-                                      Due soon!
-                                    </span>
-                                  ) : (
-                                    `${getDaysRemaining(
-                                      assignment.dueDate.toString()
-                                    )} days remaining`
-                                  )}
-                                </div>
-                              )}
-                          </CardContent>
-                          <Separator
-                            className={`mb-4 ${
-                              isExpired ? "bg-red-800/50" : "bg-muted"
-                            }`}
-                          />
-                          <CardFooter className="pt-2">
-                            <Button
-                              className={`w-full flex items-center justify-center ${getButtonClass(
-                                assignment
-                              )}`}
-                              variant={
-                                assignment.submitted || isExpired
-                                  ? "outline"
-                                  : "default"
-                              }
-                              onClick={() =>
-                                handleAssignmentClick(assignment.assignmentId)
-                              }
-                            >
-                              {getButtonContent(assignment)}
-                            </Button>
-                          </CardFooter>
-                        </Card>
-                      );
-                    })
-                  ) : (
-                    <div className="col-span-3 text-center py-10 bg-card border border-border rounded-lg">
-                      <p className="text-muted-foreground">
-                        No assignments in this category
-                      </p>
-                    </div>
-                  )}
+          {/* Stats */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+            {[
+              { icon: BookOpen, label: "Assignments", value: totalAssignments, color: accent },
+              { icon: CheckCircle, label: "Completed", value: completed, color: "#10b981" },
+              { icon: AlertCircle, label: "Pending", value: pending, color: "#f59e0b" },
+              { icon: GraduationCap, label: "Completion", value: `${completionPct}%`, color: "#8b5cf6" },
+            ].map(({ icon: Icon, label, value, color }) => (
+              <div key={label} className="bg-card border border-border rounded-xl p-3 flex items-center gap-3">
+                <div className="rounded-lg p-2 shrink-0" style={{ backgroundColor: color + "18" }}>
+                  <Icon size={15} style={{ color }} />
                 </div>
-              </TabsContent>
-
-              <TabsContent value="completed" className="mt-0">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredAssignments.length > 0 ? (
-                    filteredAssignments.map((assignment) => (
-                      <Card
-                        key={assignment.assignmentId}
-                        className="bg-card border-2 border-green-500/50 hover:border-green-500/70 transition-all"
-                      >
-                        <CardHeader className="flex flex-row items-start justify-between pb-2">
-                          <CardTitle className="text-foreground flex items-center gap-2">
-                            <CheckCircle className="text-green-500" size={16} />
-                            {assignment.title}
-                          </CardTitle>
-                          <Badge className="bg-green-900/40 text-green-400 border border-green-700">
-                            Completed
-                          </Badge>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="flex justify-between text-sm mt-2 mb-3">
-                            <div className="text-muted-foreground">
-                              <span className="text-white font-medium">
-                                {assignment.points}
-                              </span>{" "}
-                              points
-                            </div>
-                            <div className="text-muted-foreground">
-                              Due:{" "}
-                              {assignment.dueDate ? (
-                                formatDate(assignment.dueDate.toString())
-                              ) : (
-                                <span className="italic text-gray-500">
-                                  No due date
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="bg-green-900/20 border border-green-700 rounded-md p-3 mb-3">
-                            <div className="flex justify-between items-center">
-                              <span className="text-sm text-green-400">
-                                {assignment.finalScore === null
-                                  ? "Awaiting grade"
-                                  : "Your grade"}
-                              </span>
-                              <span className="text-xl font-bold text-green-400">
-                                {assignment.finalScore !== null &&
-                                assignment.finalScore !== undefined
-                                  ? `${assignment.finalScore}/${assignment.points}`
-                                  : "N/A"}
-                              </span>
-                            </div>
-                          </div>
-                        </CardContent>
-                        <Separator className="mb-4 bg-green-800/30" />
-                        <CardFooter className="pt-2">
-                          <Button
-                            className="w-full bg-green-500/20 text-green-400 hover:bg-green-500/30 flex items-center justify-center"
-                            variant="outline"
-                            onClick={() =>
-                              handleAssignmentClick(assignment.assignmentId)
-                            }
-                          >
-                            <FileText size={16} className="mr-2" />
-                            View Feedback
-                          </Button>
-                        </CardFooter>
-                      </Card>
-                    ))
-                  ) : (
-                    <div className="col-span-3 text-center py-10 bg-card border border-border rounded-lg">
-                      <p className="text-muted-foreground">No completed assignments</p>
-                    </div>
-                  )}
+                <div>
+                  <p className="text-[11px] text-muted-foreground">{label}</p>
+                  <p className="text-lg font-bold leading-tight">{value}</p>
                 </div>
-              </TabsContent>
-
-              <TabsContent value="not-completed" className="mt-0">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredAssignments.length > 0 ? (
-                    filteredAssignments.map((assignment) => {
-                      const isExpired = assignment.status === "expired";
-
-                      return (
-                        <Card
-                          key={assignment.assignmentId}
-                          className={`bg-card border-2 hover:border-opacity-80 transition-all ${
-                            isExpired
-                              ? "border-red-500/50 bg-red-950/10"
-                              : "border-border"
-                          }`}
-                        >
-                          <CardHeader
-                            className={`flex flex-row items-start justify-between pb-2 ${
-                              isExpired ? "border-b border-red-800/30" : ""
-                            }`}
-                          >
-                            <CardTitle className="text-foreground flex items-center gap-2">
-                              {isExpired && (
-                                <AlertCircle
-                                  className="text-red-500"
-                                  size={16}
-                                />
-                              )}
-                              {assignment.title}
-                            </CardTitle>
-                            <div className="flex flex-col gap-2 items-end">
-                              <div className="mb-3">
-                                {getStatusBadge(assignment)}
-                              </div>
-
-                              {isExpired && (
-                                <Badge
-                                  variant="outline"
-                                  className="text-red-400 border-red-700 bg-red-900/20"
-                                >
-                                  <Clock size={12} className="mr-1" /> Overdue
-                                </Badge>
-                              )}
-                            </div>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="flex justify-between text-sm mt-2 mb-3">
-                              <div className="text-muted-foreground">
-                                <span className="text-white font-medium">
-                                  {assignment.points}
-                                </span>{" "}
-                                points
-                              </div>
-                              <div
-                                className={`${
-                                  isExpired ? "text-red-400" : "text-muted-foreground"
-                                }`}
-                              >
-                                Due:{" "}
-                                {assignment.dueDate ? (
-                                  formatDate(assignment.dueDate.toString())
-                                ) : (
-                                  <span className="italic text-gray-500">
-                                    No due date
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            {isExpired ? (
-                              <div className="bg-red-900/20 border border-red-800 rounded-md p-3 mb-3">
-                                <div className="flex items-center gap-2">
-                                  <Calendar
-                                    size={16}
-                                    className="text-red-400"
-                                  />
-                                  <span className="text-red-400">
-                                    Deadline passed{" "}
-                                    {Math.abs(
-                                      getDaysRemaining(
-                                        assignment.dueDate.toString()
-                                      )
-                                    )}{" "}
-                                    day
-                                    {Math.abs(
-                                      getDaysRemaining(
-                                        assignment.dueDate.toString()
-                                      )
-                                    ) !== 1
-                                      ? "s"
-                                      : ""}{" "}
-                                    ago
-                                  </span>
-                                </div>
-                              </div>
-                            ) : (
-                              assignment.dueDate && (
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-                                  <Clock size={14} />
-                                  {getDaysRemaining(
-                                    assignment.dueDate.toString()
-                                  ) <= 1 ? (
-                                    <span className="text-amber-400">
-                                      Due soon!
-                                    </span>
-                                  ) : (
-                                    `${getDaysRemaining(
-                                      assignment.dueDate.toString()
-                                    )} days remaining`
-                                  )}
-                                </div>
-                              )
-                            )}
-                          </CardContent>
-                          <Separator
-                            className={`mb-4 ${
-                              isExpired ? "bg-red-800/50" : "bg-muted"
-                            }`}
-                          />
-                          <CardFooter className="pt-2">
-                            <Button
-                              className={`w-full flex items-center justify-center ${
-                                isExpired
-                                  ? "bg-red-500/20 text-red-400 hover:bg-red-500/30"
-                                  : ""
-                              }`}
-                              variant={isExpired ? "outline" : "default"}
-                              onClick={() =>
-                                handleAssignmentClick(assignment.assignmentId)
-                              }
-                            >
-                              {isExpired ? (
-                                <>
-                                  <Eye size={16} className="mr-2" />
-                                  View Assignment (Late)
-                                </>
-                              ) : (
-                                "Solve Assignment"
-                              )}
-                            </Button>
-                          </CardFooter>
-                        </Card>
-                      );
-                    })
-                  ) : (
-                    <div className="col-span-3 text-center py-10 bg-card border border-border rounded-lg">
-                      <p className="text-muted-foreground">No pending assignments</p>
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-            </Tabs>
+              </div>
+            ))}
           </div>
 
-          {quizzes.length > 0 && (
-            <div className="mb-6">
-              <h2 className="text-2xl font-bold mb-4">Active Quizzes</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {quizzes.map((quiz) => (
-                  <Card
-                    key={quiz.quizId}
-                    className="bg-card border-2 border-primary/30 hover:border-primary/60 transition-all"
-                  >
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-foreground flex items-center gap-2">
-                        <Clock size={16} className="text-primary" />
-                        {quiz.title}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex justify-between text-sm mb-3">
-                        <span className="text-muted-foreground">
-                          <span className="text-white font-medium">{quiz.problemCount}</span> problems
-                        </span>
-                        <span className="text-muted-foreground">
-                          <span className="text-white font-medium">{quiz.time_limit_minutes}</span> min
-                        </span>
-                      </div>
-                      {quiz.endDate && (
-                        <div className="text-sm text-amber-400 mb-3">
-                          Closes {formatDate(quiz.endDate)}
-                        </div>
-                      )}
-                    </CardContent>
-                    <Separator className="mb-4 bg-muted" />
-                    <CardFooter className="pt-2">
-                      {(() => {
-                        const status = quizSessions[quiz.quizId];
-                        if (status === "submitted" || status === "graded") {
-                          return (
-                            <Button
-                              className="w-full bg-green-500/20 text-green-400 hover:bg-green-500/30"
-                              variant="outline"
-                              onClick={() =>
-                                navigate(`/student/classrooms/${classroomId}/quizes/${quiz.quizId}/take`)
-                              }
-                            >
-                              View Results
-                            </Button>
-                          );
-                        }
-                        if (status === "in_progress") {
-                          return (
-                            <Button
-                              className="w-full bg-amber-500/20 text-amber-400 hover:bg-amber-500/30"
-                              variant="outline"
-                              onClick={() =>
-                                navigate(`/student/classrooms/${classroomId}/quizes/${quiz.quizId}/take`)
-                              }
-                            >
-                              Resume Quiz
-                            </Button>
-                          );
-                        }
-                        return (
-                          <Button
-                            className="w-full"
-                            onClick={() =>
-                              navigate(`/student/classrooms/${classroomId}/quizes/${quiz.quizId}/take`)
-                            }
-                          >
-                            Start Quiz
-                          </Button>
-                        );
-                      })()}
-                    </CardFooter>
-                  </Card>
-                ))}
-              </div>
+          {/* Progress bar */}
+          <div>
+            <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
+              <span>Overall progress</span>
+              <span style={{ color: accent }}>{completionPct}%</span>
             </div>
-          )}
+            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+              <div className="h-full rounded-full transition-all duration-700"
+                style={{ width: `${completionPct}%`, backgroundColor: accent }} />
+            </div>
+          </div>
         </div>
+      </div>
+
+      {/* ── Main content ────────────────────────────────────────────────── */}
+      <div className="max-w-6xl mx-auto w-full px-6 py-8 space-y-10">
+
+        {/* Quizzes */}
+        {quizzes.length > 0 && (
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <Zap size={16} className="text-violet-500" />
+              <h2 className="font-semibold text-lg">Active Quizzes</h2>
+              <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{quizzes.length}</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {quizzes.map(q => (
+                <QuizCard
+                  key={q.quizId}
+                  quiz={q}
+                  status={quizSessions[q.quizId] ?? null}
+                  classroomId={classroomId!}
+                  onNavigate={navigate}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Assignments */}
+        <section>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+            <div className="flex items-center gap-2">
+              <BookOpen size={16} className="text-muted-foreground" />
+              <h2 className="font-semibold text-lg">Assignments</h2>
+            </div>
+
+            {/* Filter pills */}
+            <div className="flex items-center gap-1 bg-muted/60 rounded-lg p-1 border border-border self-start">
+              {FILTERS.map(f => (
+                <button
+                  key={f.id}
+                  onClick={() => setFilter(f.id)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
+                    filter === f.id
+                      ? "bg-background shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {f.label}
+                  <span className={cn(
+                    "text-[10px] px-1.5 py-0.5 rounded-full",
+                    filter === f.id ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
+                  )}>
+                    {f.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {filtered.length === 0 ? (
+            <div className="text-center py-16 border border-dashed border-border rounded-xl bg-muted/10">
+              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                <BookOpen size={20} className="text-muted-foreground" />
+              </div>
+              <p className="font-medium mb-1">No assignments</p>
+              <p className="text-sm text-muted-foreground">
+                {filter === "completed" ? "You haven't completed any assignments yet."
+                  : filter === "pending" ? "No pending assignments — great work!"
+                  : "No assignments have been posted yet."}
+              </p>
+            </div>
+          ) : (
+            <motion.div
+              initial="hidden"
+              animate="show"
+              variants={{ show: { transition: { staggerChildren: 0.05 } } }}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
+            >
+              {filtered.map((a, i) => (
+                <motion.div
+                  key={a.assignmentId}
+                  variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0, transition: { duration: 0.28 } } }}
+                >
+                  <AssignmentCard
+                    assignment={a}
+                    accent={accent}
+                    onClick={() => navigate(`/student/classrooms/${classroomId}/assignments/${a.assignmentId}/view`)}
+                  />
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+        </section>
       </div>
     </div>
   );

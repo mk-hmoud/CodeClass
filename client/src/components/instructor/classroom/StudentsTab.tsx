@@ -1,39 +1,8 @@
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import {
-  Table,
-  TableHeader,
-  TableRow,
-  TableHead,
-  TableBody,
-  TableCell,
-} from "@/components/ui/table";
-import {
-  UserPlus,
-  Mail,
-  MoreHorizontal,
-  UserCog,
-  MessageSquare,
-  BarChart,
-  UserMinus,
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Mail, Search, Users } from "lucide-react";
+import { motion } from "framer-motion";
 
 interface Student {
   id: string;
@@ -43,121 +12,111 @@ interface Student {
   lastActive: string;
 }
 
-interface StudentsTabProps {
+interface Props {
   students: Student[];
   formatDate?: (date: string) => string;
 }
 
-const StudentsTab: React.FC<StudentsTabProps> = ({
-  students,
-  formatDate = (date) => new Date(date).toLocaleDateString(),
-}) => {
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "active":
-        return <Badge className="bg-green-600">Active</Badge>;
-      case "inactive":
-        return (
-          <Badge variant="outline" className="border-border text-muted-foreground">
-            Inactive
-          </Badge>
-        );
-      case "pending":
-        return (
-          <Badge variant="outline" className="border-amber-500 text-amber-500">
-            Pending
-          </Badge>
-        );
-      default:
-        return <Badge>{status}</Badge>;
-    }
-  };
+const fmtDate = (d: string) =>
+  new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(d));
+
+const initial = (name: string) => name.split(" ").map(p => p[0]).slice(0, 2).join("").toUpperCase();
+
+const AVATAR_COLORS = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ef4444", "#06b6d4", "#6366f1", "#f97316"];
+const avatarColor = (email: string) => AVATAR_COLORS[email.charCodeAt(0) % AVATAR_COLORS.length];
+
+const StudentsTab: React.FC<Props> = ({ students, formatDate = fmtDate }) => {
+  const [search, setSearch] = useState("");
+
+  const filtered = students.filter(
+    s =>
+      s.name.toLowerCase().includes(search.toLowerCase()) ||
+      s.email.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
-    <>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">Students</h2>
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <h2 className="font-semibold text-lg">Students</h2>
+          <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{students.length}</span>
+        </div>
+        <div className="relative w-48">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <Input
+            placeholder="Search…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="pl-8 h-8 text-sm"
+          />
+        </div>
       </div>
 
-      <Card className="bg-card border-border">
-        <CardHeader>
-          <CardTitle>Enrolled Students</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {students.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {students.map((student) => (
-                  <TableRow key={student.id}>
-                    <TableCell className="font-medium">
-                      {student.name}
-                    </TableCell>
-                    <TableCell>{student.email}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <a
-                          href={`mailto:${student.email}`}
-                          className="hover:no-underline"
-                          title="Send Email"
-                        >
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="Send Email"
-                            onClick={() =>
-                              (window.location.href = `mailto:${student.email}`)
-                            }
-                          >
-                            <Mail size={16} />
-                          </Button>
-                        </a>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal size={16} />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
-                              <UserCog className="mr-2 h-4 w-4" />
-                              View Profile
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <MessageSquare className="mr-2 h-4 w-4" />
-                              Send Message
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <BarChart className="mr-2 h-4 w-4" />
-                              View Progress
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-red-500">
-                              <UserMinus className="mr-2 h-4 w-4" />
-                              Remove Student
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+      {filtered.length > 0 ? (
+        <div className="bg-card border border-border rounded-xl overflow-hidden">
+          {/* Column header */}
+          <div className="grid grid-cols-[1fr_auto] px-4 py-2 border-b border-border bg-muted/30 text-xs font-medium text-muted-foreground">
+            <span>Student</span>
+            <span>Enrolled</span>
+          </div>
+
+          {filtered.map((s, i) => {
+            const color = avatarColor(s.email);
+            return (
+              <motion.div
+                key={s.id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: i * 0.03 }}
+                className="grid grid-cols-[1fr_auto] items-center px-4 py-3 border-b border-border last:border-0 hover:bg-muted/20 transition-colors group"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
+                    style={{ backgroundColor: color + "20", color }}
+                  >
+                    {initial(s.name)}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{s.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{s.email}</p>
+                  </div>
+                  <a
+                    href={`mailto:${s.email}`}
+                    className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Send email"
+                  >
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+                      <Mail size={13} />
+                    </Button>
+                  </a>
+                </div>
+
+                <span className="text-xs text-muted-foreground">{formatDate(s.lastActive)}</span>
+              </motion.div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="text-center py-20 border border-dashed border-border rounded-xl bg-muted/10">
+          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+            <Users size={20} className="text-muted-foreground" />
+          </div>
+          {search ? (
+            <>
+              <p className="font-medium mb-1">No match for "{search}"</p>
+              <button onClick={() => setSearch("")} className="text-sm text-primary hover:underline">Clear search</button>
+            </>
           ) : (
-            <div className="text-center p-4">
-              <p className="text-muted-foreground">No students enrolled yet.</p>
-            </div>
+            <>
+              <p className="font-medium mb-1">No students enrolled</p>
+              <p className="text-sm text-muted-foreground">Share the class code to invite students.</p>
+            </>
           )}
-        </CardContent>
-      </Card>
-    </>
+        </div>
+      )}
+    </div>
   );
 };
 

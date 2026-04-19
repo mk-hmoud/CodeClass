@@ -33,7 +33,7 @@ const HeatMapCell = ({ x, y, width, height, value }: any) => {
       width={width}
       height={height}
       fill={`hsl(215, 70%, ${100 - intensity}%)`}
-      stroke="#1e293b"
+      stroke="hsl(var(--border))"
       strokeWidth={1}
     />
   );
@@ -78,11 +78,11 @@ const AssignmentAnalytics: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background text-foreground flex flex-col">
-        <div className="container mx-auto py-6 px-4 flex items-center justify-center h-full">
-          <div className="text-center">
-            <p className="text-xl">Loading analytics data...</p>
-          </div>
+      <div className="max-w-6xl mx-auto px-6 py-8">
+        <div className="animate-pulse space-y-4">
+          <div className="h-6 w-32 bg-muted rounded" />
+          <div className="h-8 w-64 bg-muted rounded" />
+          <div className="grid grid-cols-4 gap-4"><div className="h-24 bg-muted rounded" /><div className="h-24 bg-muted rounded" /><div className="h-24 bg-muted rounded" /><div className="h-24 bg-muted rounded" /></div>
         </div>
       </div>
     );
@@ -90,42 +90,41 @@ const AssignmentAnalytics: React.FC = () => {
 
   if (error || !analytics) {
     return (
-      <div className="min-h-screen bg-background text-foreground flex flex-col">
-        <div className="container mx-auto py-6 px-4">
-          <Button variant="outline" className="mb-6 gap-2" onClick={handleBack}>
-            <ArrowLeft size={16} />
-            Back to Assignment
+      <div className="max-w-6xl mx-auto px-6 py-8">
+        <button
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
+          onClick={handleBack}
+        >
+          <ArrowLeft size={15} />
+          Back to Assignment
+        </button>
+        <div className="bg-destructive/5 border border-destructive/30 rounded-xl p-6 text-center">
+          <p className="font-semibold mb-1">Error Loading Data</p>
+          <p className="text-sm text-muted-foreground">{error || "Failed to load analytics data"}</p>
+          <Button variant="outline" size="sm" className="mt-4" onClick={() => window.location.reload()}>
+            Retry
           </Button>
-
-          <div className="bg-red-900/30 border border-red-800 rounded-lg p-4 text-center">
-            <p className="text-xl font-medium mb-2">Error Loading Data</p>
-            <p>{error || "Failed to load analytics data"}</p>
-            <Button
-              variant="outline"
-              className="mt-4"
-              onClick={() => window.location.reload()}
-            >
-              Retry
-            </Button>
-          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
-      <div className="container mx-auto py-6 px-4">
-        <Button variant="outline" className="mb-6 gap-2" onClick={handleBack}>
-          <ArrowLeft size={16} />
+    <div className="flex-1 flex flex-col">
+      <div className="max-w-6xl mx-auto w-full px-6 py-8">
+        <button
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
+          onClick={handleBack}
+        >
+          <ArrowLeft size={15} />
           Back to Assignment
-        </Button>
+        </button>
 
         <div className="mb-6">
-          <h1 className="text-3xl font-bold">
-            {analytics.assignmentTitle} - Statistics
+          <h1 className="text-2xl font-bold">
+            {analytics.assignmentTitle} — Statistics
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground text-sm mt-1">
             Detailed analytics and performance metrics for this assignment
           </p>
         </div>
@@ -135,31 +134,11 @@ const AssignmentAnalytics: React.FC = () => {
           onValueChange={setActiveTab}
           className="space-y-6"
         >
-          <TabsList className="bg-background p-1">
-            <TabsTrigger
-              value="overview"
-              className="data-[state=active]:bg-primary/20"
-            >
-              Overview
-            </TabsTrigger>
-            <TabsTrigger
-              value="submissions"
-              className="data-[state=active]:bg-primary/20"
-            >
-              Submissions
-            </TabsTrigger>
-            <TabsTrigger
-              value="performance"
-              className="data-[state=active]:bg-primary/20"
-            >
-              Performance
-            </TabsTrigger>
-            <TabsTrigger
-              value="plagiarism"
-              className="data-[state=active]:bg-primary/20"
-            >
-              Integrity
-            </TabsTrigger>
+          <TabsList className="bg-muted/50 border border-border p-1 flex-wrap h-auto gap-1">
+            <TabsTrigger value="overview" className="data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">Overview</TabsTrigger>
+            <TabsTrigger value="submissions" className="data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">Submissions</TabsTrigger>
+            <TabsTrigger value="performance" className="data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">Performance</TabsTrigger>
+            <TabsTrigger value="plagiarism" className="data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">Integrity</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -244,9 +223,9 @@ const AssignmentAnalytics: React.FC = () => {
                         <YAxis />
                         <Tooltip
                           contentStyle={{
-                            backgroundColor: "#1f2937",
-                            borderColor: "#374151",
-                            color: "white",
+                            backgroundColor: "hsl(var(--card))",
+                            borderColor: "hsl(var(--border))",
+                            color: "hsl(var(--foreground))",
                           }}
                         />
                         <Bar dataKey="count">
@@ -273,9 +252,9 @@ const AssignmentAnalytics: React.FC = () => {
                         <YAxis />
                         <Tooltip
                           contentStyle={{
-                            backgroundColor: "#1f2937",
-                            borderColor: "#374151",
-                            color: "white",
+                            backgroundColor: "hsl(var(--card))",
+                            borderColor: "hsl(var(--border))",
+                            color: "hsl(var(--foreground))",
                           }}
                         />
                         <Line
@@ -337,12 +316,12 @@ const AssignmentAnalytics: React.FC = () => {
                         <YAxis />
                         <Tooltip
                           contentStyle={{
-                            backgroundColor: "#1f2937",
-                            borderColor: "#374151",
-                            color: "white",
+                            backgroundColor: "hsl(var(--card))",
+                            borderColor: "hsl(var(--border))",
+                            color: "hsl(var(--foreground))",
                           }}
                         />
-                        <Bar dataKey="count" fill="#60a5fa" />
+                        <Bar dataKey="count" fill="hsl(var(--primary))" />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -372,9 +351,9 @@ const AssignmentAnalytics: React.FC = () => {
                         />
                         <Tooltip
                           contentStyle={{
-                            backgroundColor: "#1f2937",
-                            borderColor: "#374151",
-                            color: "white",
+                            backgroundColor: "hsl(var(--card))",
+                            borderColor: "hsl(var(--border))",
+                            color: "hsl(var(--foreground))",
                           }}
                           formatter={(value: number) => [
                             `${value} submissions`,
@@ -518,7 +497,7 @@ const AssignmentAnalytics: React.FC = () => {
                   </div>
                   <div className="relative h-8">
                     <div className="absolute inset-0 flex items-center">
-                      <div className="h-[2px] w-full bg-slate-700"></div>
+                      <div className="h-[2px] w-full bg-border"></div>
                     </div>
                     <div
                       className="absolute inset-y-0 left-0"
@@ -530,7 +509,7 @@ const AssignmentAnalytics: React.FC = () => {
                         }%`,
                       }}
                     >
-                      <div className="h-full w-[2px] bg-blue-500"></div>
+                      <div className="h-full w-[2px] bg-primary"></div>
                     </div>
                     <div
                       className="absolute inset-y-0"
@@ -542,7 +521,7 @@ const AssignmentAnalytics: React.FC = () => {
                         }%`,
                       }}
                     >
-                      <div className="h-full w-[2px] bg-blue-500"></div>
+                      <div className="h-full w-[2px] bg-primary"></div>
                     </div>
                     <div
                       className="absolute inset-y-0"
@@ -554,7 +533,7 @@ const AssignmentAnalytics: React.FC = () => {
                         }%`,
                       }}
                     >
-                      <div className="h-full w-[2px] bg-blue-500"></div>
+                      <div className="h-full w-[2px] bg-primary"></div>
                     </div>
                     <div
                       className="absolute inset-y-0"
@@ -566,7 +545,7 @@ const AssignmentAnalytics: React.FC = () => {
                         }%`,
                       }}
                     >
-                      <div className="h-full w-[2px] bg-blue-500"></div>
+                      <div className="h-full w-[2px] bg-primary"></div>
                     </div>
                     <div
                       className="absolute inset-y-0 right-0"
@@ -578,7 +557,7 @@ const AssignmentAnalytics: React.FC = () => {
                         }%`,
                       }}
                     >
-                      <div className="h-full w-[2px] bg-blue-500"></div>
+                      <div className="h-full w-[2px] bg-primary"></div>
                     </div>
                   </div>
                 </CardContent>
@@ -597,12 +576,12 @@ const AssignmentAnalytics: React.FC = () => {
                         <YAxis />
                         <Tooltip
                           contentStyle={{
-                            backgroundColor: "#1f2937",
-                            borderColor: "#374151",
-                            color: "white",
+                            backgroundColor: "hsl(var(--card))",
+                            borderColor: "hsl(var(--border))",
+                            color: "hsl(var(--foreground))",
                           }}
                         />
-                        <Bar dataKey="count" fill="#f87171" />
+                        <Bar dataKey="count" fill="hsl(var(--destructive))" />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -629,7 +608,7 @@ const AssignmentAnalytics: React.FC = () => {
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-medium text-red-400">
+                          <p className="font-medium text-destructive">
                             {test.failRate}%
                           </p>
                           <p className="text-xs text-muted-foreground">
@@ -660,7 +639,7 @@ const AssignmentAnalytics: React.FC = () => {
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-medium text-amber-400">
+                          <p className="font-medium text-amber-600">
                             {test.avgRuntime} ms
                           </p>
                           <p className="text-xs text-muted-foreground">
@@ -747,5 +726,6 @@ const AssignmentAnalytics: React.FC = () => {
     </div>
   );
 };
+
 
 export default AssignmentAnalytics;

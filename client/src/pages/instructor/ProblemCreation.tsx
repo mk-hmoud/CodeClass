@@ -136,19 +136,18 @@ const ProblemCreation = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="max-w-5xl mx-auto px-6 py-8">
       <div className="mb-8">
-        <Button
-          variant="outline"
-          className="flex items-center gap-2 mb-4"
+        <button
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
           onClick={() => navigate("/instructor/dashboard")}
         >
-          <ArrowLeft size={16} />
+          <ArrowLeft size={15} />
           Back to Dashboard
-        </Button>
-        <h1 className="text-3xl font-bold">Create New Problem</h1>
-        <p className="text-muted-foreground mt-2">
-          Create a new coding problem for your students to solve.
+        </button>
+        <h1 className="text-2xl font-bold">Create Problem</h1>
+        <p className="text-muted-foreground text-sm mt-1">
+          Define a coding problem with test cases for your students.
         </p>
       </div>
 

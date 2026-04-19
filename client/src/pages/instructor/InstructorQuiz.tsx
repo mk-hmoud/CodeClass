@@ -3,7 +3,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Clock, Users, CheckCircle, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -40,13 +39,13 @@ const InstructorQuiz: React.FC = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "submitted":
-        return <Badge className="bg-blue-600">Submitted</Badge>;
+        return <Badge className="bg-primary/15 text-primary border-primary/30 border text-[11px]">Submitted</Badge>;
       case "graded":
-        return <Badge className="bg-green-600">Graded</Badge>;
+        return <Badge className="bg-green-500/15 text-green-600 border-green-500/30 border text-[11px]">Graded</Badge>;
       case "in_progress":
-        return <Badge variant="outline" className="border-amber-500 text-amber-400">In Progress</Badge>;
+        return <Badge variant="outline" className="border-amber-500/40 text-amber-600 bg-amber-500/10 text-[11px]">In Progress</Badge>;
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return <Badge variant="outline" className="text-[11px]">{status}</Badge>;
     }
   };
 
@@ -58,109 +57,120 @@ const InstructorQuiz: React.FC = () => {
     ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1)
     : "—";
 
-  if (quizLoading) return <div className="container mx-auto px-4 py-8">Loading...</div>;
+  if (quizLoading) return (
+    <div className="max-w-6xl mx-auto px-6 py-8">
+      <div className="animate-pulse space-y-4">
+        <div className="h-6 w-32 bg-muted rounded" />
+        <div className="h-8 w-64 bg-muted rounded" />
+        <div className="grid grid-cols-3 gap-4"><div className="h-24 bg-muted rounded" /><div className="h-24 bg-muted rounded" /><div className="h-24 bg-muted rounded" /></div>
+      </div>
+    </div>
+  );
   if (!quiz) return null;
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="flex-1 flex flex-col">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <Button
-            variant="outline"
-            className="flex items-center gap-2"
+      <div className="border-b border-border bg-gradient-to-br from-background via-background to-muted/30">
+        <div className="max-w-6xl mx-auto px-6 py-6">
+          <button
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-5"
             onClick={() => navigate(`/instructor/classrooms/${classroomId}/view`)}
           >
-            <ArrowLeft size={16} />
+            <ArrowLeft size={15} />
             Back to Classroom
-          </Button>
-          <Button
-            variant="outline"
-            className="flex items-center gap-2"
-            onClick={() => navigate(`/instructor/classrooms/${classroomId}/quizes/${quizId}/edit`)}
-          >
-            <Pencil size={16} />
-            Edit Quiz
-          </Button>
+          </button>
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold mb-1">{quiz.title}</h1>
+              {quiz.description && (
+                <p className="text-muted-foreground text-sm">{quiz.description}</p>
+              )}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 shrink-0"
+              onClick={() => navigate(`/instructor/classrooms/${classroomId}/quizes/${quizId}/edit`)}
+            >
+              <Pencil size={14} />
+              Edit Quiz
+            </Button>
+          </div>
         </div>
-        <h1 className="text-3xl font-bold">{quiz.title}</h1>
-        {quiz.description && (
-          <p className="text-muted-foreground mt-2">{quiz.description}</p>
-        )}
       </div>
 
+      <div className="max-w-6xl mx-auto w-full px-6 py-6 space-y-6">
       {/* Stats cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <Card>
-          <CardContent className="pt-6 flex items-center gap-4">
-            <Clock className="h-8 w-8 text-blue-400" />
-            <div>
-              <p className="text-sm text-muted-foreground">Time Limit</p>
-              <p className="text-2xl font-bold">{quiz.time_limit_minutes} min</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6 flex items-center gap-4">
-            <Users className="h-8 w-8 text-blue-400" />
-            <div>
-              <p className="text-sm text-muted-foreground">Submissions</p>
-              <p className="text-2xl font-bold">
-                {submittedCount} / {sessions.length}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6 flex items-center gap-4">
-            <CheckCircle className="h-8 w-8 text-green-400" />
-            <div>
-              <p className="text-sm text-muted-foreground">Average Score</p>
-              <p className="text-2xl font-bold">{avgScore}</p>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-4">
+          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <Clock size={18} className="text-primary" />
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Time Limit</p>
+            <p className="text-xl font-bold">{quiz.time_limit_minutes} min</p>
+          </div>
+        </div>
+        <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-4">
+          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <Users size={18} className="text-primary" />
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Submissions</p>
+            <p className="text-xl font-bold">{submittedCount} / {sessions.length}</p>
+          </div>
+        </div>
+        <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-4">
+          <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0">
+            <CheckCircle size={18} className="text-green-600" />
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Average Score</p>
+            <p className="text-xl font-bold">{avgScore}</p>
+          </div>
+        </div>
       </div>
 
       {/* Problems list */}
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle>Problems ({quiz.problems?.length ?? 0})</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-border">
+          <h2 className="font-semibold text-sm">Problems ({quiz.problems?.length ?? 0})</h2>
+        </div>
+        <div className="p-4">
           {(quiz.problems ?? []).length === 0 ? (
-            <p className="text-muted-foreground">No problems.</p>
+            <p className="text-muted-foreground text-sm">No problems.</p>
           ) : (
             <div className="space-y-2">
               {quiz.problems.map((p: any, i: number) => (
                 <div
                   key={p.quizProblemId}
-                  className="flex items-center justify-between p-3 rounded-md border bg-muted/20"
+                  className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/20"
                 >
-                  <span className="font-medium">
+                  <span className="font-medium text-sm">
                     {i + 1}. {p.problemTitle}
                   </span>
                   <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                    <Badge variant="outline">{p.category}</Badge>
-                    <span>{p.points} pts</span>
+                    {p.category && <Badge variant="outline" className="text-[11px]">{p.category}</Badge>}
+                    <span className="font-mono text-xs">{p.points} pts</span>
                   </div>
                 </div>
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Student sessions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Student Sessions</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-border">
+          <h2 className="font-semibold text-sm">Student Sessions</h2>
+        </div>
+        <div>
           {sessionsLoading ? (
-            <p className="text-muted-foreground text-center py-4">Loading sessions...</p>
+            <p className="text-muted-foreground text-center py-8 text-sm">Loading sessions...</p>
           ) : sessions.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">No students have started this quiz yet.</p>
+            <p className="text-muted-foreground text-center py-8 text-sm">No students have started this quiz yet.</p>
           ) : (
             <Table>
               <TableHeader>
@@ -177,16 +187,16 @@ const InstructorQuiz: React.FC = () => {
                   <TableRow key={session.sessionId}>
                     <TableCell>
                       <div>
-                        <p className="font-medium">
+                        <p className="font-medium text-sm">
                           {session.firstName} {session.lastName}
                         </p>
-                        <p className="text-sm text-muted-foreground">{session.email}</p>
+                        <p className="text-xs text-muted-foreground">{session.email}</p>
                       </div>
                     </TableCell>
-                    <TableCell>{formatDate(session.startTime)}</TableCell>
-                    <TableCell>{formatDate(session.endTime)}</TableCell>
+                    <TableCell className="text-sm">{formatDate(session.startTime)}</TableCell>
+                    <TableCell className="text-sm">{formatDate(session.endTime)}</TableCell>
                     <TableCell>{getStatusBadge(session.status)}</TableCell>
-                    <TableCell className="text-right font-mono">
+                    <TableCell className="text-right font-mono text-sm">
                       {session.finalScore != null ? session.finalScore.toFixed(1) : "—"}
                     </TableCell>
                   </TableRow>
@@ -194,8 +204,9 @@ const InstructorQuiz: React.FC = () => {
               </TableBody>
             </Table>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+      </div>
     </div>
   );
 };

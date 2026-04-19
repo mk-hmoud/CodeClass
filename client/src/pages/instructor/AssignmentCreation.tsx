@@ -194,20 +194,18 @@ const CreateAssignmentPage: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="max-w-5xl mx-auto px-6 py-8">
       <div className="mb-8">
-        <Button
-          variant="outline"
-          className="flex items-center gap-2 mb-4"
+        <button
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
           onClick={() => navigate(`/instructor/classrooms/${classroomId}/view`)}
         >
-          <ArrowLeft size={16} />
+          <ArrowLeft size={15} />
           Back to Classroom
-        </Button>
-        <h1 className="text-3xl font-bold">Create New Assignment</h1>
-        <p className="text-muted-foreground mt-2">
-          Create a new assignment for your students based on an existing
-          problem.
+        </button>
+        <h1 className="text-2xl font-bold">Create New Assignment</h1>
+        <p className="text-muted-foreground text-sm mt-1">
+          Create a new assignment for your students based on an existing problem.
         </p>
       </div>
 
@@ -247,7 +245,7 @@ const CreateAssignmentPage: React.FC = () => {
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Info size={16} className="text-blue-400" />
+                            <Info size={16} className="text-muted-foreground" />
                           </TooltipTrigger>
                           <TooltipContent>
                             <p>Languages students can use for submission</p>
@@ -264,12 +262,12 @@ const CreateAssignmentPage: React.FC = () => {
                         </span>
                       </div>
                     ) : error ? (
-                      <div className="text-red-500 p-4 border border-red-300 rounded-md">
+                      <div className="text-destructive p-4 border border-destructive/30 rounded-md bg-destructive/5">
                         Error loading programming languages. Please try again
                         later.
                       </div>
                     ) : !languages || languages.length === 0 ? (
-                      <div className="text-amber-500 p-4 border border-amber-300 rounded-md">
+                      <div className="text-amber-600 p-4 border border-amber-500/30 rounded-md bg-amber-500/8">
                         No programming languages are currently available.
                       </div>
                     ) : (
@@ -308,7 +306,7 @@ const CreateAssignmentPage: React.FC = () => {
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Info size={16} className="text-blue-400" />
+                          <Info size={16} className="text-muted-foreground" />
                         </TooltipTrigger>
                         <TooltipContent>
                           <p>Starting code provided to students</p>
@@ -345,7 +343,7 @@ const CreateAssignmentPage: React.FC = () => {
               <Save size={16} />
               Create Assignment
               {form.formState.isSubmitting && (
-                <div className="animate-spin h-4 w-4 border-2 border-white rounded-full border-t-transparent" />
+                <div className="animate-spin h-4 w-4 border-2 border-primary-foreground rounded-full border-t-transparent" />
               )}
             </Button>
           </div>

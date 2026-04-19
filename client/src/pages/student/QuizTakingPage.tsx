@@ -169,10 +169,10 @@ const QuizTakingPage: React.FC = () => {
 
   const timerColor =
     secondsLeft !== null && secondsLeft < 120
-      ? "text-red-400"
+      ? "text-red-500"
       : secondsLeft !== null && secondsLeft < 300
-      ? "text-amber-400"
-      : "text-white";
+      ? "text-amber-500"
+      : "text-foreground";
 
   // ── Active problem ────────────────────────────────────────────────────────────
   const activeProblem = session?.problems[activeProblemIndex] ?? null;
@@ -327,11 +327,11 @@ const QuizTakingPage: React.FC = () => {
 
     if (verdict?.status === "compile_error" && verdict.error) {
       return (
-        <div className="p-4 rounded-md border bg-red-50">
-          <h3 className="font-medium text-red-700 mb-2">Compilation Error</h3>
-          <div className="bg-red-100 p-3 rounded text-red-900 font-mono text-sm whitespace-pre-wrap">
+        <div className="p-4 rounded-lg border border-destructive/30 bg-destructive/5">
+          <h3 className="font-medium text-destructive mb-2 text-sm">Compilation Error</h3>
+          <pre className="bg-destructive/10 p-3 rounded text-destructive font-mono text-xs whitespace-pre-wrap">
             {verdict.error.errorMessage}
-          </div>
+          </pre>
         </div>
       );
     }

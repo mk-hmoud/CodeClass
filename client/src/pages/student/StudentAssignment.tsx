@@ -1,417 +1,372 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import {
-  ArrowLeft,
-  Clock,
-  Check,
-  MessageSquare,
-  BookOpen,
-  Calendar,
-  Tag,
-  Code,
-  GraduationCap,
-  RotateCcw,
-} from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  getAssignmentById,
-  getRemainingAttempts,
-} from "@/services/AssignmentService";
+  ArrowLeft, Clock, Check, BookOpen, Calendar, Tag, Code,
+  GraduationCap, RotateCcw, AlertCircle, ChevronRight, Zap,
+} from "lucide-react";
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
+import { getAssignmentById, getRemainingAttempts } from "@/services/AssignmentService";
 import { toast } from "sonner";
 import { Assignment } from "@/types/Assignment";
 import { LANGUAGE_LABELS } from "@/lib/assignmentUtils";
 
+const ACCENTS = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ef4444", "#06b6d4", "#6366f1", "#f97316"];
+
+const fmtDate = (d: string | number | undefined) => {
+  if (!d) return "N/A";
+  const date = new Date(d);
+  if (isNaN(date.getTime())) return "N/A";
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(date);
+};
+
+const splitList = (value?: string, delimiter = ";") =>
+  value ? value.split(delimiter).map(s => s.trim()).filter(Boolean) : [];
+
+const Skeleton = ({ className }: { className?: string }) => (
+  <div className={cn("animate-pulse rounded-lg bg-muted", className)} />
+);
+
+const DIFF_META: Record<string, { color: string; bg: string }> = {
+  Easy:   { color: "#10b981", bg: "#10b98115" },
+  Medium: { color: "#f59e0b", bg: "#f59e0b15" },
+  Hard:   { color: "#ef4444", bg: "#ef444415" },
+};
+
 const StudentAssignment = () => {
   const { classroomId, assignmentId } = useParams();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("description");
   const [assignment, setAssignment] = useState<Assignment | null>(null);
-  const [remainingAttempts, setRemainingAttempts] = useState<number>(0);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [remainingAttempts, setRemainingAttempts] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("description");
 
   useEffect(() => {
-    const fetchAssignment = async () => {
-      if (!assignmentId) return;
+    if (!assignmentId) return;
+    (async () => {
       setLoading(true);
       try {
         const raw = await getAssignmentById(parseInt(assignmentId, 10));
-        const transformedAssignment = {
+        setAssignment({
           ...raw.assignment,
           dueDate: raw.assignment.due_date,
           publishDate: raw.assignment.publish_date,
           due_date: undefined,
           publish_date: undefined,
-        };
-        setAssignment(transformedAssignment);
-        const attempts = await getRemainingAttempts(parseInt(assignmentId, 10));
-        setRemainingAttempts(attempts);
-      } catch (error) {
+        });
+        const att = await getRemainingAttempts(parseInt(assignmentId, 10));
+        setRemainingAttempts(att);
+      } catch {
         toast.error("Failed to load assignment");
-        console.error("Error fetching assignment:", error);
       } finally {
         setLoading(false);
       }
-    };
-    fetchAssignment();
-  }, [assignmentId, classroomId]);
+    })();
+  }, [assignmentId]);
 
   useEffect(() => {
-    if (!loading && !assignment) {
-      navigate("/student/dashboard");
-    }
+    if (!loading && !assignment) navigate("/student/dashboard");
   }, [loading, assignment, navigate]);
 
   if (loading) {
-    return <div>Loading classroom...</div>;
+    return (
+      <div className="max-w-6xl mx-auto px-6 py-8 space-y-6">
+        <Skeleton className="h-8 w-40" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Skeleton className="h-80" />
+          <div className="md:col-span-2"><Skeleton className="h-80" /></div>
+        </div>
+      </div>
+    );
   }
 
-  if (!assignment) {
-    return null;
-  }
+  if (!assignment) return null;
 
-  const publishDate = new Date(assignment.publishDate).getTime();
-  const dueDate = new Date(assignment.dueDate).getTime();
-  const now = new Date();
-  const diffMs = dueDate - now.getTime();
+  const dueTs = assignment.dueDate ? new Date(assignment.dueDate).getTime() : null;
+  const now = Date.now();
+  const msLeft = dueTs ? dueTs - now : null;
+  const expired = msLeft !== null && msLeft <= 0;
+  const hoursLeft = msLeft ? msLeft / 3_600_000 : null;
 
-  const timeLeftDays = diffMs / (1000 * 60 * 60 * 24);
-
-  let timeLeftString;
-
-  if (timeLeftDays <= 0) {
-    timeLeftString = "Expired";
-  } else if (timeLeftDays < 1) {
-    const hoursLeft = Math.ceil(timeLeftDays * 24);
-    if (hoursLeft === 1) {
-      timeLeftString = "1 hour";
-    } else {
-      timeLeftString = `${hoursLeft} hours`;
-    }
-  } else {
-    const daysLeft = Math.ceil(timeLeftDays);
-    if (daysLeft === 1) {
-      timeLeftString = "1 day";
-    } else {
-      timeLeftString = `${daysLeft} days`;
-    }
-  }
+  const timeLabel = expired ? "Expired"
+    : hoursLeft !== null && hoursLeft < 1 ? `${Math.ceil(hoursLeft * 60)}m left`
+    : hoursLeft !== null && hoursLeft < 24 ? `${Math.ceil(hoursLeft)}h left`
+    : msLeft !== null ? `${Math.ceil(msLeft / 86_400_000)}d left`
+    : null;
 
   const p = assignment.problem;
-  const splitList = (value?: string, delimiter = ";") =>
-    value
-      ? value
-          .split(delimiter)
-          .map((s) => s.trim())
-          .filter(Boolean)
-      : [];
-
-  const tagList = splitList(p.tags, ",");
-  const prereqList = splitList(p.prerequisites, ";");
-  const outcomeList = splitList(p.learning_outcomes, ";");
-
-  // format date for display
-  function formatDate(dateInput: string | number | undefined): string {
-    if (dateInput == null) return "N/A";
-    const d = new Date(dateInput);
-    if (Number.isNaN(d.getTime())) return "N/A";
-
-    return new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(d);
-  }
-  const handleStartCoding = () => {
-    navigate(
-      `/student/classrooms/${classroomId}/assignments/${assignmentId}/solve`,
-      { state: assignment }
-    );
-  };
-
-  const handleBackToClassroom = () => {
-    navigate(`/student/classrooms/${classroomId}/view`);
-  };
+  const tagList = splitList(p?.tags, ",");
+  const prereqList = splitList(p?.prerequisites);
+  const outcomeList = splitList(p?.learning_outcomes);
+  const diff = assignment.difficulty_level;
+  const diffMeta = diff ? DIFF_META[diff] ?? DIFF_META.Medium : null;
+  const accent = ACCENTS[parseInt(classroomId ?? "0", 10) % ACCENTS.length];
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
-      <div className="container mx-auto py-6 px-4">
-        <Button
-          variant="outline"
-          className="mb-6 gap-2"
-          onClick={handleBackToClassroom}
-        >
-          <ArrowLeft size={16} />
-          Back to Classroom
-        </Button>
+    <div className="flex-1 flex flex-col">
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <div className="border-b border-border bg-gradient-to-br from-background via-background to-muted/30">
+        <div className="max-w-6xl mx-auto px-6 py-6">
+          <button
+            onClick={() => navigate(`/student/classrooms/${classroomId}/view`)}
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-5"
+          >
+            <ArrowLeft size={15} />
+            Back to Classroom
+          </button>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Left sidebar with problem info */}
-          <div className="md:col-span-1">
-            <Card className="bg-card border-border shadow-lg overflow-hidden">
-              <div className="p-6">
-                <div className="flex justify-between items-start">
-                  <h1 className="text-2xl font-bold">{assignment?.title}</h1>
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <h1 className="text-2xl font-bold">{assignment.title}</h1>
+                {diffMeta && diff && (
                   <Badge
-                    className={`
-                    ${
-                      assignment?.difficulty_level === "Easy"
-                        ? "bg-green-900/40 text-green-400 border border-green-700"
-                        : assignment?.difficulty_level === "Medium"
-                        ? "bg-orange-900/40 text-orange-400 border border-orange-700"
-                        : "bg-red-900/40 text-red-400 border border-red-700"
-                    }`}
+                    className="text-xs border"
+                    style={{ backgroundColor: diffMeta.bg, color: diffMeta.color, borderColor: diffMeta.color + "40" }}
                   >
-                    {assignment?.difficulty_level}
+                    {diff}
                   </Badge>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <Zap size={13} /><span className="font-semibold text-foreground">{assignment.points}</span> pts
+                </span>
+                {assignment.dueDate && (
+                  <span className="flex items-center gap-1.5">
+                    <Clock size={13} />Due {fmtDate(assignment.dueDate.toString())}
+                  </span>
+                )}
+                {assignment.completed && (
+                  <span className="flex items-center gap-1.5 text-green-600">
+                    <Check size={13} />Completed
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <Button
+              onClick={() => navigate(`/student/classrooms/${classroomId}/assignments/${assignmentId}/solve`, { state: assignment })}
+              className="gap-2 shrink-0"
+              disabled={false}
+            >
+              {assignment.completed ? "Solve Again" : "Start Coding"}
+              <ChevronRight size={15} />
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Body ───────────────────────────────────────────────────────── */}
+      <div className="max-w-6xl mx-auto w-full px-6 py-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+          {/* ── Sidebar ──────────────────────────────────────────────── */}
+          <motion.aside
+            initial={{ opacity: 0, x: -12 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.35 }}
+            className="space-y-4"
+          >
+            {/* Status card */}
+            <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</h3>
+
+              {assignment.completed ? (
+                <div className="flex items-center gap-2 text-green-600">
+                  <div className="w-8 h-8 rounded-lg bg-green-500/15 flex items-center justify-center">
+                    <Check size={15} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">Completed</p>
+                    {assignment.finalScore != null && (
+                      <p className="text-xs text-muted-foreground">{assignment.finalScore}/{assignment.points} pts</p>
+                    )}
+                  </div>
                 </div>
-
-                <div className="mt-4 space-y-4">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Calendar size={16} />
-                    <span>Published: {formatDate(publishDate)}</span>
+              ) : expired ? (
+                <div className="flex items-center gap-2 text-red-500">
+                  <div className="w-8 h-8 rounded-lg bg-red-500/15 flex items-center justify-center">
+                    <AlertCircle size={15} />
                   </div>
-
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Clock size={16} />
-                    <span>Due: {formatDate(dueDate)}</span>
+                  <div>
+                    <p className="text-sm font-semibold">Expired</p>
+                    <p className="text-xs text-muted-foreground">Deadline has passed</p>
                   </div>
-
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <BookOpen size={16} />
-                    <span>{assignment?.points} points</span>
-                  </div>
-
-                  {!assignment?.completed && (
-                    <div className="flex items-center gap-2 text-amber-400">
-                      <Clock size={16} />
-                      <span>{timeLeftString} remaining</span>
-                    </div>
-                  )}
-
-                  {assignment?.completed && (
-                    <div className="flex items-center gap-2 text-green-400">
-                      <Check size={16} />
-                      <span>Completed</span>
-                    </div>
-                  )}
                 </div>
+              ) : timeLabel ? (
+                <div className="flex items-center gap-2" style={{ color: hoursLeft && hoursLeft < 24 ? "#f59e0b" : accent }}>
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center"
+                    style={{ backgroundColor: (hoursLeft && hoursLeft < 24 ? "#f59e0b" : accent) + "15" }}>
+                    <Clock size={15} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">{timeLabel}</p>
+                    <p className="text-xs text-muted-foreground">Until deadline</p>
+                  </div>
+                </div>
+              ) : null}
 
-                <Separator className="my-4 bg-muted" />
+              {remainingAttempts !== null && assignment.max_submissions != null && (
+                <div className="flex items-center gap-2 pt-2 border-t border-border text-muted-foreground">
+                  <RotateCcw size={13} />
+                  <span className="text-xs">
+                    <span className="font-semibold text-foreground">{remainingAttempts}</span>/{assignment.max_submissions} attempts left
+                  </span>
+                </div>
+              )}
+            </div>
 
-                {/* Assignment details section */}
-                <div className="space-y-4">
-                  <div className="flex flex-col gap-2">
-                    <h3 className="text-sm font-semibold text-muted-foreground">
-                      Category
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {assignment?.problem?.category && (
-                        <Badge
-                          variant="outline"
-                          className="bg-blue-900/30 text-blue-400 border-blue-700"
-                        >
-                          {assignment.problem.category}
-                        </Badge>
-                      )}
+            {/* Details card */}
+            <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Details</h3>
+
+              {assignment.publishDate && (
+                <div className="flex items-start gap-2.5 text-xs text-muted-foreground">
+                  <Calendar size={13} className="mt-0.5 shrink-0" />
+                  <div><p className="text-muted-foreground">Published</p><p className="text-foreground">{fmtDate(assignment.publishDate.toString())}</p></div>
+                </div>
+              )}
+
+              {assignment.dueDate && (
+                <div className="flex items-start gap-2.5 text-xs text-muted-foreground">
+                  <Clock size={13} className="mt-0.5 shrink-0" />
+                  <div><p className="text-muted-foreground">Due date</p><p className="text-foreground">{fmtDate(assignment.dueDate.toString())}</p></div>
+                </div>
+              )}
+
+              {p?.category && (
+                <div className="flex items-start gap-2.5 text-xs">
+                  <BookOpen size={13} className="mt-0.5 shrink-0 text-muted-foreground" />
+                  <div>
+                    <p className="text-muted-foreground mb-1">Category</p>
+                    <Badge variant="outline" className="text-[11px] border-primary/30 text-primary bg-primary/8">{p.category}</Badge>
+                  </div>
+                </div>
+              )}
+
+              {tagList.length > 0 && (
+                <div className="flex items-start gap-2.5 text-xs">
+                  <Tag size={13} className="mt-0.5 shrink-0 text-muted-foreground" />
+                  <div>
+                    <p className="text-muted-foreground mb-1.5">Tags</p>
+                    <div className="flex flex-wrap gap-1">
+                      {tagList.map((tag, i) => (
+                        <Badge key={i} variant="outline" className="text-[11px] border-violet-500/30 text-violet-600 bg-violet-500/8">{tag}</Badge>
+                      ))}
                     </div>
                   </div>
+                </div>
+              )}
 
-                  {tagList.length > 0 && (
-                    <div className="flex flex-col gap-2">
-                      <h3 className="text-sm font-semibold text-muted-foreground">
-                        Tags
-                      </h3>
-                      <div className="flex flex-wrap gap-2">
-                        {tagList.map((tag, idx) => (
-                          <Badge
-                            key={idx}
-                            variant="outline"
-                            className="bg-purple-900/30 text-purple-400 border-purple-700"
-                          >
-                            <Tag size={12} className="mr-1" />
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex flex-col gap-2">
-                    <h3 className="text-sm font-semibold text-muted-foreground">
-                      Languages Allowed
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {assignment.languages.map((alang, idx) => {
-                        const raw = alang.language.name.toLowerCase();
-                        const label =
-                          LANGUAGE_LABELS[raw] ?? alang.language.name;
+              {assignment.languages?.length > 0 && (
+                <div className="flex items-start gap-2.5 text-xs">
+                  <Code size={13} className="mt-0.5 shrink-0 text-muted-foreground" />
+                  <div>
+                    <p className="text-muted-foreground mb-1.5">Languages</p>
+                    <div className="flex flex-wrap gap-1">
+                      {assignment.languages.map((al, i) => {
+                        const raw = al.language.name.toLowerCase();
+                        const label = LANGUAGE_LABELS[raw] ?? al.language.name;
                         return (
-                          <Badge
-                            key={idx}
-                            variant="outline"
-                            className="bg-green-900/30 text-green-400 border-green-700"
-                          >
-                            <Code size={12} className="mr-1" />
+                          <Badge key={i} variant="outline" className="text-[11px] border-green-500/30 text-green-600 bg-green-500/8">
                             {label}
-                            {alang.language.version &&
-                              ` ${alang.language.version}`}
                           </Badge>
                         );
                       })}
                     </div>
                   </div>
-
-                  {assignment?.max_submissions !== undefined && (
-                    <div className="flex flex-col gap-2">
-                      <h3 className="text-sm font-semibold text-muted-foreground">
-                        Submission Attempts
-                      </h3>
-                      <div className="flex items-center gap-2">
-                        <RotateCcw size={14} />
-                        <span>
-                          {remainingAttempts} / {assignment?.max_submissions}
-                        </span>
-                      </div>
-                    </div>
-                  )}
                 </div>
+              )}
+            </div>
 
-                <Separator className="my-4 bg-muted" />
+            {/* CTA */}
+            <Button
+              className="w-full gap-2"
+              onClick={() => navigate(`/student/classrooms/${classroomId}/assignments/${assignmentId}/solve`, { state: assignment })}
+            >
+              {assignment.completed ? "Solve Again" : "Start Coding"}
+              <ChevronRight size={15} />
+            </Button>
+          </motion.aside>
 
-                <div className="flex flex-col gap-3 mt-4">
-                  <Button className="w-full" onClick={handleStartCoding}>
-                    Start Coding
-                  </Button>
-                  {/*
-                  <Button variant="outline" className="w-full gap-2">
-                    <MessageSquare size={16} />
-                    Ask for Help
-                  </Button>
-                  */}
-                </div>
-              </div>
-            </Card>
-          </div>
-
-          {/* Main content area */}
-          <div className="md:col-span-2">
-            <Card className="bg-card border-border shadow-lg h-full">
-              <Tabs
-                value={activeTab}
-                onValueChange={setActiveTab}
-                className="h-full flex flex-col"
-              >
-                <div className="px-4 pt-4 border-b border-border">
-                  <TabsList className="bg-background">
-                    <TabsTrigger
-                      value="description"
-                      className="data-[state=active]:bg-primary/20"
-                    >
-                      Problem
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="prerequisites"
-                      className="data-[state=active]:bg-primary/20"
-                    >
-                      Prerequisites
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="learning"
-                      className="data-[state=active]:bg-primary/20"
-                    >
-                      Learning Outcomes
-                    </TabsTrigger>
+          {/* ── Main panel ───────────────────────────────────────────── */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, delay: 0.05 }}
+            className="md:col-span-2"
+          >
+            <div className="bg-card border border-border rounded-xl overflow-hidden h-full min-h-[480px] flex flex-col">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1">
+                <div className="border-b border-border px-4 pt-3">
+                  <TabsList className="bg-transparent gap-1 p-0 h-auto">
+                    {[
+                      { id: "description", label: "Problem" },
+                      { id: "prerequisites", label: "Prerequisites" },
+                      { id: "learning", label: "Outcomes" },
+                    ].map(tab => (
+                      <TabsTrigger
+                        key={tab.id}
+                        value={tab.id}
+                        className="rounded-none border-b-2 border-transparent pb-3 pt-1 px-3 text-sm data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:shadow-none bg-transparent"
+                      >
+                        {tab.label}
+                      </TabsTrigger>
+                    ))}
                   </TabsList>
                 </div>
 
-                <TabsContent
-                  value="description"
-                  className="p-6 flex-1 overflow-y-auto m-0"
-                >
-                  <div>
-                    <strong>You will be solving the following problem</strong>
-                  </div>
-                  <div className="space-y-4 mt-5">
-                    <div>
-                      <h3 className="text-xl font-semibold mb-4">Title:</h3>
-                      <p>{assignment?.title}</p>
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-semibold mb-4">
-                        Description:
-                      </h3>
-                      {assignment?.description ? (
-                        <div className="prose dark:prose-invert max-w-none">
-                          <pre className="whitespace-pre-wrap break-words">
-                            {assignment.description}
-                          </pre>
-                        </div>
-                      ) : (
-                        <div className="text-muted-foreground italic">
-                          No description available for this assignment.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </TabsContent>
-                <TabsContent
-                  value="prerequisites"
-                  className="p-6 flex-1 overflow-y-auto m-0"
-                >
-                  <h3 className="text-xl font-semibold mb-4">Prerequisites</h3>
-                  {prereqList.length > 0 ? (
-                    <div className="space-y-4">
-                      <div className="border border-border rounded-lg p-4 bg-background">
-                        <ul className="list-disc pl-5 space-y-2">
-                          {prereqList.map((prereq, idx) => (
-                            <li key={idx}>{prereq}</li>
-                          ))}
-                        </ul>
-                      </div>
+                <TabsContent value="description" className="flex-1 p-6 mt-0 overflow-y-auto">
+                  <h2 className="font-semibold text-lg mb-1">{assignment.title}</h2>
+                  {assignment.description ? (
+                    <div className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap mt-3">
+                      {assignment.description}
                     </div>
                   ) : (
-                    <p className="text-muted-foreground italic">No prerequisites.</p>
+                    <p className="text-muted-foreground italic text-sm mt-3">No description provided.</p>
                   )}
                 </TabsContent>
 
-                <TabsContent
-                  value="learning"
-                  className="p-6 flex-1 overflow-y-auto m-0"
-                >
-                  <h3 className="text-xl font-semibold mb-4">
-                    Learning Outcomes
-                  </h3>
-                  {outcomeList.length > 0 ? (
-                    <div className="space-y-4">
-                      <div className="border border-border rounded-lg p-4 bg-background">
-                        <ul className="list-disc pl-5 space-y-2">
-                          {outcomeList.map((outcome, idx) => (
-                            <li key={idx} className="flex items-start gap-2">
-                              <GraduationCap
-                                size={16}
-                                className="mt-1 flex-shrink-0"
-                              />
-                              <span>{outcome}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
+                <TabsContent value="prerequisites" className="flex-1 p-6 mt-0 overflow-y-auto">
+                  <h2 className="font-semibold text-lg mb-4">Prerequisites</h2>
+                  {prereqList.length > 0 ? (
+                    <ul className="space-y-2.5">
+                      {prereqList.map((item, i) => (
+                        <li key={i} className="flex items-start gap-2.5 text-sm">
+                          <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0" />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
                   ) : (
-                    <p className="text-muted-foreground italic">
-                      No learning outcomes.
-                    </p>
+                    <p className="text-muted-foreground italic text-sm">No prerequisites for this assignment.</p>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="learning" className="flex-1 p-6 mt-0 overflow-y-auto">
+                  <h2 className="font-semibold text-lg mb-4">Learning Outcomes</h2>
+                  {outcomeList.length > 0 ? (
+                    <ul className="space-y-3">
+                      {outcomeList.map((item, i) => (
+                        <li key={i} className="flex items-start gap-2.5 text-sm">
+                          <div className="w-5 h-5 rounded-full bg-primary/15 flex items-center justify-center shrink-0 mt-0.5">
+                            <GraduationCap size={11} className="text-primary" />
+                          </div>
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-muted-foreground italic text-sm">No learning outcomes specified.</p>
                   )}
                 </TabsContent>
               </Tabs>
-            </Card>
-          </div>
+            </div>
+          </motion.div>
         </div>
       </div>
     </div>

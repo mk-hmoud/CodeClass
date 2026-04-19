@@ -155,34 +155,32 @@ const QuizCreationPage: React.FC = () => {
     }
   };
 
-  const onError = (errors: any) => {
-    console.error("Form Errors:", errors);
+  const onError = (_errors: any) => {
     toast.error("Please fill in all required fields", {
       description: "Review the form for any highlighted errors.",
-      icon: <AlertCircle className="h-5 w-5 text-red-500" />,
+      icon: <AlertCircle className="h-5 w-5 text-destructive" />,
       duration: 5000,
     });
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="max-w-5xl mx-auto px-6 py-8">
       <div className="mb-8">
-        <Button
-          variant="outline"
-          className="flex items-center gap-2 mb-4"
+        <button
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
           onClick={() =>
             isEditMode
               ? navigate(`/instructor/classrooms/${classroomId}/quizes/${quizId}/view`)
               : navigate(`/instructor/classrooms/${classroomId}/view`)
           }
         >
-          <ArrowLeft size={16} />
+          <ArrowLeft size={15} />
           {isEditMode ? "Back to Quiz" : "Back to Classroom"}
-        </Button>
-        <h1 className="text-3xl font-bold">
+        </button>
+        <h1 className="text-2xl font-bold">
           {isEditMode ? "Edit Quiz" : "Create New Quiz"}
         </h1>
-        <p className="text-muted-foreground mt-2">
+        <p className="text-muted-foreground text-sm mt-1">
           {isEditMode
             ? "Update the quiz details, problems, and settings."
             : "Assemble a quiz from your existing problems to assess student knowledge."}

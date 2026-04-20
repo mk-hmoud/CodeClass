@@ -244,6 +244,72 @@ export async function findUserByUsername(username: string): Promise<UserWithPass
   }
 }
 
+export async function findOrCreateStudentByNumber(studentNumber: string): Promise<User> {
+  const functionName = 'findOrCreateStudentByNumber';
+  logger.info({ fn: functionName, studentNumber }, `Student access request for: ${studentNumber}`);
+  const client = await pool.connect();
+  try {
+    // Try to find existing student by username (student number)
+    const findQuery = `
+      SELECT
+        u.user_id, u.username, u.email, u.first_name, u.last_name,
+        'student' as role,
+        s.student_id as role_id
+      FROM users u
+      JOIN students s ON s.user_id = u.user_id
+      WHERE u.username = $1
+    `;
+    const findResult = await client.query(findQuery, [studentNumber]);
+    if (findResult.rows.length > 0) {
+      logger.info({ fn: functionName, studentNumber }, `Existing student found: ${studentNumber}`);
+      return findResult.rows[0] as User;
+    }
+
+    // Create new student account
+    logger.info({ fn: functionName, studentNumber }, `Creating new student account for: ${studentNumber}`);
+    await client.query('BEGIN');
+
+    const password_hash = await bcrypt.hash(studentNumber + '_beta', 10);
+    const insertUserQuery = `
+      INSERT INTO users (first_name, last_name, username, email, password_hash)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING user_id, username, email, first_name, last_name
+    `;
+    const userResult = await client.query(insertUserQuery, [
+      'Student',
+      studentNumber,
+      studentNumber,
+      `${studentNumber}@beta.local`,
+      password_hash,
+    ]);
+    const newUser = userResult.rows[0];
+
+    const studentResult = await client.query(
+      `INSERT INTO students (user_id) VALUES ($1) RETURNING student_id as role_id`,
+      [newUser.user_id]
+    );
+
+    await client.query('COMMIT');
+    logger.info({ fn: functionName, studentNumber, userId: newUser.user_id }, `New student created: ${studentNumber}`);
+
+    return {
+      user_id: newUser.user_id,
+      username: newUser.username,
+      email: newUser.email,
+      first_name: newUser.first_name,
+      last_name: newUser.last_name,
+      role: 'student',
+      role_id: studentResult.rows[0].role_id,
+    };
+  } catch (error: any) {
+    await client.query('ROLLBACK');
+    logger.error({ fn: functionName, studentNumber, error }, `Error in findOrCreateStudentByNumber: ${error.message}`);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export async function validateUserPassword(user: UserWithPassword, password: string): Promise<boolean> {
   const functionName = 'validateUserPassword';
   logger.debug(

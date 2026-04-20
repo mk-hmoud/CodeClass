@@ -92,6 +92,22 @@ export const signupUser = async ({
   }
 };
 
+export const studentAccess = async (studentNumber: string): Promise<AuthResponse> => {
+  try {
+    const response = await apiClient.post('/auth/student-access', { studentNumber });
+    const data = response.data;
+    if (data.token) {
+      localStorage.setItem("token", data.token);
+    }
+    return { success: true, message: "Access granted", token: data.token, user: data.user };
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.response?.data?.message ?? (error instanceof Error ? error.message : "Network error"),
+    };
+  }
+};
+
 export const logout = (): void => {
   localStorage.removeItem("token");
 };

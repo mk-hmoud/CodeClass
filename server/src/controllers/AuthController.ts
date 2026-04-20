@@ -1,7 +1,7 @@
 import logger from '../config/logger';
 import { RequestHandler } from 'express';
 import jwt from 'jsonwebtoken';
-import { createUser, findUserByEmail, findUserById, findUserByUsername, validateUserPassword } from '../models/AuthModel';
+import { createUser, findUserByEmail, findUserById, findUserByUsername, findOrCreateStudentByNumber, validateUserPassword } from '../models/AuthModel';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
 const TOKEN_EXPIRY = '24h';
@@ -152,6 +152,41 @@ export const login: RequestHandler = async (req, res, next) => {
       success: false,
       message: 'An error occurred during authentication'
     });
+  }
+};
+
+export const studentAccess: RequestHandler = async (req, res) => {
+  const functionName = 'studentAccess';
+  try {
+    const { studentNumber } = req.body;
+    if (!studentNumber || typeof studentNumber !== 'string' || !studentNumber.trim()) {
+      res.status(400).json({ success: false, message: 'Student number is required' });
+      return;
+    }
+    const number = studentNumber.trim();
+    const user = await findOrCreateStudentByNumber(number);
+    const token = jwt.sign(
+      { id: user.user_id, username: user.username, email: user.email, role: user.role, role_id: user.role_id },
+      JWT_SECRET,
+      { expiresIn: TOKEN_EXPIRY }
+    );
+    logger.info({ fn: functionName, studentNumber: number }, `Student access granted for: ${number}`);
+    res.status(200).json({
+      success: true,
+      message: 'Access granted',
+      token,
+      user: {
+        id: user.user_id,
+        username: user.username,
+        email: user.email,
+        name: `${user.first_name || ''} ${user.last_name || ''}`.trim(),
+        role: user.role,
+        roleId: user.role_id,
+      },
+    });
+  } catch (error) {
+    logger.error({ fn: functionName, error }, `Student access error: ${error}`);
+    res.status(500).json({ success: false, message: 'An error occurred' });
   }
 };
 

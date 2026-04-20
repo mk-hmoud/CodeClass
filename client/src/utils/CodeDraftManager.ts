@@ -1,3 +1,5 @@
+import { getCurrentUser } from "@/services/AuthService";
+
 export const CODE_DRAFT_PREFIX = "code-draft-";
 
 export interface CodeDraft {
@@ -10,6 +12,12 @@ export interface CodeDraft {
   assignmentTitle: string;
 }
 
+const getUserPrefix = (): string => {
+  const { user } = getCurrentUser();
+  const userId = user?.id ?? "guest";
+  return `${CODE_DRAFT_PREFIX}${userId}-`;
+};
+
 export const saveCodeDraft = (
   assignmentId: number | string,
   code: string,
@@ -19,12 +27,12 @@ export const saveCodeDraft = (
   classroomId: number | string
 ): boolean => {
   try {
-    const draftKey = `${CODE_DRAFT_PREFIX}${assignmentId}`;
+    const draftKey = `${getUserPrefix()}${assignmentId}`;
     const draftData: CodeDraft = {
       code,
       language,
       assignmentId,
-      classroomId, // Save classroomId
+      classroomId,
       expirationDate: expirationDate?.toISOString() || null,
       lastSaved: new Date().toISOString(),
       assignmentTitle,
@@ -39,7 +47,7 @@ export const saveCodeDraft = (
 
 export const getCodeDraft = (assignmentId: number | string): CodeDraft | null => {
   try {
-    const draftKey = `${CODE_DRAFT_PREFIX}${assignmentId}`;
+    const draftKey = `${getUserPrefix()}${assignmentId}`;
     const draftJson = localStorage.getItem(draftKey);
     if (!draftJson) return null;
     const draft = JSON.parse(draftJson) as CodeDraft;
@@ -59,7 +67,7 @@ export const getCodeDraft = (assignmentId: number | string): CodeDraft | null =>
 
 export const removeCodeDraft = (assignmentId: number | string): void => {
   try {
-    const draftKey = `${CODE_DRAFT_PREFIX}${assignmentId}`;
+    const draftKey = `${getUserPrefix()}${assignmentId}`;
     localStorage.removeItem(draftKey);
   } catch (error) {
     console.error("Error removing code draft:", error);
@@ -68,11 +76,12 @@ export const removeCodeDraft = (assignmentId: number | string): void => {
 
 export const getAllCodeDrafts = (): CodeDraft[] => {
   try {
+    const prefix = getUserPrefix();
     const drafts: CodeDraft[] = [];
     const now = new Date();
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && key.startsWith(CODE_DRAFT_PREFIX)) {
+      if (key && key.startsWith(prefix)) {
         try {
           const draftJson = localStorage.getItem(key);
           if (!draftJson) continue;

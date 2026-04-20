@@ -4,7 +4,6 @@ import subprocess
 import os
 import resource
 import time
-import shlex
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -26,15 +25,6 @@ def normalize_output(output: str) -> str:
     """Standardize output formatting"""
     return '\n'.join(line.rstrip() for line in output.strip().splitlines())
 
-def parse_input_args(input_str: str):
-    """Parse input string into arguments list"""
-    if not input_str:
-        return []
-    
-    if ',' in input_str:
-        return [arg.strip() for arg in input_str.split(',') if arg.strip()]
-    else:
-        return [arg for arg in input_str.split() if arg]
 
 def main():
     try:
@@ -76,11 +66,9 @@ def main():
             input_str = tc.get('input', '')
             is_public = tc.get('isPublic', True)
             
-            args = parse_input_args(input_str)
-            
             result = {
                 "testCaseId": test_id,
-                "input": args,
+                "input": input_str,
                 "expectedOutput": expected_output,
                 "isPublic": is_public,
                 "status": None,
@@ -93,7 +81,8 @@ def main():
                 start_time = time.monotonic()
                 
                 process = subprocess.run(
-                    ['python3', str(code_file)] + args,
+                    ['python3', str(code_file)],
+                    input=input_str,
                     capture_output=True,
                     text=True,
                     timeout=5,

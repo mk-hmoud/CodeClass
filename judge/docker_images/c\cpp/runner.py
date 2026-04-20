@@ -76,17 +76,9 @@ def main():
             expected_output = tc.get('expectedOutput', '').strip()
             is_public = tc.get('isPublic')
 
-            # parse input, this supports both comma,separated and space separated arguments
-            args = []
-            if raw_input:
-                if ',' in raw_input:
-                    args = [part.strip() for part in raw_input.split(',') if part.strip()]
-                else:
-                    args = raw_input.split()
-
             result = {
                 "testCaseId": test_case_id,
-                "input": args,
+                "input": raw_input,
                 "expectedOutput": expected_output,
                 "actual": None,
                 "status": None,
@@ -98,7 +90,8 @@ def main():
             try:
                 start = time.time()
                 proc = subprocess.run(
-                    [exe_path] + args,
+                    [exe_path],
+                    input=raw_input,
                     capture_output=True,
                     text=True,
                     timeout=5

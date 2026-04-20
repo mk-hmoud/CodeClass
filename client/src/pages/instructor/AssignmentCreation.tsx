@@ -12,7 +12,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Tooltip,
@@ -194,152 +193,149 @@ const CreateAssignmentPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-8">
-      <div className="mb-8">
-        <button
-          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
-          onClick={() => navigate(`/instructor/classrooms/${classroomId}/view`)}
-        >
-          <ArrowLeft size={15} />
-          Back to Classroom
-        </button>
-        <h1 className="text-2xl font-bold">Create New Assignment</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Create a new assignment for your students based on an existing problem.
-        </p>
+    <div className="flex-1 flex flex-col">
+      {/* Header */}
+      <div className="border-b border-border bg-gradient-to-br from-background via-background to-muted/30">
+        <div className="max-w-5xl mx-auto px-6 py-6">
+          <button
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-5"
+            onClick={() => navigate(`/instructor/classrooms/${classroomId}/view`)}
+          >
+            <ArrowLeft size={15} />
+            Back to Classroom
+          </button>
+          <h1 className="text-2xl font-bold">Create New Assignment</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Create a new assignment for your students based on an existing problem.
+          </p>
+        </div>
       </div>
 
       <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(onSubmit, onError)}
-          className="space-y-8"
-        >
-          <BasicInfoSection
-            form={form}
-            onSelectedProblemChange={setSelectedProblem}
-          />
+        <form onSubmit={form.handleSubmit(onSubmit, onError)} className="flex-1 flex flex-col">
 
-          <SubmissionSettingsSection
-            form={form}
-            watchEnableSubmissionAttempts={watchEnableSubmissionAttempts}
-          />
+          {/* Core form fields — constrained width */}
+          <div className="max-w-5xl mx-auto w-full px-6 py-6 space-y-6">
+            <BasicInfoSection
+              form={form}
+              onSelectedProblemChange={setSelectedProblem}
+            />
 
-          <ScheduleSection
-            form={form}
-            watchPublishImmediately={watchPublishImmediately}
-          />
+            <SubmissionSettingsSection
+              form={form}
+              watchEnableSubmissionAttempts={watchEnableSubmissionAttempts}
+            />
 
-          <Card>
-            <CardContent className="p-6 space-y-6">
-              <h2 className="text-xl font-semibold">Programming Languages</h2>
+            <ScheduleSection
+              form={form}
+              watchPublishImmediately={watchPublishImmediately}
+            />
 
-              <FormField
-                control={form.control}
-                name="programming_languages"
-                render={() => (
-                  <FormItem>
-                    <div className="flex items-center gap-2">
-                      <FormLabel>
-                        Languages <span className="text-red-500">*</span>
-                      </FormLabel>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info size={16} className="text-muted-foreground" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Languages students can use for submission</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-
-                    {isLoading ? (
-                      <div className="flex items-center justify-center h-40">
-                        <div className="animate-spin h-8 w-8 text-primary" />
-                        <span className="ml-2">
-                          Loading programming languages...
-                        </span>
-                      </div>
-                    ) : error ? (
-                      <div className="text-destructive p-4 border border-destructive/30 rounded-md bg-destructive/5">
-                        Error loading programming languages. Please try again
-                        later.
-                      </div>
-                    ) : !languages || languages.length === 0 ? (
-                      <div className="text-amber-600 p-4 border border-amber-500/30 rounded-md bg-amber-500/8">
-                        No programming languages are currently available.
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-2">
-                        {languages.map((lang) => (
-                          <div
-                            key={lang.language_id}
-                            className={`flex items-center p-3 rounded-md border cursor-pointer transition-colors
-                              ${
-                                selectedLanguages.includes(lang.name)
-                                  ? "bg-primary/20 border-primary"
-                                  : "border-border hover:bg-muted"
-                              }
-                            `}
-                            onClick={() => toggleLanguage(lang.name)}
-                          >
-                            {selectedLanguages.includes(lang.name) && (
-                              <Check size={16} className="text-primary mr-2" />
-                            )}
-                            <span>{LANGUAGE_LABELS[lang.name]}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {selectedLanguages.length > 0 && (
-                <div className="space-y-6">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-medium">
-                      Initial Code Templates
-                    </h3>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Info size={16} className="text-muted-foreground" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Starting code provided to students</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-
-                  <div className="space-y-4">
-                    {selectedLanguages.map((language) => (
-                      <div key={language} className="space-y-2">
-                        <Label>{LANGUAGE_LABELS[language]}</Label>
-                        <AssignmentCodeEditor
-                          language={language}
-                          value={codeByLanguage[language] || ""}
-                          onChange={(value) =>
-                            handleCodeChange(language, value)
-                          }
-                        />
-                      </div>
-                    ))}
-                  </div>
+            {/* Language picker */}
+            <Card>
+              <CardContent className="p-6 space-y-4">
+                <div>
+                  <h2 className="text-base font-semibold">Programming Languages</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">Languages students can use for their submission</p>
                 </div>
-              )}
-            </CardContent>
-          </Card>
 
-          <div className="flex justify-end gap-4 pt-6">
-            <Button
-              type="submit"
-              className="gap-2"
-              disabled={form.formState.isSubmitting}
-            >
+                <FormField
+                  control={form.control}
+                  name="programming_languages"
+                  render={() => (
+                    <FormItem>
+                      <div className="flex items-center gap-2 mb-2">
+                        <FormLabel>Languages <span className="text-destructive">*</span></FormLabel>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Info size={14} className="text-muted-foreground" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Select one or more languages</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+
+                      {isLoading ? (
+                        <div className="flex items-center gap-2 h-20 text-sm text-muted-foreground">
+                          <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
+                          Loading languages…
+                        </div>
+                      ) : error ? (
+                        <div className="text-destructive p-4 border border-destructive/30 rounded-lg bg-destructive/5 text-sm">
+                          Error loading programming languages. Please try again.
+                        </div>
+                      ) : !languages || languages.length === 0 ? (
+                        <div className="text-amber-600 p-4 border border-amber-500/30 rounded-lg bg-amber-500/8 text-sm">
+                          No programming languages are currently available.
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                          {languages.map((lang) => {
+                            const active = selectedLanguages.includes(lang.name);
+                            return (
+                              <button
+                                key={lang.language_id}
+                                type="button"
+                                onClick={() => toggleLanguage(lang.name)}
+                                className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm transition-colors text-left ${
+                                  active
+                                    ? "bg-primary/10 border-primary text-primary"
+                                    : "border-border hover:bg-muted text-foreground"
+                                }`}
+                              >
+                                {active && <Check size={14} className="shrink-0" />}
+                                {LANGUAGE_LABELS[lang.name] ?? lang.name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Code templates — full width with dark editor feel */}
+          {selectedLanguages.length > 0 && (
+            <div className="border-t border-border bg-[#111111]">
+              <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-white/70">Starter Code Templates</h3>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info size={13} className="text-white/30" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Starting code provided to students when they open the editor</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+
+                <div className="space-y-6">
+                  {selectedLanguages.map((language) => (
+                    <AssignmentCodeEditor
+                      key={language}
+                      language={language}
+                      value={codeByLanguage[language] ?? ""}
+                      onChange={(value) => handleCodeChange(language, value)}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Submit */}
+          <div className="max-w-5xl mx-auto w-full px-6 py-6 flex justify-end">
+            <Button type="submit" className="gap-2" disabled={form.formState.isSubmitting}>
               <Save size={16} />
               Create Assignment
               {form.formState.isSubmitting && (

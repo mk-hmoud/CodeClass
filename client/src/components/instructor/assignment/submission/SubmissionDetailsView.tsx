@@ -1,30 +1,14 @@
 import React, { useEffect, useState } from "react";
-import {
-  ArrowLeft,
-  User,
-  Check,
-  X,
-  Clock,
-  Code,
-  FileText,
-  FileX,
-} from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowLeft, Check, X, Clock, Code, FileText, FileX } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-} from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
-import { Avatar } from "@/components/ui/avatar";
 import { TestResult } from "@/types/TestCase";
 import { FullSubmission } from "@/types/Submission";
 import { updateManualGrade } from "@/services/GradesService";
@@ -37,713 +21,364 @@ interface SubmissionDetailsViewProps {
   onSubmitGrade: (id: number, score: number, feedback: string) => void;
 }
 
+const GRADING_META: Record<string, { label: string; className: string }> = {
+  Automatic: { label: "Automatic Grading", className: "bg-primary/15 text-primary border-primary/30 border text-[11px]" },
+  Manual:    { label: "Manual Grading",    className: "bg-amber-500/15 text-amber-600 border-amber-500/30 border text-[11px]" },
+  Hybrid:    { label: "Hybrid Grading",    className: "bg-violet-500/15 text-violet-600 border-violet-500/30 border text-[11px]" },
+};
+
+const STATUS_META: Record<string, { label: string; className: string }> = {
+  "graded":       { label: "Graded",       className: "bg-green-500/15 text-green-600 border-green-500/30 border text-[11px]" },
+  "system graded":{ label: "System Graded",className: "bg-primary/15 text-primary border-primary/30 border text-[11px]" },
+  "pending":      { label: "Pending",      className: "bg-amber-500/15 text-amber-600 border-amber-500/30 border text-[11px]" },
+};
+
 const SubmissionDetailsView: React.FC<SubmissionDetailsViewProps> = ({
-  assignmentScore,
-  submission,
-  gradingType,
-  onBack,
-  onSubmitGrade,
+  assignmentScore, submission, gradingType, onBack, onSubmitGrade,
 }) => {
-  const [activeTab, setActiveTab] = useState<string>("code");
+  const [activeTab, setActiveTab] = useState("code");
   const [calculatedFinalScore, setCalculatedFinalScore] = useState(
-    submission.finalScore ||
-      Math.round(
-        (submission.autoScore || 0 + (submission.manualScore || 0)) / 2
-      )
+    submission.finalScore ?? Math.round(((submission.autoScore ?? 0) + (submission.manualScore ?? 0)) / 2)
   );
+
   const form = useForm({
-    defaultValues: {
-      manualScore: submission.manualScore || 0,
-      feedback: submission.feedback || "",
-    },
+    defaultValues: { manualScore: submission.manualScore ?? 0, feedback: submission.feedback ?? "" },
   });
 
   useEffect(() => {
     if (gradingType === "Hybrid") {
-      const manualScore = form.watch("manualScore") || 0;
-      const systemScore = submission.autoScore || 0;
-      const finalScore = Math.round((systemScore + manualScore) / 2);
-      setCalculatedFinalScore(finalScore);
+      const manualScore = form.watch("manualScore") ?? 0;
+      setCalculatedFinalScore(Math.round(((submission.autoScore ?? 0) + manualScore) / 2));
     }
   }, [form.watch("manualScore"), submission.autoScore, gradingType]);
 
-  const handleSubmitGrade = async (values: {
-    manualScore: number;
-    feedback: string;
-  }) => {
+  const handleSubmitGrade = async (values: { manualScore: number; feedback: string }) => {
     try {
-      const result = await updateManualGrade({
-        submissionId: submission.submissionId,
-        manualScore: values.manualScore,
-        feedback: values.feedback,
-      });
+      const result = await updateManualGrade({ submissionId: submission.submissionId, manualScore: values.manualScore, feedback: values.feedback });
       onSubmitGrade(result.submissionId, result.finalScore, values.feedback);
       toast({ title: "Success", description: "Grade updated successfully" });
     } catch (err: any) {
-      console.error("Grade submit error:", err);
-      toast({
-        title: "Error",
-        description: err.response?.data?.message || "Could not save grade",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: err.response?.data?.message ?? "Could not save grade", variant: "destructive" });
     }
   };
 
-  const renderTestCaseResult = (result: TestResult, index: number) => {
-    return (
-      <Card
-        key={index}
-        className="mb-4 bg-card border-border overflow-hidden"
-      >
-        <CardContent className="p-0">
-          <div className="border-b border-border p-3 flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <Badge
-                variant={
-                  result.status === "passed" ? "secondary" : "destructive"
-                }
-                className={`capitalize ${
-                  result.status === "passed"
-                    ? "bg-green-600 hover:bg-green-700"
-                    : ""
-                }`}
-              >
-                {result.status === "passed" ? "Passed" : "Failed"}
-              </Badge>
-              <span className="font-medium">Test Case #{index + 1}</span>
+  const renderTestCase = (result: TestResult, index: number) => (
+    <div key={index} className="border border-border rounded-xl overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-muted/30 border-b border-border">
+        <div className="flex items-center gap-2">
+          {result.status === "passed" ? (
+            <div className="w-5 h-5 rounded-full bg-green-500/15 flex items-center justify-center">
+              <Check size={11} className="text-green-600" />
             </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Clock size={14} className="text-muted-foreground" />
-              <span>{result.executionTime}ms</span>
+          ) : (
+            <div className="w-5 h-5 rounded-full bg-destructive/15 flex items-center justify-center">
+              <X size={11} className="text-destructive" />
             </div>
+          )}
+          <span className="text-xs font-medium">Test Case #{index + 1}</span>
+        </div>
+        <span className="text-xs text-muted-foreground flex items-center gap-1">
+          <Clock size={11} />{result.executionTime}ms
+        </span>
+      </div>
+      <div className="grid grid-cols-1 divide-y divide-border">
+        <div className="p-3">
+          <p className="text-xs text-muted-foreground mb-1.5">Input</p>
+          <pre className="text-xs font-mono text-foreground/80">{result.input ?? "[]"}</pre>
+        </div>
+        <div className="p-3">
+          <p className="text-xs text-muted-foreground mb-1.5">Output</p>
+          <pre className="text-xs font-mono text-foreground/80">{result.actual ?? "None"}</pre>
+        </div>
+        <div className="p-3">
+          <p className="text-xs text-muted-foreground mb-1.5">Expected</p>
+          <pre className="text-xs font-mono text-foreground/80">{result.expectedOutput ?? "0"}</pre>
+        </div>
+        {result.status !== "passed" && result.errorMessage && (
+          <div className="p-3 bg-destructive/5">
+            <p className="text-xs text-destructive font-medium mb-1">Error</p>
+            <pre className="text-xs font-mono text-destructive/80">{result.errorMessage}</pre>
           </div>
+        )}
+      </div>
+    </div>
+  );
 
-          <div className="grid grid-cols-1 divide-y divide-border">
-            <div className="p-3">
-              <div className="text-sm font-medium mb-1 text-muted-foreground">
-                Input
-              </div>
-              <pre className="bg-card p-2 rounded text-sm overflow-x-auto">
-                {result.input || "[]"}
-              </pre>
-            </div>
+  const ScoreBlock = ({ label, value, sub }: { label: string; value: number; sub?: string }) => (
+    <div>
+      <p className="text-xs text-muted-foreground mb-1">{label}</p>
+      <p className="text-3xl font-bold tabular-nums">
+        {value}<span className="text-base text-muted-foreground font-normal">/{assignmentScore}</span>
+      </p>
+      {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
+    </div>
+  );
 
-            <div className="p-3">
-              <div className="text-sm font-medium mb-1 text-muted-foreground">
-                Output
-              </div>
-              <pre className="bg-card p-2 rounded text-sm overflow-x-auto">
-                {result.actual || "None"}
-              </pre>
-            </div>
+  const renderGrading = () => {
+    const isGraded = submission.gradingStatus === "graded";
 
-            <div className="p-3">
-              <div className="text-sm font-medium mb-1 text-muted-foreground">
-                Expected
-              </div>
-              <pre className="bg-card p-2 rounded text-sm overflow-x-auto">
-                {result.expectedOutput || "0"}
-              </pre>
-            </div>
-
-            {result.status !== "passed" && result.errorMessage && (
-              <div className="p-3">
-                <div className="text-red-500 flex items-center gap-1.5">
-                  <X size={14} />
-                  <span className="font-medium">Error</span>
-                </div>
-                <pre className="bg-card p-2 rounded text-sm overflow-x-auto mt-1 text-red-400">
-                  {result.errorMessage}
-                </pre>
-              </div>
-            )}
-
-            {result.status === "passed" && (
-              <div className="p-3">
-                <div className="text-green-500 flex items-center gap-1.5">
-                  <Check size={14} />
-                  <span className="font-medium">Right Answer</span>
-
-                  <span className="text-muted-foreground ml-1">
-                    | Runtime: {result.executionTime}ms
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {result.status !== "passed" && (
-              <div className="p-3">
-                <div className="text-red-500 flex items-center gap-1.5">
-                  <X size={14} />
-                  <span className="font-medium">Wrong Answer</span>
-                  <span className="text-muted-foreground ml-1">
-                    | Runtime: {result.executionTime}ms
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+    const GradingCard = ({ children }: { children: React.ReactNode }) => (
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-border">
+          <h2 className="font-semibold text-sm">Grading</h2>
+        </div>
+        <div className="p-5 space-y-5">{children}</div>
+      </div>
     );
-  };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "graded":
-        return <Badge className="bg-green-600">Graded</Badge>;
-      case "system graded":
-        return <Badge className="bg-blue-600">System Graded</Badge>;
-      case "pending":
-        return <Badge className="bg-amber-500">Pending</Badge>;
-      default:
-        return <Badge className="bg-gray-600">{status}</Badge>;
-    }
-  };
-
-  const renderGradingSection = () => {
-    // For Automatic Grading
-    if (gradingType === "Automatic") {
-      return (
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle>Grading</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <h3 className="text-xl font-bold mb-2">System Score</h3>
-              <div className="text-4xl font-bold mb-1">
-                {submission.autoScore || 0}/{assignmentScore}
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Based on automated test results
-              </p>
-            </div>
-
-            <div className="pt-4 border-t border-border">
-              <p className="text-sm mb-4">
-                This assignment is automatically graded. The system score is
-                final.
-              </p>
-              <Button
-                variant="outline"
-                onClick={() => setActiveTab("test-results")}
-              >
-                View Test Results
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      );
-    }
+    if (gradingType === "Automatic") return (
+      <GradingCard>
+        <ScoreBlock label="System Score" value={submission.autoScore ?? 0} sub="Based on automated test results" />
+        <div className="pt-4 border-t border-border">
+          <p className="text-xs text-muted-foreground mb-3">This assignment is automatically graded. The system score is final.</p>
+          <Button variant="outline" size="sm" onClick={() => setActiveTab("test-results")}>View Test Results</Button>
+        </div>
+      </GradingCard>
+    );
 
     if (gradingType === "Manual") {
-      if (submission.gradingStatus === "graded") {
-        return (
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle>Grading</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <h3 className="text-xl font-bold mb-2">Instructor Score</h3>
-                <div className="text-4xl font-bold mb-1">
-                  {submission.manualScore || 0}/{assignmentScore}
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Manually graded by instructor
-                </p>
-              </div>
-
-              <div className="pt-4 border-t border-border">
-                <h3 className="text-lg font-medium mb-2">Feedback</h3>
-                {submission.feedback ? (
-                  <div className="p-3 bg-muted rounded-md whitespace-pre-wrap">
-                    {submission.feedback}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    No feedback provided.
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        );
-      }
-
+      if (isGraded) return (
+        <GradingCard>
+          <ScoreBlock label="Instructor Score" value={submission.manualScore ?? 0} sub="Manually graded by instructor" />
+          {submission.feedback && (
+            <div className="pt-4 border-t border-border">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Feedback</p>
+              <div className="p-3 bg-muted/30 rounded-lg text-sm whitespace-pre-wrap">{submission.feedback}</div>
+            </div>
+          )}
+        </GradingCard>
+      );
       return (
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle>Grading</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit(handleSubmitGrade)}
-                className="space-y-6"
-              >
-                <FormField
-                  control={form.control}
-                  name="manualScore"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        Instructor Score (0-{assignmentScore})
-                      </FormLabel>
-                      <FormControl>
-                        <input
-                          type="number"
-                          min={0}
-                          max={assignmentScore}
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                          {...field}
-                          onChange={(e) =>
-                            field.onChange(parseInt(e.target.value) || 0)
-                          }
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="feedback"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Feedback</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Provide detailed feedback for the student..."
-                          className="min-h-32"
-                          {...field}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <Button type="submit" className="w-full">
-                  Submit Final Grade
-                </Button>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
+        <GradingCard>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleSubmitGrade)} className="space-y-4">
+              <FormField control={form.control} name="manualScore" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Score (0–{assignmentScore})</FormLabel>
+                  <FormControl>
+                    <input type="number" min={0} max={assignmentScore}
+                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} />
+                  </FormControl>
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="feedback" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Feedback</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="Provide feedback for the student…" className="min-h-28 resize-none" {...field} />
+                  </FormControl>
+                </FormItem>
+              )} />
+              <Button type="submit" className="w-full">Submit Grade</Button>
+            </form>
+          </Form>
+        </GradingCard>
       );
     }
 
     if (gradingType === "Hybrid") {
-      if (submission.gradingStatus === "graded") {
-        return (
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle>Grading</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="p-4 mb-6 bg-purple-900/20 border border-purple-500/30 rounded-md">
-                <h3 className="text-lg font-semibold text-purple-400 mb-1">
-                  Hybrid Grading
-                </h3>
-                <p className="text-sm text-foreground/80">
-                  This submission has been graded using both automated tests and
-                  instructor review.
-                </p>
-              </div>
+      const hybridBanner = (
+        <div className="p-3 bg-violet-500/8 border border-violet-500/25 rounded-lg">
+          <p className="text-xs font-semibold text-violet-600 mb-0.5">Hybrid Grading</p>
+          <p className="text-xs text-muted-foreground">
+            {isGraded ? "Graded using both automated tests and instructor review." : "Auto-graded. Requires instructor review and final score."}
+          </p>
+        </div>
+      );
 
-              <div className="mb-4">
-                <h3 className="text-xl font-bold mb-2">System Score</h3>
-                <div className="text-4xl font-bold mb-1">
-                  {submission.autoScore || 0}/100
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Based on automated test results
-                </p>
-              </div>
-
-              <div className="mb-4 pt-4 border-t border-border">
-                <h3 className="text-xl font-bold mb-2">Instructor Score</h3>
-                <div className="text-4xl font-bold mb-1">
-                  {submission.manualScore || 0}/100
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Manually graded by instructor
-                </p>
-              </div>
-
-              <div className="mb-4 pt-4 border-t border-border">
-                <h3 className="text-xl font-bold mb-2">Final Score</h3>
-                <div className="text-4xl font-bold text-purple-400 mb-1">
-                  {submission.finalScore || 0}/{assignmentScore}
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Combined score (system + instructor)
-                </p>
-              </div>
-
-              <div className="pt-4 border-t border-border">
-                <h3 className="text-lg font-medium mb-2">Feedback</h3>
-                {submission.feedback ? (
-                  <div className="p-3 bg-muted rounded-md whitespace-pre-wrap">
-                    {submission.feedback}
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    No feedback provided.
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        );
-      }
+      if (isGraded) return (
+        <GradingCard>
+          {hybridBanner}
+          <ScoreBlock label="System Score" value={submission.autoScore ?? 0} sub="Automated tests" />
+          <div className="pt-4 border-t border-border">
+            <ScoreBlock label="Instructor Score" value={submission.manualScore ?? 0} sub="Manually graded" />
+          </div>
+          <div className="pt-4 border-t border-border">
+            <p className="text-xs text-muted-foreground mb-1">Final Score</p>
+            <p className="text-3xl font-bold text-violet-600 tabular-nums">
+              {submission.finalScore ?? 0}<span className="text-base text-muted-foreground font-normal">/{assignmentScore}</span>
+            </p>
+          </div>
+          {submission.feedback && (
+            <div className="pt-4 border-t border-border">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Feedback</p>
+              <div className="p-3 bg-muted/30 rounded-lg text-sm whitespace-pre-wrap">{submission.feedback}</div>
+            </div>
+          )}
+        </GradingCard>
+      );
 
       return (
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle>Grading</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="p-4 mb-6 bg-purple-900/20 border border-purple-500/30 rounded-md">
-              <h3 className="text-lg font-semibold text-purple-400 mb-1">
-                Hybrid Grading
-              </h3>
-              <p className="text-sm text-foreground/80">
-                This submission has been automatically graded, but requires
-                instructor review and final grade determination.
-              </p>
-            </div>
-
-            <div className="mb-6">
-              <h3 className="text-xl font-bold mb-2">System Score</h3>
-              <div className="text-4xl font-bold mb-1">
-                {submission.autoScore || 0}/100
+        <GradingCard>
+          {hybridBanner}
+          <ScoreBlock label="System Score" value={submission.autoScore ?? 0} sub="Automated tests" />
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleSubmitGrade)} className="space-y-4 pt-4 border-t border-border">
+              <FormField control={form.control} name="manualScore" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Instructor Score (0–{assignmentScore})</FormLabel>
+                  <FormControl>
+                    <input type="number" min={0} max={assignmentScore}
+                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      {...field} onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} />
+                  </FormControl>
+                </FormItem>
+              )} />
+              <div className="flex items-center justify-between text-sm px-3 py-2 bg-violet-500/8 border border-violet-500/25 rounded-lg">
+                <span className="text-xs text-muted-foreground">Calculated final score</span>
+                <span className="font-bold text-violet-600">{calculatedFinalScore}/{assignmentScore}</span>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Based on automated test results
-              </p>
-            </div>
-
-            <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit(handleSubmitGrade)}
-                className="space-y-6"
-              >
-                <FormField
-                  control={form.control}
-                  name="manualScore"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        Instructor Score (0-{assignmentScore})
-                      </FormLabel>
-                      <FormControl>
-                        <input
-                          type="number"
-                          min={0}
-                          max={assignmentScore}
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                          {...field}
-                          onChange={(e) =>
-                            field.onChange(parseInt(e.target.value) || 0)
-                          }
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <div className="text-sm mt-2 py-2 px-3 bg-purple-900/30 border border-purple-500/20 rounded flex justify-between items-center">
-                  <span>Final score would be:</span>
-
-                  <span className="font-bold text-purple-300">
-                    {calculatedFinalScore}/{assignmentScore}
-                  </span>
-                </div>
-
-                <div className="text-sm text-muted-foreground mb-4">
-                  The final grade will be calculated as an average of system and
-                  instructor scores.
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="feedback"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Feedback</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Provide detailed feedback for the student..."
-                          className="min-h-32"
-                          {...field}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <Button type="submit" className="w-full">
-                  Submit Final Grade
-                </Button>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
+              <FormField control={form.control} name="feedback" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Feedback</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="Provide feedback for the student…" className="min-h-28 resize-none" {...field} />
+                  </FormControl>
+                </FormItem>
+              )} />
+              <Button type="submit" className="w-full">Submit Grade</Button>
+            </form>
+          </Form>
+        </GradingCard>
       );
     }
 
     return null;
   };
 
+  const gradingMeta = GRADING_META[gradingType];
+  const statusMeta  = STATUS_META[submission.gradingStatus] ?? { label: submission.gradingStatus, className: "text-[11px]" };
+  const initials    = submission.studentName?.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() ?? "?";
+
   return (
-    <div className="container max-w-6xl mx-auto py-6">
-      <Button
-        variant="outline"
-        className="mb-6 flex items-center gap-2"
+    <div className="space-y-4">
+      <button
+        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
         onClick={onBack}
       >
-        <ArrowLeft size={16} />
-        Return to Submissions List
-      </Button>
+        <ArrowLeft size={15} />
+        Back to Submissions
+      </button>
 
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-1">Submission Details</h1>
-        <div className="flex items-center gap-2">
-          {gradingType === "Automatic" && (
-            <Badge className="bg-blue-600">Automatic Grading</Badge>
-          )}
-          {gradingType === "Manual" && (
-            <Badge className="bg-amber-600">Manual Grading</Badge>
-          )}
-          {gradingType === "Hybrid" && (
-            <Badge className="bg-purple-600">Hybrid Grading</Badge>
-          )}
-        </div>
+      <div className="flex items-center gap-2 mb-2">
+        <h2 className="text-lg font-bold">Submission Details</h2>
+        <Badge className={gradingMeta.className}>{gradingMeta.label}</Badge>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-6">
-        <div className="flex-1">
-          <Card className="mb-6 bg-card border-border">
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle>{submission.studentName}</CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    Student ID: {submission.studentId}
-                  </p>
-                </div>
-                <div className="flex items-center">
-                  <Avatar className="h-12 w-12 bg-muted">
-                    <User className="h-6 w-6" />
-                  </Avatar>
-                </div>
+      <div className="flex flex-col md:flex-row gap-5">
+        {/* Left column */}
+        <div className="flex-1 space-y-4">
+          {/* Student card */}
+          <div className="bg-card border border-border rounded-xl p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <span className="text-sm font-semibold text-primary">{initials}</span>
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Submitted</span>
-                  <span>
-                    {new Date(submission.submittedAt).toLocaleString()}
+              <div>
+                <p className="font-semibold text-sm">{submission.studentName}</p>
+                <p className="text-xs text-muted-foreground">ID: {submission.studentId}</p>
+              </div>
+            </div>
+            <div className="text-right space-y-1">
+              <p className="text-xs text-muted-foreground">{new Date(submission.submittedAt).toLocaleString()}</p>
+              <div className="flex items-center justify-end gap-2">
+                <Badge className={statusMeta.className}>{statusMeta.label}</Badge>
+                {submission.gradingStatus === "graded" && submission.finalScore != null && (
+                  <span className="text-sm font-mono font-bold">
+                    {submission.finalScore}<span className="text-muted-foreground font-normal text-xs">/{assignmentScore}</span>
                   </span>
-                </div>
-
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Status</span>
-                  <span>{getStatusBadge(submission.gradingStatus)}</span>
-                </div>
-                {submission.gradingStatus !== "graded" && (
-                  <div className="flex justify-between items-center pt-3">
-                    <span className="text-lg font-semibold">Final Score</span>
-                    <span className="text-xl font-bold">--/--</span>
-                  </div>
                 )}
-
-                {submission.gradingStatus === "graded" &&
-                  submission.finalScore !== null && (
-                    <div className="flex justify-between items-center pt-3">
-                      <span className="text-lg font-semibold">Final Score</span>
-                      <span className="text-xl font-bold">
-                        {submission.finalScore}/{assignmentScore}
-                      </span>
-                    </div>
-                  )}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Tabs
-            value={activeTab}
-            onValueChange={setActiveTab}
-            className="space-y-4"
-          >
-            <TabsList className="bg-background p-1">
-              <TabsTrigger
-                value="code"
-                className="data-[state=active]:bg-primary/20"
-              >
-                <div className="flex items-center gap-2">
-                  <Code size={14} />
-                  <span>Code Submission</span>
-                </div>
+          {/* Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="bg-muted/50 border border-border p-1 h-auto gap-1">
+              <TabsTrigger value="code" className="data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm gap-1.5">
+                <Code size={13} />Code
               </TabsTrigger>
-              <TabsTrigger
-                value="test-results"
-                className="data-[state=active]:bg-primary/20"
-              >
-                <div className="flex items-center gap-2">
-                  <FileText size={14} />
-                  <span>Test Results</span>
-                </div>
+              <TabsTrigger value="test-results" className="data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm gap-1.5">
+                <FileText size={13} />Test Results
               </TabsTrigger>
-              <TabsTrigger
-                value="plagiarism"
-                className="data-[state=active]:bg-primary/20"
-              >
-                <div className="flex items-center gap-2">
-                  <FileX size={14} />
-                  <span>Plagiarism Check</span>
-                </div>
+              <TabsTrigger value="plagiarism" className="data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm gap-1.5">
+                <FileX size={13} />Plagiarism
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="code" className="mt-4">
-              <Card className="bg-card border-border overflow-hidden">
-                <CardContent className="p-0">
-                  <pre className="overflow-auto text-sm bg-card p-4 max-h-[500px]">
-                    <code className="text-foreground/90">{submission.code}</code>
-                  </pre>
-                </CardContent>
-              </Card>
+            <TabsContent value="code" className="mt-3">
+              <div className="bg-[#1e1e1e] border border-border rounded-xl overflow-hidden">
+                <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-white/8">
+                  <div className="w-3 h-3 rounded-full bg-red-500/70" />
+                  <div className="w-3 h-3 rounded-full bg-yellow-500/70" />
+                  <div className="w-3 h-3 rounded-full bg-green-500/70" />
+                  <span className="ml-2 text-xs text-white/40 font-mono">submission.py</span>
+                </div>
+                <pre className="overflow-auto text-sm p-4 max-h-[500px] font-mono text-white/85 leading-relaxed">
+                  <code>{submission.code}</code>
+                </pre>
+              </div>
             </TabsContent>
 
-            <TabsContent value="test-results" className="mt-4">
-              <Card className="bg-card border-border">
-                <CardContent className="p-4">
-                  {submission.verdict.testResults ? (
-                    <div className="space-y-6">
-                      <div>
-                        <h3 className="text-lg font-medium mb-3">
-                          Test Results
-                        </h3>
-                        <div className="space-y-3">
-                          {submission.verdict.testResults.map((result, idx) =>
-                            renderTestCaseResult(result, idx)
-                          )}
+            <TabsContent value="test-results" className="mt-3">
+              {submission.verdict.testResults ? (
+                <div className="space-y-5">
+                  <div className="space-y-3">
+                    {submission.verdict.testResults.map((result, idx) => renderTestCase(result, idx))}
+                  </div>
+                  <div className="bg-card border border-border rounded-xl p-4">
+                    <div className="flex justify-between items-center mb-2 text-sm">
+                      <span>Passed {submission.verdict.metrics.passedTests} of {submission.verdict.metrics.totalTests} tests</span>
+                      <span className="font-bold">
+                        {submission.verdict.metrics.totalTests > 0
+                          ? Math.round((submission.verdict.metrics.passedTests / submission.verdict.metrics.totalTests) * 100)
+                          : 0}%
+                      </span>
+                    </div>
+                    <Progress
+                      value={submission.verdict.metrics.totalTests > 0
+                        ? (submission.verdict.metrics.passedTests / submission.verdict.metrics.totalTests) * 100
+                        : 0}
+                      className="h-1.5"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-10 text-sm text-muted-foreground">No test results available.</div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="plagiarism" className="mt-3">
+              {submission.plagiarismReports && submission.plagiarismReports.length > 0 ? (
+                <div className="space-y-3">
+                  {submission.plagiarismReports.map((report, idx) => {
+                    const sim = report.similarity ?? 0;
+                    const simMeta = sim >= 80
+                      ? { className: "bg-destructive/15 text-destructive border-destructive/30 border text-[11px]" }
+                      : sim >= 50
+                      ? { className: "bg-amber-500/15 text-amber-600 border-amber-500/30 border text-[11px]" }
+                      : { className: "bg-green-500/15 text-green-600 border-green-500/30 border text-[11px]" };
+                    return (
+                      <div key={idx} className="bg-card border border-border rounded-xl p-4 flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium">Compared with #{report.comparedSubmission}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">Checked {new Date(report.checkedAt).toLocaleString()}</p>
                         </div>
+                        <Badge className={simMeta.className}>{sim}% match</Badge>
                       </div>
-
-                      <div>
-                        <h3 className="text-lg font-medium mb-3">
-                          Test Summary
-                        </h3>
-                        <Card className="bg-background border-border">
-                          <CardContent className="p-4">
-                            <div className="flex justify-between items-center mb-2">
-                              <span>
-                                Passed {submission.verdict.metrics.passedTests}{" "}
-                                of {submission.verdict.metrics.totalTests} tests
-                              </span>
-                              <span className="font-bold">
-                                {submission.verdict.metrics.totalTests > 0
-                                  ? Math.round(
-                                      ((submission.verdict.metrics
-                                        .passedTests || 0) /
-                                        submission.verdict.metrics.totalTests) *
-                                        100
-                                    )
-                                  : 0}
-                                %
-                              </span>
-                            </div>
-                            <Progress
-                              value={
-                                submission.verdict.metrics.totalTests > 0
-                                  ? ((submission.verdict.metrics.passedTests ||
-                                      0) /
-                                      submission.verdict.metrics.totalTests) *
-                                    100
-                                  : 0
-                              }
-                              className="h-2"
-                            />
-                          </CardContent>
-                        </Card>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No test results available for this submission.
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="plagiarism" className="mt-4">
-              <Card className="bg-card border-border">
-                <CardContent className="p-4">
-                  {submission.plagiarismReports &&
-                  submission.plagiarismReports.length > 0 ? (
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-medium">Plagiarism Report</h3>
-                      <div className="space-y-3">
-                        {submission.plagiarismReports.map((report, idx) => (
-                          <Card
-                            key={idx}
-                            className="bg-background border-border"
-                          >
-                            <CardContent className="p-4">
-                              <div className="flex justify-between items-center">
-                                <div>
-                                  <div className="font-medium">
-                                    Compared with Submission #
-                                    {report.comparedSubmission}
-                                  </div>
-                                  <div className="text-sm text-muted-foreground">
-                                    Checked on{" "}
-                                    {new Date(
-                                      report.checkedAt
-                                    ).toLocaleString()}
-                                  </div>
-                                </div>
-                                <div>
-                                  <div className="text-xl font-bold flex items-center">
-                                    {report.similarity >= 80 ? (
-                                      <Badge className="bg-red-600">
-                                        {report.similarity}% match
-                                      </Badge>
-                                    ) : report.similarity >= 50 ? (
-                                      <Badge className="bg-amber-600">
-                                        {report.similarity}% match
-                                      </Badge>
-                                    ) : (
-                                      <Badge className="bg-green-600">
-                                        {report.similarity}% match
-                                      </Badge>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No plagiarism reports available for this submission.
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-10 text-sm text-muted-foreground">No plagiarism reports available.</div>
+              )}
             </TabsContent>
           </Tabs>
         </div>
 
-        <div className="w-full md:w-80 lg:w-96">{renderGradingSection()}</div>
+        {/* Right column — grading */}
+        <div className="w-full md:w-80 lg:w-96">{renderGrading()}</div>
       </div>
     </div>
   );

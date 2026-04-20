@@ -1,109 +1,101 @@
 import React from "react";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Assignment } from "../../../../types/Assignment";
 import { LANGUAGE_LABELS } from "@/lib/assignmentUtils";
+import { Code, ShieldCheck, BarChart2 } from "lucide-react";
+
+const DIFF_META: Record<string, { color: string }> = {
+  Easy:   { color: "#10b981" },
+  Medium: { color: "#f59e0b" },
+  Hard:   { color: "#ef4444" },
+};
 
 interface OverviewTabProps {
   assignment: Assignment;
-  studentSubmissions: {
-    id: number;
-    submitted: boolean;
-  }[];
+  studentSubmissions: { id: number; submitted: boolean }[];
   onEditAssignment: () => void;
 }
 
-const OverviewTab: React.FC<OverviewTabProps> = ({
-  assignment,
-  onEditAssignment,
-}) => {
-  const difficultyColorMap = {
-    Easy: "bg-green-900/40 text-green-400 border-green-700",
-    Medium: "bg-orange-900/40 text-orange-400 border-orange-700",
-    Hard: "bg-red-900/40 text-red-400 border-red-700",
-  };
+const OverviewTab: React.FC<OverviewTabProps> = ({ assignment }) => {
+  const diff = assignment.difficulty_level;
+  const diffColor = diff ? DIFF_META[diff]?.color : undefined;
+
   return (
     <div className="space-y-4">
-      <Card className="bg-card border-border">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Assignment Overview</CardTitle>
-            <Badge className={difficultyColorMap[assignment.difficulty_level]}>
-              {assignment.difficulty_level}
+      {/* Main info */}
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+          <h2 className="font-semibold text-sm">Assignment Overview</h2>
+          {diff && diffColor && (
+            <Badge
+              className="text-xs border"
+              style={{ backgroundColor: diffColor + "18", color: diffColor, borderColor: diffColor + "40" }}
+            >
+              {diff}
             </Badge>
-          </div>
-          <CardDescription>
-            Key information about this assignment
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-6 space-y-4">
+          )}
+        </div>
+
+        <div className="p-5 space-y-5">
           <div>
-            <h3 className="text-sm font-semibold text-muted-foreground mb-2">
-              Description
-            </h3>
-            <p className="whitespace-pre-line">{assignment.description}</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Description</p>
+            <p className="text-sm text-foreground/80 whitespace-pre-line leading-relaxed">
+              {assignment.description || <span className="italic text-muted-foreground">No description provided.</span>}
+            </p>
           </div>
 
-          <Separator className="my-4 bg-muted" />
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="border-t border-border pt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <h3 className="text-sm font-semibold text-muted-foreground mb-2">
-                Grading Method
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                <Badge
-                  variant="outline"
-                  className="bg-blue-900/30 text-blue-400 border-blue-700"
-                >
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Grading Method</p>
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                  <BarChart2 size={13} className="text-primary" />
+                </div>
+                <Badge variant="outline" className="text-[11px] border-primary/30 text-primary bg-primary/8">
                   {assignment.grading_method}
                 </Badge>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-muted-foreground mb-2">
-                Plagiarism Detection
-              </h3>{" "}
-              <div className="flex flex-wrap gap-2">
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Plagiarism Detection</p>
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-md bg-amber-500/10 flex items-center justify-center shrink-0">
+                  <ShieldCheck size={13} className="text-amber-600" />
+                </div>
                 <Badge
                   variant="outline"
-                  className="bg-orange-900/30 text-orange-400 border-orange-700"
+                  className={assignment.plagiarism_detection
+                    ? "text-[11px] border-amber-500/30 text-amber-600 bg-amber-500/8"
+                    : "text-[11px] text-muted-foreground"}
                 >
-                  {assignment.plagiarism_detection ? "On" : "Off"}
+                  {assignment.plagiarism_detection ? "Enabled" : "Disabled"}
                 </Badge>
               </div>
             </div>
           </div>
 
-          <Separator className="my-4 bg-muted" />
-
-          <div>
-            <h3 className="text-sm font-semibold text-muted-foreground mb-2">
-              Languages Allowed
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {assignment.languages.map((lang, idx) => (
-                <Badge
-                  key={idx}
-                  variant="outline"
-                  className="bg-green-900/30 text-green-400 border-green-700"
-                >
-                  {LANGUAGE_LABELS[lang.language.name]}
-                </Badge>
-              ))}
+          <div className="border-t border-border pt-5">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Languages Allowed</p>
+            <div className="flex items-start gap-2">
+              <div className="w-7 h-7 rounded-md bg-green-500/10 flex items-center justify-center shrink-0 mt-0.5">
+                <Code size={13} className="text-green-600" />
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {assignment.languages.map((lang, idx) => (
+                  <Badge
+                    key={idx}
+                    variant="outline"
+                    className="text-[11px] border-green-500/30 text-green-600 bg-green-500/8"
+                  >
+                    {LANGUAGE_LABELS[lang.language.name] ?? lang.language.name}
+                  </Badge>
+                ))}
+              </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };

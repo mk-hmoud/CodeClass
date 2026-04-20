@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { GraduationCap, Users, BookOpen, LayoutGrid } from "lucide-react";
 import ClassroomsSection from "@/components/instructor/dashboard/ClassroomSection";
+import ProblemsSection from "@/components/instructor/dashboard/ProblemsSection";
 import { getClassrooms } from "@/services/ClassroomService";
 import { getCurrentUser } from "@/services/AuthService";
 import { Classroom } from "@/types/Classroom";
@@ -90,12 +91,13 @@ const InstructorDashboard = () => {
       </div>
 
       {/* Main content */}
-      <div className="max-w-6xl mx-auto px-6 py-8">
+      <div className="max-w-6xl mx-auto px-6 py-8 space-y-6">
         <ClassroomsSection
           classrooms={classrooms}
           isLoading={isLoading}
           onRefetch={fetchClassrooms}
         />
+        <ProblemsSection />
       </div>
     </div>
   );

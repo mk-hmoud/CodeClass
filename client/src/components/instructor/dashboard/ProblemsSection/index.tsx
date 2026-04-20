@@ -1,34 +1,20 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import ProblemList from "./ProblemList";
-import { Book, ChevronDown, ChevronUp, Plus } from "lucide-react";
+import { BookOpen, Plus } from "lucide-react";
 import ProblemDetailDialog from "./ProblemDetailDialog";
 import { Problem } from "../../../../types/Problem";
 import { useProblems } from "@/hooks/use-problems";
 import { useNavigate } from "react-router-dom";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 
-interface ProblemsSectionProps {
-  activeTab: string;
-}
-
-const ProblemsSection = ({ activeTab }: ProblemsSectionProps) => {
+const ProblemsSection = () => {
   const navigate = useNavigate();
-  const { problems, setProblems, loading, error, update, remove } =
-    useProblems();
-  const [showProblems, setShowProblems] = useState(true);
+  const { problems, loading, error, update, remove } = useProblems();
   const [currentProblem, setCurrentProblem] = useState<Problem | null>(null);
   const [deleteProblemDialogOpen, setDeleteProblemDialogOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-
-  const toggleProblemsSection = () => {
-    setShowProblems(!showProblems);
-  };
-
-  const openNewProblemDialog = () => {
-    navigate("/instructor/problems/create");
-  };
 
   const handleViewProblem = (problem: Problem) => {
     setCurrentProblem(problem);
@@ -52,71 +38,72 @@ const ProblemsSection = ({ activeTab }: ProblemsSectionProps) => {
     try {
       await update(editedProblem);
       setDialogOpen(false);
-    } catch (error) {
-      console.error("Error updating problem:", error);
-    }
+    } catch {}
   };
 
   const handleDeleteProblem = async () => {
     try {
-      if (currentProblem?.problemId) {
-        await remove(currentProblem.problemId as number);
-      }
+      if (currentProblem?.problemId) await remove(currentProblem.problemId as number);
       setDeleteProblemDialogOpen(false);
-    } catch (error) {
-      console.error("Error deleting problem:", error);
-    }
+    } catch {}
   };
 
   return (
-    <div className="bg-background text-foreground rounded-lg border border-border p-6">
-      <div className="flex justify-between items-center mb-4">
+    <div className="bg-card border border-border rounded-xl overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 py-4 border-b border-border">
         <div className="flex items-center gap-2">
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <Book size={20} />
-            Problems
-          </h2>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleProblemsSection}
-            aria-label={showProblems ? "Hide problems" : "Show problems"}
-          >
-            {showProblems ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          </Button>
+          <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center">
+            <BookOpen size={14} className="text-primary" />
+          </div>
+          <h2 className="font-semibold text-sm">Problems</h2>
+          {!loading && (
+            <span className="text-xs text-muted-foreground bg-muted rounded-full px-2 py-0.5">
+              {problems.length}
+            </span>
+          )}
         </div>
-        <Button className="gap-2" onClick={() => openNewProblemDialog()}>
-          <Plus size={16} />
-          Create Problem
+        <Button size="sm" className="gap-1.5 h-8" onClick={() => navigate("/instructor/problems/create")}>
+          <Plus size={13} />
+          New Problem
         </Button>
       </div>
 
-      {loading && <div className="text-center py-8">Loading...</div>}
-      {error && <div className="text-center text-red-500 py-4">{error}</div>}
-
-      {showProblems && problems.length > 0 && (
-        <ProblemList
-          problems={problems}
-          onView={handleViewProblem}
-          onEdit={(problem, e) => {
-            e.stopPropagation();
-            handleEditProblem(problem);
-          }}
-          onDelete={confirmDeleteProblem}
-        />
-      )}
-
-      {showProblems && problems.length === 0 && (
-        <div className="text-center py-8 border border-dashed border-border rounded-lg bg-background">
-          <div className="bg-primary/10 rounded-full p-3 inline-flex mb-4">
-            <Book className="text-[#00b7ff]" size={24} />
+      {/* Body */}
+      <div className="p-4">
+        {loading && (
+          <div className="space-y-2">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-14 rounded-lg bg-muted animate-pulse" />
+            ))}
           </div>
-          <p className="text-muted-foreground mb-4">No problems found</p>
-          <Button onClick={() => openNewProblemDialog()}>
-            Create Your First Problem
-          </Button>
-        </div>
-      )}
+        )}
+
+        {!loading && error && (
+          <p className="text-sm text-destructive text-center py-6">{error}</p>
+        )}
+
+        {!loading && !error && problems.length === 0 && (
+          <div className="text-center py-10">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+              <BookOpen size={18} className="text-primary" />
+            </div>
+            <p className="text-sm text-muted-foreground mb-3">No problems yet</p>
+            <Button size="sm" onClick={() => navigate("/instructor/problems/create")}>
+              Create Your First Problem
+            </Button>
+          </div>
+        )}
+
+        {!loading && problems.length > 0 && (
+          <ProblemList
+            problems={problems}
+            onView={handleViewProblem}
+            onEdit={(problem, e) => { e.stopPropagation(); handleEditProblem(problem); }}
+            onDelete={confirmDeleteProblem}
+          />
+        )}
+      </div>
 
       <ProblemDetailDialog
         open={dialogOpen}
@@ -131,8 +118,8 @@ const ProblemsSection = ({ activeTab }: ProblemsSectionProps) => {
 
       <ConfirmDialog
         open={deleteProblemDialogOpen}
-        title="Confirm Problem Deletion"
-        description={`Are you sure you want to delete the problem "${currentProblem?.title}"? This action cannot be undone.`}
+        title="Delete Problem"
+        description={`Are you sure you want to delete "${currentProblem?.title}"? This cannot be undone.`}
         onCancel={() => setDeleteProblemDialogOpen(false)}
         onConfirm={handleDeleteProblem}
         confirmLabel="Delete"

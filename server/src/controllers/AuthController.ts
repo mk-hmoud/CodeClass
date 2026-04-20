@@ -1,6 +1,7 @@
 import logger from '../config/logger';
 import { RequestHandler } from 'express';
 import jwt from 'jsonwebtoken';
+import pool from '../config/db';
 import { createUser, findUserByEmail, findUserById, findUserByUsername, findOrCreateStudentByNumber, validateUserPassword } from '../models/AuthModel';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
@@ -165,6 +166,15 @@ export const studentAccess: RequestHandler = async (req, res) => {
     }
     const number = studentNumber.trim();
     const user = await findOrCreateStudentByNumber(number);
+
+    // Keep the student enrolled in any classrooms added since their last login
+    await pool.query(
+      `INSERT INTO classroom_enrollments (classroom_id, student_id)
+       SELECT classroom_id, $1 FROM classrooms
+       ON CONFLICT DO NOTHING`,
+      [user.role_id]
+    );
+
     const token = jwt.sign(
       { id: user.user_id, username: user.username, email: user.email, role: user.role, role_id: user.role_id },
       JWT_SECRET,

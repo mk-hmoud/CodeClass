@@ -288,9 +288,18 @@ export async function findOrCreateStudentByNumber(studentNumber: string): Promis
       `INSERT INTO students (user_id) VALUES ($1) RETURNING student_id as role_id`,
       [newUser.user_id]
     );
+    const studentId = studentResult.rows[0].role_id;
+
+    // Auto-enroll in every existing classroom
+    await client.query(
+      `INSERT INTO classroom_enrollments (classroom_id, student_id)
+       SELECT classroom_id, $1 FROM classrooms
+       ON CONFLICT DO NOTHING`,
+      [studentId]
+    );
 
     await client.query('COMMIT');
-    logger.info({ fn: functionName, studentNumber, userId: newUser.user_id }, `New student created: ${studentNumber}`);
+    logger.info({ fn: functionName, studentNumber, userId: newUser.user_id }, `New student created and enrolled in all classrooms: ${studentNumber}`);
 
     return {
       user_id: newUser.user_id,

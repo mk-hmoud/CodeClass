@@ -21,11 +21,11 @@ const AdminDashboard: React.FC = () => {
     loadUsers();
   }, []);
 
-  const handleDelete = async (id: number, username: string) => {
-    if (window.confirm(`Are you sure you want to delete user @${username}?`)) {
+  const handleDelete = async (id: number, email: string) => {
+    if (window.confirm(`Are you sure you want to delete user ${email}?`)) {
       const success = await deleteUser(id);
       if (success) {
-        toast.success(`User @${username} deleted successfully`);
+        toast.success(`User ${email} deleted successfully`);
         loadUsers();
       } else {
         toast.error("Failed to delete user");
@@ -70,7 +70,6 @@ const AdminDashboard: React.FC = () => {
               <table className="w-full text-sm text-left">
                 <thead className="bg-muted/50 text-muted-foreground">
                   <tr>
-                    <th className="px-4 py-3 font-medium">Username</th>
                     <th className="px-4 py-3 font-medium">Name</th>
                     <th className="px-4 py-3 font-medium">Email</th>
                     <th className="px-4 py-3 font-medium">Role</th>
@@ -80,8 +79,7 @@ const AdminDashboard: React.FC = () => {
                 <tbody className="divide-y">
                   {users.map((user) => (
                     <tr key={user.user_id} className="hover:bg-muted/50 transition-colors">
-                      <td className="px-4 py-3 font-medium">@{user.username}</td>
-                      <td className="px-4 py-3">{(user.first_name || '') + ' ' + (user.last_name || '')}</td>
+                      <td className="px-4 py-3 font-medium">{(user.first_name || '') + ' ' + (user.last_name || '')}</td>
                       <td className="px-4 py-3 text-muted-foreground">{user.email}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize
@@ -96,7 +94,7 @@ const AdminDashboard: React.FC = () => {
                           <Button 
                             variant="ghost" 
                             size="icon"
-                            onClick={() => handleDelete(user.user_id, user.username)}
+                            onClick={() => handleDelete(user.user_id, user.email)}
                             className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                             title="Delete user"
                           >

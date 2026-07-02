@@ -32,7 +32,7 @@ CREATE TABLE languages (
 
 CREATE TABLE users (
   user_id SERIAL PRIMARY KEY,
-  username VARCHAR(255) NOT NULL UNIQUE,
+
   password_hash TEXT NOT NULL,
   first_name VARCHAR(255),
   last_name VARCHAR(255),

@@ -36,7 +36,7 @@ const InstructorDashboard = () => {
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { user } = getCurrentUser();
-  const firstName = user?.firstName || user?.username || "Instructor";
+  const firstName = user?.firstName || user?.name?.split(' ')[0] || "Instructor";
 
   const fetchClassrooms = async () => {
     setIsLoading(true);

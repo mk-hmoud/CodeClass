@@ -138,7 +138,7 @@ const ClassroomCard = ({ classroom, index, onClick }: { classroom: Classroom; in
 const StudentDashboard = () => {
   const navigate = useNavigate();
   const { user } = getCurrentUser();
-  const displayName = user?.username ?? "there";
+  const displayName = user?.firstName || user?.name?.split(' ')[0] || "there";
 
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [deadlines, setDeadlines] = useState<any[]>([]);

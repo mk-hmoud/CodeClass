@@ -10,7 +10,6 @@ async function seedAdmin() {
   try {
     const password_hash = await bcrypt.hash('admin123', 10);
     const email = 'admin@codeclass.com';
-    const username = 'admin';
 
     await client.query('BEGIN');
 
@@ -24,11 +23,11 @@ async function seedAdmin() {
 
     // 2. Insert admin user
     const userRes = await client.query(`
-      INSERT INTO users (username, password_hash, first_name, last_name, email)
-      VALUES ($1, $2, $3, $4, $5)
-      ON CONFLICT (username) DO NOTHING
+      INSERT INTO users (password_hash, first_name, last_name, email)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (email) DO NOTHING
       RETURNING user_id
-    `, [username, password_hash, 'Admin', 'User', email]);
+    `, [password_hash, 'Admin', 'User', email]);
 
     if (userRes.rowCount === 0) {
       logger.info("Admin user already exists. Exiting.");

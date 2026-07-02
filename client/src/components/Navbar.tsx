@@ -22,7 +22,7 @@ const Navbar = () => {
   const { theme, toggleTheme } = useTheme();
 
   const { user } = getCurrentUser();
-  const displayName = user?.firstName || user?.username || "User";
+  const displayName = user?.firstName || user?.name || user?.email?.split('@')[0] || "User";
   const initial = displayName.charAt(0).toUpperCase();
 
   const dashboardPath = isAdminPath

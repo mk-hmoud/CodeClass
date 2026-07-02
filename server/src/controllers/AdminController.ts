@@ -1,6 +1,6 @@
 import logger from '../config/logger';
 import { RequestHandler } from 'express';
-import { createUser as createAuthUser, findUserByEmail, findUserByUsername } from '../models/AuthModel';
+import { createUser as createAuthUser, findUserByEmail } from '../models/AuthModel';
 import { getAllUsers as fetchAllUsers } from '../models/AdminModel';
 import { deleteUser as deleteUserModel } from '../models/UserModel';
 
@@ -8,7 +8,7 @@ export const createUser: RequestHandler = async (req, res) => {
   const functionName = "createUser(Admin)";
   logger.debug({ fn: functionName, body: req.body }, `Admin Create User request received`);
   try {
-    const { first_name, last_name, username, email, password, role } = req.body;
+    const { first_name, last_name, email, password, role } = req.body;
     if (!first_name || !email || !password || !role || !['instructor', 'student'].includes(role)) {
       res.status(400).json({
         success: false,
@@ -21,16 +21,11 @@ export const createUser: RequestHandler = async (req, res) => {
       res.status(409).json({ success: false, message: 'User with this email already exists' });
       return;
     }
-    const existingUsername = await findUserByUsername(username);
-    if (existingUsername) {
-      res.status(409).json({ success: false, message: 'Another user with this username already exists' });
-      return;
-    }
+    
     
     const newUser = await createAuthUser({
       first_name,
       last_name,
-      username,
       email,
       password,
       role,
@@ -41,7 +36,7 @@ export const createUser: RequestHandler = async (req, res) => {
       message: 'User created successfully',
       user: {
         id: newUser.user_id,
-        username: newUser.username,
+
         email: newUser.email,
         name: `${newUser.first_name || ''} ${newUser.last_name || ''}`.trim(),
         role: newUser.role,

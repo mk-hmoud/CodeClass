@@ -22,7 +22,6 @@ const AdminCreateUser: React.FC = () => {
   const navigate = useNavigate();
 
   const [name, setName] = useState("");
-  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -72,8 +71,6 @@ const AdminCreateUser: React.FC = () => {
 
   const validate = () => {
     if (!name.trim()) { setError("Full name is required"); return false; }
-    if (!username.trim()) { setError("Username is required"); return false; }
-    if (username.includes(" ")) { setError("Username cannot contain spaces"); return false; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError("Please enter a valid email address"); return false; }
     if (!password) { setError("Password is required"); return false; }
     if (!Object.values(strength).every(Boolean)) { setError("Password doesn't meet all requirements"); return false; }
@@ -88,7 +85,7 @@ const AdminCreateUser: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const result = await adminCreateUser({ name, username, email, password, role });
+      const result = await adminCreateUser({ name, email, password, role });
       if (result.success) {
         toast.success(result.message || "User created successfully!");
         navigate("/admin/dashboard");
@@ -171,15 +168,9 @@ const AdminCreateUser: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="name">Full Name</Label>
-                <Input id="name" placeholder="Jane Doe" value={name} onChange={e => setName(e.target.value)} disabled={isLoading} />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="username">Username</Label>
-                <Input id="username" placeholder="janedoe" value={username} onChange={e => setUsername(e.target.value)} disabled={isLoading} />
-              </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="name">Full Name</Label>
+              <Input id="name" placeholder="Jane Doe" value={name} onChange={e => setName(e.target.value)} disabled={isLoading} />
             </div>
 
             <div className="space-y-1.5">

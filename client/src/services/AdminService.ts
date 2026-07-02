@@ -5,7 +5,6 @@ export interface UserSummary {
   email: string;
   first_name: string | null;
   last_name: string | null;
-  username: string;
   role: 'admin' | 'instructor' | 'student';
   created_at: string;
 }
@@ -39,7 +38,6 @@ export const adminCreateUser = async (data: any): Promise<{ success: boolean; me
     const response = await apiClient.post('/admin/users', {
       first_name: firstName,
       last_name: lastName,
-      username: data.username,
       email: data.email,
       password: data.password,
       role: data.role,

@@ -42,7 +42,7 @@ const Profile = () => {
   const displayName =
     user.name ||
     [user.first_name, user.last_name].filter(Boolean).join(" ") ||
-    user.username;
+    user.email?.split('@')[0];
 
   const initial = displayName.charAt(0).toUpperCase();
   const joinedDate = user.iat
@@ -50,10 +50,10 @@ const Profile = () => {
     : null;
 
   const ACCENT_COLORS = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ef4444", "#06b6d4"];
-  const accent = ACCENT_COLORS[(user.username?.charCodeAt(0) ?? 0) % ACCENT_COLORS.length];
+  const accent = ACCENT_COLORS[(user.email?.charCodeAt(0) ?? 0) % ACCENT_COLORS.length];
 
   const INFO_ROWS = [
-    { icon: User, label: "Username", value: user.username },
+
     { icon: Mail, label: "Email", value: user.email },
     { icon: BadgeCheck, label: "Role", value: user.role, capitalize: true },
     ...(joinedDate ? [{ icon: Calendar, label: "Member since", value: joinedDate }] : []),

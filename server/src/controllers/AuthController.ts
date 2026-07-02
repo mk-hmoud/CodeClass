@@ -1,7 +1,7 @@
 import logger from '../config/logger';
 import { RequestHandler } from 'express';
 import jwt from 'jsonwebtoken';
-import { createUser, findUserByEmail, findUserById, findUserByUsername, validateUserPassword } from '../models/AuthModel';
+import { createUser, findUserByEmail, findUserById, validateUserPassword } from '../models/AuthModel';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
 const TOKEN_EXPIRY = '24h';
@@ -56,7 +56,6 @@ export const login: RequestHandler = async (req, res, next) => {
     const token = jwt.sign(
       {
         id: user.user_id,
-        username: user.username,
         email: user.email,
         role: user.role,
         role_id: user.role_id,
@@ -71,7 +70,6 @@ export const login: RequestHandler = async (req, res, next) => {
       token,
       user: {
         id: user.user_id,
-        username: user.username,
         email: user.email,
         name: `${user.first_name || ''} ${user.last_name || ''}`.trim(),
         role: user.role,
@@ -122,7 +120,6 @@ export const validateToken: RequestHandler = async (req, res, next) => {
       success: true,
       user: {
         id: user.user_id,
-        username: user.username,
         email: user.email,
         role: user.role,
         role_id: user.role_id,

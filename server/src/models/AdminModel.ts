@@ -6,7 +6,6 @@ export interface UserSummary {
   email: string;
   first_name: string | null;
   last_name: string | null;
-  username: string;
   role: 'admin' | 'instructor' | 'student';
   created_at: string;
 }
@@ -21,7 +20,6 @@ export async function getAllUsers(): Promise<UserSummary[]> {
         u.email, 
         u.first_name, 
         u.last_name,
-        u.username,
         u.created_at,
         COALESCE(
           (SELECT 'admin' FROM roles r JOIN user_roles ur ON r.role_id = ur.role_id WHERE ur.user_id = u.user_id AND r.role_name = 'admin' LIMIT 1),

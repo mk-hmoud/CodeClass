@@ -68,7 +68,7 @@ export const getAllUsers: RequestHandler = async (req, res) => {
 
 export const deleteUser: RequestHandler = async (req, res) => {
   try {
-    const userId = parseInt(req.params.id, 10);
+    const userId = parseInt(req.params.id as string, 10);
     if (isNaN(userId)) {
       res.status(400).json({ success: false, message: 'Invalid user ID' });
       return;

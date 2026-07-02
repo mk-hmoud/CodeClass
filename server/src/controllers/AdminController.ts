@@ -1,7 +1,7 @@
 import logger from '../config/logger';
 import { RequestHandler } from 'express';
 import { createUser as createAuthUser, findUserByEmail } from '../models/AuthModel';
-import { getAllUsers as fetchAllUsers } from '../models/AdminModel';
+import { getAllUsers as fetchAllUsers, getAllClassroomsAdmin, deleteClassroomAdmin, getPlatformAnalytics } from '../models/AdminModel';
 import { deleteUser as deleteUserModel } from '../models/UserModel';
 
 export const createUser: RequestHandler = async (req, res) => {
@@ -73,5 +73,40 @@ export const deleteUser: RequestHandler = async (req, res) => {
   } catch (error) {
     logger.error({ fn: 'deleteUser', error }, `Delete user error: ${error}`);
     res.status(500).json({ success: false, message: 'An error occurred while deleting user' });
+  }
+};
+
+export const getAllClassrooms: RequestHandler = async (req, res) => {
+  try {
+    const classrooms = await getAllClassroomsAdmin();
+    res.status(200).json({ success: true, classrooms });
+  } catch (error) {
+    logger.error({ fn: 'getAllClassrooms', error }, `Get all classrooms error: ${error}`);
+    res.status(500).json({ success: false, message: 'An error occurred while fetching classrooms' });
+  }
+};
+
+export const deleteClassroom: RequestHandler = async (req, res) => {
+  try {
+    const classroomId = parseInt(req.params.id as string, 10);
+    if (isNaN(classroomId)) {
+      res.status(400).json({ success: false, message: 'Invalid classroom ID' });
+      return;
+    }
+    await deleteClassroomAdmin(classroomId);
+    res.status(200).json({ success: true, message: 'Classroom deleted successfully' });
+  } catch (error) {
+    logger.error({ fn: 'deleteClassroom', error }, `Delete classroom error: ${error}`);
+    res.status(500).json({ success: false, message: 'An error occurred while deleting classroom' });
+  }
+};
+
+export const getAnalytics: RequestHandler = async (req, res) => {
+  try {
+    const analytics = await getPlatformAnalytics();
+    res.status(200).json({ success: true, analytics });
+  } catch (error) {
+    logger.error({ fn: 'getAnalytics', error }, `Get analytics error: ${error}`);
+    res.status(500).json({ success: false, message: 'An error occurred while fetching analytics' });
   }
 };

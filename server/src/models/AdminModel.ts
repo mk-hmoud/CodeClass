@@ -37,3 +37,42 @@ export async function getAllUsers(): Promise<UserSummary[]> {
     throw error;
   }
 }
+
+export async function getAllClassroomsAdmin() {
+  const query = `
+    SELECT 
+      c.classroom_id, 
+      c.classroom_name, 
+      c.classroom_code, 
+      c.status,
+      c.created_at,
+      u.email as instructor_email,
+      COALESCE(u.first_name, '') || ' ' || COALESCE(u.last_name, '') as instructor_name,
+      (SELECT COUNT(*) FROM classroom_enrollments ce WHERE ce.classroom_id = c.classroom_id) as student_count,
+      (SELECT COUNT(*) FROM assignments a WHERE a.classroom_id = c.classroom_id) as assignment_count
+    FROM classrooms c
+    JOIN instructors i ON c.instructor_id = i.instructor_id
+    JOIN users u ON i.user_id = u.user_id
+    ORDER BY c.created_at DESC
+  `;
+  const result = await pool.query(query);
+  return result.rows;
+}
+
+export async function deleteClassroomAdmin(classroomId: number) {
+  await pool.query('DELETE FROM classrooms WHERE classroom_id = $1', [classroomId]);
+}
+
+export async function getPlatformAnalytics() {
+  const users = await pool.query('SELECT COUNT(*) as count FROM users');
+  const classrooms = await pool.query('SELECT COUNT(*) as count FROM classrooms');
+  const submissions = await pool.query('SELECT COUNT(*) as count FROM submissions');
+  const activeClassrooms = await pool.query("SELECT COUNT(*) as count FROM classrooms WHERE status = 'active'");
+  
+  return {
+    totalUsers: parseInt(users.rows[0].count),
+    totalClassrooms: parseInt(classrooms.rows[0].count),
+    activeClassrooms: parseInt(activeClassrooms.rows[0].count),
+    totalSubmissions: parseInt(submissions.rows[0].count),
+  };
+}

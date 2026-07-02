@@ -55,3 +55,33 @@ export const adminCreateUser = async (data: any): Promise<{ success: boolean; me
     };
   }
 };
+
+export const fetchAllClassroomsAdmin = async () => {
+  try {
+    const response = await apiClient.get('/admin/classrooms');
+    return response.data.classrooms || [];
+  } catch (error) {
+    console.error("Fetch classrooms error:", error);
+    return [];
+  }
+};
+
+export const deleteClassroomAdmin = async (id: number): Promise<boolean> => {
+  try {
+    await apiClient.delete(`/admin/classrooms/${id}`);
+    return true;
+  } catch (error) {
+    console.error("Delete classroom error:", error);
+    return false;
+  }
+};
+
+export const fetchPlatformAnalytics = async () => {
+  try {
+    const response = await apiClient.get('/admin/analytics');
+    return response.data.analytics;
+  } catch (error) {
+    console.error("Fetch analytics error:", error);
+    return null;
+  }
+};

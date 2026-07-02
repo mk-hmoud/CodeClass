@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { GraduationCap, Users, BookOpen, LayoutGrid } from "lucide-react";
 import ClassroomsSection from "@/components/instructor/dashboard/ClassroomSection";
@@ -70,9 +72,18 @@ const InstructorDashboard = () => {
               <GraduationCap size={12} />
               Instructor Dashboard
             </motion.div>
-            <motion.h1 variants={fadeUp} custom={1} className="text-3xl font-bold tracking-tight mb-1">
-              {getGreeting()}, {firstName}
-            </motion.h1>
+            <div className="flex justify-between items-center mb-1">
+              <motion.h1 variants={fadeUp} custom={1} className="text-3xl font-bold tracking-tight">
+                {getGreeting()}, {firstName}
+              </motion.h1>
+              <motion.div variants={fadeUp} custom={1}>
+                <Link to="/instructor/problems/create">
+                  <Button variant="default" className="shadow-sm">
+                    Create New Problem
+                  </Button>
+                </Link>
+              </motion.div>
+            </div>
             <motion.p variants={fadeUp} custom={2} className="text-muted-foreground mb-8">
               {active.length > 0
                 ? `You have ${active.length} active classroom${active.length !== 1 ? "s" : ""} with ${totalStudents} student${totalStudents !== 1 ? "s" : ""} enrolled.`

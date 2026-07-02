@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { GraduationCap, Users, BookOpen, LayoutGrid } from "lucide-react";
+import { GraduationCap, Users, BookOpen, LayoutGrid, FolderOpen } from "lucide-react";
 import ClassroomsSection from "@/components/instructor/dashboard/ClassroomSection";
+import ProblemsSection from "@/components/instructor/dashboard/ProblemsSection";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getClassrooms } from "@/services/ClassroomService";
 import { getCurrentUser } from "@/services/AuthService";
 import { Classroom } from "@/types/Classroom";
@@ -77,11 +79,6 @@ const InstructorDashboard = () => {
                 {getGreeting()}, {firstName}
               </motion.h1>
               <motion.div variants={fadeUp} custom={1}>
-                <Link to="/instructor/problems/create">
-                  <Button variant="default" className="shadow-sm">
-                    Create New Problem
-                  </Button>
-                </Link>
               </motion.div>
             </div>
             <motion.p variants={fadeUp} custom={2} className="text-muted-foreground mb-8">
@@ -102,11 +99,30 @@ const InstructorDashboard = () => {
 
       {/* Main content */}
       <div className="max-w-6xl mx-auto px-6 py-8">
-        <ClassroomsSection
-          classrooms={classrooms}
-          isLoading={isLoading}
-          onRefetch={fetchClassrooms}
-        />
+        <Tabs defaultValue="classrooms" className="space-y-6">
+          <TabsList className="bg-muted/50 p-1">
+            <TabsTrigger value="classrooms" className="gap-2">
+              <FolderOpen size={16} />
+              My Classrooms
+            </TabsTrigger>
+            <TabsTrigger value="problems" className="gap-2">
+              <BookOpen size={16} />
+              Problem Library
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="classrooms" className="m-0">
+            <ClassroomsSection
+              classrooms={classrooms}
+              isLoading={isLoading}
+              onRefetch={fetchClassrooms}
+            />
+          </TabsContent>
+          
+          <TabsContent value="problems" className="m-0">
+            <ProblemsSection activeTab="problems" />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

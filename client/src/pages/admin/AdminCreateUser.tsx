@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ArrowLeft, Check, Eye, EyeOff, UserPlus, X, GraduationCap } from "lucide-react";
+import { ArrowLeft, Check, Eye, EyeOff, UserPlus, X, GraduationCap, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -47,6 +47,27 @@ const AdminCreateUser: React.FC = () => {
   const triggerShake = () => {
     setShake(true);
     setTimeout(() => setShake(false), 600);
+  };
+
+  const generateRandomPassword = () => {
+    const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=";
+    let pwd = "";
+    // Ensure requirements
+    pwd += "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[Math.floor(Math.random() * 26)];
+    pwd += "abcdefghijklmnopqrstuvwxyz"[Math.floor(Math.random() * 26)];
+    pwd += "0123456789"[Math.floor(Math.random() * 10)];
+    pwd += "!@#$%^&*()_+-="[Math.floor(Math.random() * 14)];
+    
+    for (let i = 0; i < 8; i++) {
+      pwd += chars[Math.floor(Math.random() * chars.length)];
+    }
+    
+    pwd = pwd.split('').sort(() => 0.5 - Math.random()).join('');
+    
+    setPassword(pwd);
+    setConfirmPassword(pwd);
+    setShowPassword(true);
+    toast.success("Random password generated!");
   };
 
   const validate = () => {
@@ -167,7 +188,17 @@ const AdminCreateUser: React.FC = () => {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="password">Password</Label>
+              <div className="flex justify-between items-center">
+                <Label htmlFor="password">Password</Label>
+                <button
+                  type="button"
+                  onClick={generateRandomPassword}
+                  className="text-xs text-primary font-medium hover:text-primary/80 transition-colors flex items-center gap-1"
+                >
+                  <Wand2 size={12} />
+                  Generate
+                </button>
+              </div>
               <div className="relative">
                 <Input
                   id="password"

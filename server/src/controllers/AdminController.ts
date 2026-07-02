@@ -3,6 +3,7 @@ import { RequestHandler } from 'express';
 import { createUser as createAuthUser, findUserByEmail } from '../models/AuthModel';
 import { getAllUsers as fetchAllUsers, getAllClassroomsAdmin, deleteClassroomAdmin, getPlatformAnalytics } from '../models/AdminModel';
 import { deleteUser as deleteUserModel } from '../models/UserModel';
+import bcrypt from 'bcrypt';
 
 export const createUser: RequestHandler = async (req, res) => {
   const functionName = "createUser(Admin)";
@@ -108,5 +109,26 @@ export const getAnalytics: RequestHandler = async (req, res) => {
   } catch (error) {
     logger.error({ fn: 'getAnalytics', error }, `Get analytics error: ${error}`);
     res.status(500).json({ success: false, message: 'An error occurred while fetching analytics' });
+  }
+};
+
+export const changeUserPassword: RequestHandler = async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id as string, 10);
+    const { newPassword } = req.body;
+    
+    if (isNaN(userId) || !newPassword) {
+      res.status(400).json({ success: false, message: 'Invalid user ID or missing password' });
+      return;
+    }
+    
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const { updateUserPassword } = await import('../models/AdminModel');
+    await updateUserPassword(userId, passwordHash);
+    
+    res.status(200).json({ success: true, message: 'Password updated successfully' });
+  } catch (error) {
+    logger.error({ fn: 'changeUserPassword', error }, `Change password error: ${error}`);
+    res.status(500).json({ success: false, message: 'An error occurred while changing password' });
   }
 };

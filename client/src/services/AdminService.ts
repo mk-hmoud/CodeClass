@@ -85,3 +85,19 @@ export const fetchPlatformAnalytics = async () => {
     return null;
   }
 };
+
+export const adminChangeUserPassword = async (userId: number, newPassword: string): Promise<{ success: boolean; message: string }> => {
+  try {
+    const response = await apiClient.put(`/admin/users/${userId}/password`, { newPassword });
+    return {
+      success: true,
+      message: response.data.message || "Password successfully changed",
+    };
+  } catch (error: any) {
+    console.error("Change password error:", error);
+    return {
+      success: false,
+      message: error.response?.data?.message || "Network error occurred",
+    };
+  }
+};

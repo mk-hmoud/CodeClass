@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { fetchAllUsers, deleteUser, UserSummary, fetchAllClassroomsAdmin, deleteClassroomAdmin, fetchPlatformAnalytics } from "@/services/AdminService";
+import { fetchAllUsers, deleteUser, UserSummary, fetchAllClassroomsAdmin, deleteClassroomAdmin, fetchPlatformAnalytics, adminChangeUserPassword } from "@/services/AdminService";
 import { Button } from "@/components/ui/button";
-import { Trash2, PlusCircle, UserCog, BookOpen, BarChart, Settings, Users as UsersIcon } from "lucide-react";
+import { Trash2, PlusCircle, UserCog, BookOpen, BarChart, Settings, Users as UsersIcon, Key } from "lucide-react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -51,6 +51,22 @@ const AdminDashboard: React.FC = () => {
         loadData();
       } else {
         toast.error("Failed to delete classroom");
+      }
+    }
+  };
+
+  const handleChangePassword = async (id: number, email: string) => {
+    const newPassword = window.prompt(`Enter a new password for ${email}:\n(Note: You cannot view their current password because it is securely hashed)`);
+    if (newPassword) {
+      if (newPassword.length < 6) {
+        toast.error("Password must be at least 6 characters long.");
+        return;
+      }
+      const response = await adminChangeUserPassword(id, newPassword);
+      if (response.success) {
+        toast.success(`Password for ${email} has been changed.`);
+      } else {
+        toast.error(response.message);
       }
     }
   };
@@ -121,15 +137,26 @@ const AdminDashboard: React.FC = () => {
                           </td>
                           <td className="px-4 py-3 text-right">
                             {user.role !== 'admin' && (
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                onClick={() => handleDelete(user.user_id, user.email)}
-                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                title="Delete user"
-                              >
-                                <Trash2 size={16} />
-                              </Button>
+                              <div className="flex justify-end gap-1">
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  onClick={() => handleChangePassword(user.user_id, user.email)}
+                                  className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-600/10"
+                                  title="Change Password"
+                                >
+                                  <Key size={16} />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  onClick={() => handleDelete(user.user_id, user.email)}
+                                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  title="Delete user"
+                                >
+                                  <Trash2 size={16} />
+                                </Button>
+                              </div>
                             )}
                           </td>
                         </tr>

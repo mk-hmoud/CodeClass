@@ -76,3 +76,7 @@ export async function getPlatformAnalytics() {
     totalSubmissions: parseInt(submissions.rows[0].count),
   };
 }
+
+export async function updateUserPassword(userId: number, passwordHash: string) {
+  await pool.query('UPDATE users SET password_hash = $1 WHERE user_id = $2', [passwordHash, userId]);
+}

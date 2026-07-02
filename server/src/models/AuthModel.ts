@@ -114,17 +114,20 @@ export async function findUserByEmail(email: string): Promise<UserWithPassword |
         u.last_name,
         u.password_hash,
         COALESCE(
+          (SELECT 'admin' FROM roles r JOIN user_roles ur ON r.role_id = ur.role_id WHERE ur.user_id = u.user_id AND r.role_name = 'admin' LIMIT 1),
           (SELECT 'instructor' FROM instructors WHERE user_id = u.user_id), 
           'student'
         ) as role,
         COALESCE(
+          (SELECT ur.role_id FROM roles r JOIN user_roles ur ON r.role_id = ur.role_id WHERE ur.user_id = u.user_id AND r.role_name = 'admin' LIMIT 1),
           (SELECT instructor_id FROM instructors WHERE user_id = u.user_id),
           (SELECT student_id FROM students WHERE user_id = u.user_id)
         ) as role_id
       FROM users u
       WHERE u.email = $1
       AND (
-        EXISTS (SELECT 1 FROM instructors WHERE user_id = u.user_id)
+        EXISTS (SELECT 1 FROM roles r JOIN user_roles ur ON r.role_id = ur.role_id WHERE ur.user_id = u.user_id AND r.role_name = 'admin')
+        OR EXISTS (SELECT 1 FROM instructors WHERE user_id = u.user_id)
         OR EXISTS (SELECT 1 FROM students WHERE user_id = u.user_id)
       )
     `;
@@ -157,17 +160,20 @@ export async function findUserById(userId: number): Promise<User | null> {
         u.first_name, 
         u.last_name,
         COALESCE(
+          (SELECT 'admin' FROM roles r JOIN user_roles ur ON r.role_id = ur.role_id WHERE ur.user_id = u.user_id AND r.role_name = 'admin' LIMIT 1),
           (SELECT 'instructor' FROM instructors WHERE user_id = u.user_id), 
           'student'
         ) as role,
         COALESCE(
+          (SELECT ur.role_id FROM roles r JOIN user_roles ur ON r.role_id = ur.role_id WHERE ur.user_id = u.user_id AND r.role_name = 'admin' LIMIT 1),
           (SELECT instructor_id FROM instructors WHERE user_id = u.user_id),
           (SELECT student_id FROM students WHERE user_id = u.user_id)
         ) as role_id
       FROM users u
       WHERE u.user_id = $1
       AND (
-        EXISTS (SELECT 1 FROM instructors WHERE user_id = u.user_id)
+        EXISTS (SELECT 1 FROM roles r JOIN user_roles ur ON r.role_id = ur.role_id WHERE ur.user_id = u.user_id AND r.role_name = 'admin')
+        OR EXISTS (SELECT 1 FROM instructors WHERE user_id = u.user_id)
         OR EXISTS (SELECT 1 FROM students WHERE user_id = u.user_id)
       )
     `;
@@ -205,17 +211,20 @@ export async function findUserByUsername(username: string): Promise<UserWithPass
         u.last_name,
         u.password_hash,
         COALESCE(
+          (SELECT 'admin' FROM roles r JOIN user_roles ur ON r.role_id = ur.role_id WHERE ur.user_id = u.user_id AND r.role_name = 'admin' LIMIT 1),
           (SELECT 'instructor' FROM instructors WHERE user_id = u.user_id), 
           'student'
         ) as role,
         COALESCE(
+          (SELECT ur.role_id FROM roles r JOIN user_roles ur ON r.role_id = ur.role_id WHERE ur.user_id = u.user_id AND r.role_name = 'admin' LIMIT 1),
           (SELECT instructor_id FROM instructors WHERE user_id = u.user_id),
           (SELECT student_id FROM students WHERE user_id = u.user_id)
         ) as role_id
       FROM users u
       WHERE u.username = $1
       AND (
-        EXISTS (SELECT 1 FROM instructors WHERE user_id = u.user_id)
+        EXISTS (SELECT 1 FROM roles r JOIN user_roles ur ON r.role_id = ur.role_id WHERE ur.user_id = u.user_id AND r.role_name = 'admin')
+        OR EXISTS (SELECT 1 FROM instructors WHERE user_id = u.user_id)
         OR EXISTS (SELECT 1 FROM students WHERE user_id = u.user_id)
       )
     `;

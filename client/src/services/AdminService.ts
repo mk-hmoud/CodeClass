@@ -1,0 +1,59 @@
+import apiClient from './APIclient';
+
+export interface UserSummary {
+  user_id: number;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  username: string;
+  role: 'admin' | 'instructor' | 'student';
+  created_at: string;
+}
+
+export const fetchAllUsers = async (): Promise<UserSummary[]> => {
+  try {
+    const response = await apiClient.get('/admin/users');
+    return response.data.users || [];
+  } catch (error) {
+    console.error("Fetch users error:", error);
+    return [];
+  }
+};
+
+export const deleteUser = async (userId: number): Promise<boolean> => {
+  try {
+    await apiClient.delete(`/admin/users/${userId}`);
+    return true;
+  } catch (error) {
+    console.error("Delete user error:", error);
+    return false;
+  }
+};
+
+export const adminCreateUser = async (data: any): Promise<{ success: boolean; message: string }> => {
+  try {
+    const nameParts = data.name.trim().split(' ');
+    const firstName = nameParts[0];
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+
+    const response = await apiClient.post('/admin/users', {
+      first_name: firstName,
+      last_name: lastName,
+      username: data.username,
+      email: data.email,
+      password: data.password,
+      role: data.role,
+    });
+
+    return {
+      success: true,
+      message: response.data.message || "User successfully created",
+    };
+  } catch (error: any) {
+    console.error("Admin create user error:", error);
+    return {
+      success: false,
+      message: error.response?.data?.message || "Network error occurred",
+    };
+  }
+};

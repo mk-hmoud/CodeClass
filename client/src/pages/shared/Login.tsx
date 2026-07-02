@@ -45,7 +45,7 @@ const Login = () => {
       const result = await loginUser({ email, password });
       if (result.success) {
         toast.success("Welcome back!");
-        navigate(result.user.role === "instructor" ? "/instructor/dashboard" : "/student/dashboard");
+        navigate(result.user.role === "admin" ? "/admin/dashboard" : result.user.role === "instructor" ? "/instructor/dashboard" : "/student/dashboard");
       } else {
         setError(result.message);
         triggerShake();
@@ -151,10 +151,7 @@ const Login = () => {
           </form>
 
           <div className="mt-5 text-center text-sm text-muted-foreground">
-            Don't have an account?{" "}
-            <Link to="/signup" className="text-primary font-medium hover:text-primary/80 transition-colors">
-              Sign up
-            </Link>
+            {/* Sign up link removed per admin flow */}
           </div>
         </div>
 

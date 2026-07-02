@@ -6,6 +6,7 @@ import AssignmentRoutes from './routes/AssignmentRoutes';
 import QuizRoutes from './routes/QuizRoutes';
 import LanguageRoutes from './routes/LanguageRoutes';
 import AuthRoutes from './routes/AuthRoutes';
+import AdminRoutes from './routes/AdminRoutes';
 import JudgeRoutes from './routes/JudgeRoutes';
 import SubmissionRoutes from './routes/SubmissionRoutes';
 import ExportRoutes from './routes/ExportRoutes';
@@ -34,6 +35,8 @@ app.use('/api/quizzes', QuizRoutes);
 app.use('/api/problems', ProblemRoutes);
 
 app.use('/api/auth', AuthRoutes);
+
+app.use('/api/admin', AdminRoutes);
 
 app.use('/api/language', LanguageRoutes);
 

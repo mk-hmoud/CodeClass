@@ -6,7 +6,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/shared/Home";
 import Login from "./pages/shared/Login";
-import Signup from "./pages/shared/Signup";
 import NotFound from "./pages/shared/NotFound";
 import Profile from "./pages/shared/Profile";
 
@@ -29,6 +28,10 @@ import CodeEditor from "@/pages/student/CodeEditorPage";
 import QuizTakingPage from "./pages/student/QuizTakingPage";
 import QuizResultsPage from "./pages/student/QuizResultsPage";
 
+import AdminLayout from "./layouts/AdminLayout";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminCreateUser from "./pages/admin/AdminCreateUser";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -42,8 +45,13 @@ const App = () => (
           {/* Shared Routes */}
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
           <Route path="/profile" element={<Profile />} />
+
+          {/* Admin Routes */}
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="users/create" element={<AdminCreateUser />} />
+          </Route>
 
           {/* Instructor Routes */}
           <Route path="/instructor" element={<InstructorLayout />}>

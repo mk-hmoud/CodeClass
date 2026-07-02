@@ -4,13 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ArrowLeft, Check, Eye, EyeOff, UserPlus, X, Sun, Moon, GraduationCap } from "lucide-react";
+import { ArrowLeft, Check, Eye, EyeOff, UserPlus, X, GraduationCap } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { signupUser } from "@/services/AuthService";
-import Logo from "@/components/Logo";
-import { useTheme } from "@/contexts/ThemeContext";
+import { adminCreateUser } from "@/services/AdminService";
 
 const PASSWORD_REQS = [
   { id: "length",    text: "At least 8 characters",    regex: /.{8,}/ },
@@ -20,8 +18,7 @@ const PASSWORD_REQS = [
   { id: "special",   text: "Special character",         regex: /[!@#$%^&*(),.?":{}|<>]/ },
 ];
 
-const Signup = () => {
-  const { theme, toggleTheme } = useTheme();
+const AdminCreateUser: React.FC = () => {
   const navigate = useNavigate();
 
   const [name, setName] = useState("");
@@ -63,17 +60,17 @@ const Signup = () => {
     return true;
   };
 
-  const handleSignup = async (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     if (!validate()) { triggerShake(); return; }
 
     setIsLoading(true);
     try {
-      const result = await signupUser({ name, username, email, password, role });
+      const result = await adminCreateUser({ name, username, email, password, role });
       if (result.success) {
-        toast.success(result.message || "Account created successfully!");
-        navigate("/login");
+        toast.success(result.message || "User created successfully!");
+        navigate("/admin/dashboard");
       } else {
         setError(result.message);
         triggerShake();
@@ -93,33 +90,22 @@ const Signup = () => {
     passwordStrengthCount === 4 ? "bg-yellow-400" : "bg-green-500";
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 relative">
-      {/* Background */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl translate-x-1/2 -translate-y-1/2" />
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl -translate-x-1/2 translate-y-1/2" />
-      </div>
-
-      <div className="absolute top-4 right-4 z-10">
-        <Button variant="ghost" size="icon" onClick={toggleTheme} className="h-8 w-8">
-          {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-        </Button>
-      </div>
-
+    <div className="flex-1 flex flex-col items-center justify-center p-4">
       <motion.div
         className="w-full max-w-md relative z-10"
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <div className="flex justify-center mb-8">
-          <Link to="/"><Logo /></Link>
-        </div>
-
         <div className={cn("bg-card border border-border rounded-2xl p-8 shadow-sm", shake && "animate-shake")}>
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold mb-1">Create an account</h1>
-            <p className="text-sm text-muted-foreground">Sign up to start using CodeClass</p>
+          <div className="mb-6 flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-bold mb-1">Create User</h1>
+              <p className="text-sm text-muted-foreground">Add a new student or instructor</p>
+            </div>
+            <Link to="/admin/dashboard" className="text-sm text-muted-foreground hover:text-foreground">
+              <Button variant="ghost" size="icon"><X size={18} /></Button>
+            </Link>
           </div>
 
           {error && (
@@ -128,10 +114,10 @@ const Signup = () => {
             </Alert>
           )}
 
-          <form onSubmit={handleSignup} className="space-y-4">
+          <form onSubmit={handleCreate} className="space-y-4">
             {/* Role selector */}
             <div className="space-y-1.5">
-              <Label>I am a</Label>
+              <Label>Role</Label>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
@@ -250,31 +236,17 @@ const Signup = () => {
               )}
             </div>
 
-            <Button type="submit" className="w-full gap-2" disabled={isLoading}>
+            <Button type="submit" className="w-full gap-2 mt-6" disabled={isLoading}>
               {isLoading
                 ? <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                 : <UserPlus size={16} />}
-              {isLoading ? "Creating account…" : "Create account"}
+              {isLoading ? "Creating user…" : "Create User"}
             </Button>
           </form>
-
-          <div className="mt-5 text-center text-sm text-muted-foreground">
-            Already have an account?{" "}
-            <Link to="/login" className="text-primary font-medium hover:text-primary/80 transition-colors">
-              Sign in
-            </Link>
-          </div>
-        </div>
-
-        <div className="mt-4 text-center">
-          <Link to="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1">
-            <ArrowLeft size={13} />
-            Back to home
-          </Link>
         </div>
       </motion.div>
     </div>
   );
 };
 
-export default Signup;
+export default AdminCreateUser;

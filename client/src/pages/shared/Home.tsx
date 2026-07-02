@@ -64,7 +64,7 @@ const Home = () => {
       const result = await loginUser({ email, password });
       if (result.success) {
         toast.success("Welcome back!");
-        navigate(result.user.role === "instructor" ? "/instructor/dashboard" : "/student/dashboard");
+        navigate(result.user.role === "admin" ? "/admin/dashboard" : result.user.role === "instructor" ? "/instructor/dashboard" : "/student/dashboard");
       } else {
         setError(result.message);
         triggerShake();
@@ -225,10 +225,7 @@ const Home = () => {
           </form>
 
           <div className="mt-6 text-center text-sm text-muted-foreground">
-            New to CodeClass?{" "}
-            <Link to="/signup" className="text-primary font-medium hover:text-primary/80 transition-colors inline-flex items-center gap-0.5">
-              Create an account <ArrowRight size={13} />
-            </Link>
+            {/* Sign up link removed per admin flow */}
           </div>
 
           <p className="text-center text-xs text-muted-foreground mt-10">

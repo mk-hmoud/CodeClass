@@ -17,14 +17,17 @@ const Navbar = () => {
   const navigate = useNavigate();
   const isInstructorPath = location.pathname.includes("/instructor");
   const isStudentPath = location.pathname.includes("/student");
-  const loggedIn = isInstructorPath || isStudentPath || isAuthenticated();
+  const isAdminPath = location.pathname.includes("/admin");
+  const loggedIn = isAdminPath || isInstructorPath || isStudentPath || isAuthenticated();
   const { theme, toggleTheme } = useTheme();
 
   const { user } = getCurrentUser();
   const displayName = user?.firstName || user?.username || "User";
   const initial = displayName.charAt(0).toUpperCase();
 
-  const dashboardPath = isInstructorPath
+  const dashboardPath = isAdminPath
+    ? "/admin/dashboard"
+    : isInstructorPath
     ? "/instructor/dashboard"
     : "/student/dashboard";
 
@@ -59,9 +62,6 @@ const Navbar = () => {
             <div className="flex items-center gap-2 ml-1">
               <Link to="/login">
                 <Button variant="ghost" size="sm">Log in</Button>
-              </Link>
-              <Link to="/signup">
-                <Button size="sm">Get Started</Button>
               </Link>
             </div>
           ) : (

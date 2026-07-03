@@ -57,8 +57,8 @@ const InstructorDashboard = () => {
   useEffect(() => { fetchClassrooms(); }, []);
 
   const active = classrooms.filter(c => c.status !== "archived");
-  const totalStudents = classrooms.reduce((s, c) => s + (c.students_num ?? 0), 0);
-  const totalAssignments = classrooms.reduce((s, c) => s + (c.totalAssignments ?? 0), 0);
+  const totalStudents = classrooms.reduce((s, c) => s + Number(c.students_num || 0), 0);
+  const totalAssignments = classrooms.reduce((s, c) => s + Number(c.totalAssignments || 0), 0);
 
   return (
     <div className="min-h-screen bg-background">

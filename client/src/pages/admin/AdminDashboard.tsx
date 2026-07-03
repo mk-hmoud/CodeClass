@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
-import { fetchAllUsers, deleteUser, UserSummary, fetchAllClassroomsAdmin, deleteClassroomAdmin, fetchPlatformAnalytics, adminChangeUserPassword } from "@/services/AdminService";
+import { fetchAllUsers, deleteUser, UserSummary, fetchAllClassroomsAdmin, deleteClassroomAdmin, fetchPlatformAnalytics, adminChangeUserPassword, adminBulkCreateUsers } from "@/services/AdminService";
 import { Button } from "@/components/ui/button";
-import { Trash2, PlusCircle, UserCog, BookOpen, BarChart, Settings, Users as UsersIcon, Key } from "lucide-react";
+import { Trash2, PlusCircle, UserCog, BookOpen, BarChart, Settings, Users as UsersIcon, Key, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -13,6 +13,7 @@ const AdminDashboard: React.FC = () => {
   const [analytics, setAnalytics] = useState<any>(null);
   const [maintenance, setMaintenance] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -71,6 +72,53 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target?.result as string;
+        const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        
+        const headers = lines[0].toLowerCase().split(',');
+        
+        if (!headers.includes('first_name') || !headers.includes('last_name') || !headers.includes('student_number')) {
+          toast.error("Invalid CSV format. Header must be exactly: first_name,last_name,student_number");
+          return;
+        }
+
+        const students = lines.slice(1).map(line => {
+          const values = line.split(',');
+          const student: any = {};
+          headers.forEach((h, i) => { student[h.trim()] = values[i]?.trim(); });
+          return student;
+        }).filter(s => s.first_name && s.last_name && s.student_number);
+
+        if (students.length === 0) {
+          toast.error("No valid student data found in CSV");
+          return;
+        }
+
+        setIsLoading(true);
+        const response = await adminBulkCreateUsers(students);
+        if (response.success) {
+          toast.success(response.message);
+          loadData();
+        } else {
+          toast.error(response.message);
+        }
+      } catch (error) {
+        toast.error("Failed to parse CSV file");
+      } finally {
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        setIsLoading(false);
+      }
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <div className="container mx-auto p-6 max-w-6xl">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
@@ -78,12 +126,25 @@ const AdminDashboard: React.FC = () => {
           <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
           <p className="text-muted-foreground mt-1">Manage users and platform settings</p>
         </div>
-        <Link to="/admin/users/create">
-          <Button className="gap-2">
-            <PlusCircle size={16} />
-            Create User
+        <div className="flex gap-2">
+          <input 
+            type="file" 
+            accept=".csv" 
+            ref={fileInputRef} 
+            className="hidden" 
+            onChange={handleFileUpload}
+          />
+          <Button variant="outline" className="gap-2" onClick={() => fileInputRef.current?.click()}>
+            <Upload size={16} />
+            Import CSV
           </Button>
-        </Link>
+          <Link to="/admin/users/create">
+            <Button className="gap-2">
+              <PlusCircle size={16} />
+              Create User
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <Tabs defaultValue="users" className="space-y-6">

@@ -101,3 +101,19 @@ export const adminChangeUserPassword = async (userId: number, newPassword: strin
     };
   }
 };
+
+export const adminBulkCreateUsers = async (students: any[]): Promise<{ success: boolean; message: string }> => {
+  try {
+    const response = await apiClient.post('/admin/users/bulk', { students });
+    return {
+      success: true,
+      message: response.data.message || "Bulk import successful",
+    };
+  } catch (error: any) {
+    console.error("Admin bulk create users error:", error);
+    return {
+      success: false,
+      message: error.response?.data?.message || "Network error occurred during bulk import",
+    };
+  }
+};

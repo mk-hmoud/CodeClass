@@ -132,3 +132,41 @@ export const changeUserPassword: RequestHandler = async (req, res) => {
     res.status(500).json({ success: false, message: 'An error occurred while changing password' });
   }
 };
+
+export const bulkCreateUsers: RequestHandler = async (req, res) => {
+  try {
+    const { students } = req.body;
+    if (!students || !Array.isArray(students)) {
+      res.status(400).json({ success: false, message: 'Invalid data format. Expected an array of students.' });
+      return;
+    }
+
+    const { bulkCreateStudents } = await import('../models/AdminModel');
+    const processedStudents = [];
+    
+    for (const student of students) {
+      if (!student.first_name || !student.last_name || !student.student_number) continue;
+      
+      const email = `${student.student_number}@eul.edu.tr`;
+      const passwordHash = await bcrypt.hash('eul12345', 10);
+      
+      processedStudents.push({
+        email,
+        passwordHash,
+        firstName: student.first_name,
+        lastName: student.last_name
+      });
+    }
+
+    if (processedStudents.length === 0) {
+      res.status(400).json({ success: false, message: 'No valid students found to import.' });
+      return;
+    }
+
+    const result = await bulkCreateStudents(processedStudents);
+    res.status(200).json({ success: true, message: `Import complete. Imported: ${result.imported}, Skipped duplicates: ${result.skipped}` });
+  } catch (error) {
+    logger.error({ fn: 'bulkCreateUsers', error }, `Bulk create users error: ${error}`);
+    res.status(500).json({ success: false, message: 'An error occurred during bulk import.' });
+  }
+};

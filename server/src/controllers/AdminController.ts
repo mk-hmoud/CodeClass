@@ -170,3 +170,26 @@ export const bulkCreateUsers: RequestHandler = async (req, res) => {
     res.status(500).json({ success: false, message: 'An error occurred during bulk import.' });
   }
 };
+
+export const bulkEnrollStudents: RequestHandler = async (req, res) => {
+  try {
+    const classroomId = parseInt(req.params.id as string, 10);
+    const { emails } = req.body;
+    
+    if (isNaN(classroomId) || !emails || !Array.isArray(emails)) {
+      res.status(400).json({ success: false, message: 'Invalid data format or classroom ID.' });
+      return;
+    }
+
+    const { bulkEnrollToClassroom } = await import('../models/AdminModel');
+    const result = await bulkEnrollToClassroom(classroomId, emails);
+    
+    res.status(200).json({ 
+      success: true, 
+      message: `Enrollment complete. Enrolled: ${result.enrolled}. Skipped/Not Found: ${result.notFound}` 
+    });
+  } catch (error) {
+    logger.error({ fn: 'bulkEnrollStudents', error }, `Bulk enroll students error: ${error}`);
+    res.status(500).json({ success: false, message: 'An error occurred during bulk enrollment.' });
+  }
+};

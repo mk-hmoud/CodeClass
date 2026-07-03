@@ -126,3 +126,47 @@ export async function bulkCreateStudents(students: { email: string, passwordHash
     client.release();
   }
 }
+
+export async function bulkEnrollToClassroom(classroomId: number, emails: string[]): Promise<{ enrolled: number, notFound: number }> {
+  if (emails.length === 0) return { enrolled: 0, notFound: 0 };
+  
+  const client = await pool.connect();
+  let enrolled = 0;
+  let notFound = 0;
+  
+  try {
+    const studentsRes = await client.query(`
+      SELECT s.student_id, u.email 
+      FROM students s 
+      JOIN users u ON s.user_id = u.user_id 
+      WHERE u.email = ANY($1)
+    `, [emails]);
+    
+    const foundEmails = new Set(studentsRes.rows.map(r => r.email));
+    notFound = emails.length - foundEmails.size;
+    
+    if (studentsRes.rows.length > 0) {
+      await client.query('BEGIN');
+      
+      for (const row of studentsRes.rows) {
+        const result = await client.query(`
+          INSERT INTO classroom_enrollments (classroom_id, student_id) 
+          VALUES ($1, $2) ON CONFLICT (classroom_id, student_id) DO NOTHING RETURNING enrollment_id
+        `, [classroomId, row.student_id]);
+        
+        if (result.rows.length > 0) {
+          enrolled++;
+        }
+      }
+      
+      await client.query('COMMIT');
+    }
+    
+    return { enrolled, notFound };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}

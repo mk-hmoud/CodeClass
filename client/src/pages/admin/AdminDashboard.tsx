@@ -1,11 +1,14 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
-import { fetchAllUsers, deleteUser, UserSummary, fetchAllClassroomsAdmin, deleteClassroomAdmin, fetchPlatformAnalytics, adminChangeUserPassword, adminBulkCreateUsers } from "@/services/AdminService";
+import { fetchAllUsers, deleteUser, UserSummary, fetchAllClassroomsAdmin, deleteClassroomAdmin, fetchPlatformAnalytics, adminChangeUserPassword, adminBulkCreateUsers, adminBulkEnrollStudents } from "@/services/AdminService";
 import { Button } from "@/components/ui/button";
-import { Trash2, PlusCircle, UserCog, BookOpen, BarChart, Settings, Users as UsersIcon, Key, Upload } from "lucide-react";
+import { Trash2, PlusCircle, UserCog, BookOpen, BarChart, Settings, Users as UsersIcon, Key, Upload, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const AdminDashboard: React.FC = () => {
   const [users, setUsers] = useState<UserSummary[]>([]);
@@ -14,6 +17,11 @@ const AdminDashboard: React.FC = () => {
   const [maintenance, setMaintenance] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const [enrollModalOpen, setEnrollModalOpen] = useState(false);
+  const [selectedClassroomForEnroll, setSelectedClassroomForEnroll] = useState<number | null>(null);
+  const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
+  const [studentSearch, setStudentSearch] = useState("");
 
   const loadData = async () => {
     setIsLoading(true);
@@ -117,6 +125,32 @@ const AdminDashboard: React.FC = () => {
       }
     };
     reader.readAsText(file);
+  };
+
+  const triggerEnrollModal = (classroomId: number) => {
+    setSelectedClassroomForEnroll(classroomId);
+    setSelectedStudents(new Set());
+    setStudentSearch("");
+    setEnrollModalOpen(true);
+  };
+
+  const submitEnrollment = async () => {
+    if (!selectedClassroomForEnroll || selectedStudents.size === 0) {
+      toast.error("Please select at least one student");
+      return;
+    }
+    
+    setIsLoading(true);
+    const emails = Array.from(selectedStudents);
+    const response = await adminBulkEnrollStudents(selectedClassroomForEnroll, emails);
+    if (response.success) {
+      toast.success(response.message);
+      setEnrollModalOpen(false);
+      loadData();
+    } else {
+      toast.error(response.message);
+    }
+    setIsLoading(false);
   };
 
   return (
@@ -278,15 +312,26 @@ const AdminDashboard: React.FC = () => {
                             </span>
                           </td>
                           <td className="px-4 py-3 text-right">
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              onClick={() => handleDeleteClassroom(c.classroom_id, c.classroom_name)}
-                              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              title="Delete classroom"
-                            >
-                              <Trash2 size={16} />
-                            </Button>
+                            <div className="flex justify-end gap-1">
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={() => triggerEnrollModal(c.classroom_id)}
+                                className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-600/10"
+                                title="Enroll Students"
+                              >
+                                <UserPlus size={16} />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={() => handleDeleteClassroom(c.classroom_id, c.classroom_name)}
+                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                title="Delete classroom"
+                              >
+                                <Trash2 size={16} />
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -362,6 +407,50 @@ const AdminDashboard: React.FC = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={enrollModalOpen} onOpenChange={setEnrollModalOpen}>
+        <DialogContent className="sm:max-w-md max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Enroll Students</DialogTitle>
+            <DialogDescription>
+              Select students to enroll in this classroom.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden flex flex-col gap-4 py-4">
+            <Input 
+              placeholder="Search students..." 
+              value={studentSearch} 
+              onChange={e => setStudentSearch(e.target.value)}
+            />
+            <div className="flex-1 overflow-y-auto border rounded-md p-2 space-y-2 max-h-[40vh]">
+              {users.filter(u => u.role === 'student' && (u.email.includes(studentSearch) || u.first_name?.toLowerCase().includes(studentSearch.toLowerCase()) || u.last_name?.toLowerCase().includes(studentSearch.toLowerCase()))).map(student => (
+                <div key={student.user_id} className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded-md">
+                  <Checkbox 
+                    id={`student-${student.user_id}`}
+                    checked={selectedStudents.has(student.email)}
+                    onCheckedChange={(checked) => {
+                      const newSet = new Set(selectedStudents);
+                      if (checked) newSet.add(student.email);
+                      else newSet.delete(student.email);
+                      setSelectedStudents(newSet);
+                    }}
+                  />
+                  <label htmlFor={`student-${student.user_id}`} className="flex-1 cursor-pointer text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    {student.first_name} {student.last_name} <span className="text-muted-foreground font-normal">({student.email})</span>
+                  </label>
+                </div>
+              ))}
+              {users.filter(u => u.role === 'student').length === 0 && (
+                <div className="text-center text-muted-foreground py-4">No students found.</div>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEnrollModalOpen(false)}>Cancel</Button>
+            <Button onClick={submitEnrollment}>Enroll {selectedStudents.size} Students</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

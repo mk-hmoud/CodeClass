@@ -117,3 +117,19 @@ export const adminBulkCreateUsers = async (students: any[]): Promise<{ success: 
     };
   }
 };
+
+export const adminBulkEnrollStudents = async (classroomId: number, emails: string[]): Promise<{ success: boolean; message: string }> => {
+  try {
+    const response = await apiClient.post(`/admin/classrooms/${classroomId}/enroll-bulk`, { emails });
+    return {
+      success: true,
+      message: response.data.message || "Bulk enrollment successful",
+    };
+  } catch (error: any) {
+    console.error("Admin bulk enroll students error:", error);
+    return {
+      success: false,
+      message: error.response?.data?.message || "Network error occurred during bulk enrollment",
+    };
+  }
+};

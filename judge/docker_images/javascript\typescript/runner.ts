@@ -157,7 +157,8 @@ async function main() {
         if (rawInput.includes(',')) {
           args = rawInput.split(',').map(part => part.trim()).filter(Boolean);
         } else {
-          args = rawInput.split(' ').filter(Boolean);
+          // split on any whitespace (spaces, tabs, newlines)
+          args = rawInput.split(/\s+/).filter(Boolean);
         }
       }
       

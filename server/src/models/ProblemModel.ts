@@ -8,16 +8,17 @@ export const createProblem = async (
   data: ProblemCreationData
 ): Promise<{ problemId: number }> => {
   const functionName = "createProblem";
+  const client = await pool.connect();
   try {
     logger.info({ functionName }, "Beginning transaction for problem creation.");
-    await pool.query("BEGIN");
+    await client.query("BEGIN");
 
     const insertProblemQuery = `
       INSERT INTO problems (instructor_id, title, description, category, prerequisites, learning_outcomes, tags)
       VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING problem_id
     `;
-    const result = await pool.query(insertProblemQuery, [
+    const result = await client.query(insertProblemQuery, [
       data.instructorId,
       data.title,
       data.description,
@@ -35,7 +36,7 @@ export const createProblem = async (
         VALUES ($1, $2, $3, $4)
       `;
       for (const tc of data.testCases) {
-        await pool.query(insertTestCaseQuery, [
+        await client.query(insertTestCaseQuery, [
           problemId,
           tc.input || null,
           tc.expectedOutput,
@@ -48,15 +49,17 @@ export const createProblem = async (
       );
     }
 
-    await pool.query("COMMIT");
+    await client.query("COMMIT");
     return { problemId };
   } catch (error) {
-    await pool.query("ROLLBACK");
+    await client.query("ROLLBACK");
     logger.error(
       { functionName, error },
       `Transaction rolled back due to error: ${error}`
     );
     throw error;
+  } finally {
+    client.release();
   }
 };
 

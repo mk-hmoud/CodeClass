@@ -1211,19 +1211,20 @@ export class AssignmentStatisticsService {
     );
   
     try {
+      const client = await pool.connect();
       try {
-        await pool.query('BEGIN');
+        await client.query('BEGIN');
         logger.debug(
           { function: fn, assignmentId },
           'Transaction started'
         );
-  
+
         logger.debug(
           { function: fn, assignmentId },
           'Querying total submissions and distinct submitters'
         );
-  
-        const totalSubmissionsResult = await pool.query(
+
+        const totalSubmissionsResult = await client.query(
           'SELECT COUNT(*) as total FROM submissions WHERE assignment_id = $1',
           [assignmentId]
         );
@@ -1231,8 +1232,8 @@ export class AssignmentStatisticsService {
           totalSubmissionsResult.rows[0].total,
           10
         );
-  
-        const distinctSubmittersResult = await pool.query(
+
+        const distinctSubmittersResult = await client.query(
           'SELECT COUNT(DISTINCT student_id) as distinct_count FROM submissions WHERE assignment_id = $1',
           [assignmentId]
         );
@@ -1240,9 +1241,9 @@ export class AssignmentStatisticsService {
           distinctSubmittersResult.rows[0].distinct_count,
           10
         );
-  
+
         const snapshotTime = new Date().toISOString();
-  
+
         logger.debug(
           {
             function: fn,
@@ -1253,32 +1254,34 @@ export class AssignmentStatisticsService {
           },
           'Updating basic statistics in database'
         );
-  
-        await pool.query(
+
+        await client.query(
           `
-          INSERT INTO assignment_statistics 
+          INSERT INTO assignment_statistics
             (assignment_id, snapshot_time, total_submissions, distinct_submitters)
           VALUES ($1, $2, $3, $4)
-          ON CONFLICT (assignment_id, snapshot_time) 
-          DO UPDATE SET 
+          ON CONFLICT (assignment_id, snapshot_time)
+          DO UPDATE SET
             total_submissions = $3,
             distinct_submitters = $4
         `,
           [assignmentId, snapshotTime, totalSubmissions, distinctSubmitters]
         );
-  
-        await pool.query('COMMIT');
+
+        await client.query('COMMIT');
         logger.debug(
           { function: fn, assignmentId },
           'Transaction committed for basic statistics'
         );
       } catch (error) {
-        await pool.query('ROLLBACK');
+        await client.query('ROLLBACK');
         logger.error(
           { function: fn, assignmentId, error },
           'Transaction rolled back while calculating basic statistics'
         );
         throw error;
+      } finally {
+        client.release();
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
@@ -1304,21 +1307,22 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
     );
     
     try {
+      const client = await pool.connect();
       try {
-        await pool.query('BEGIN');
+        await client.query('BEGIN');
         logger.debug(
           { function: fn, assignmentId },
           'Transaction started'
         );
-        
+
         const snapshotTime = new Date().toISOString();
         logger.debug(
           { function: fn, assignmentId, snapshotTime },
           'Snapshot timestamp selected'
         );
-        
+
         // Basic statistics
-        const totalSubmissionsResult = await pool.query(
+        const totalSubmissionsResult = await client.query(
           'SELECT COUNT(*) as total FROM submissions WHERE assignment_id = $1',
           [assignmentId]
         );
@@ -1327,9 +1331,9 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
           { function: fn, assignmentId, totalSubmissions },
           'Computed total submissions'
         );
-        
-        
-        const distinctSubmittersResult = await pool.query(
+
+
+        const distinctSubmittersResult = await client.query(
           'SELECT COUNT(DISTINCT student_id) as distinct_count FROM submissions WHERE assignment_id = $1',
           [assignmentId]
         );
@@ -1338,37 +1342,37 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
           { function: fn, assignmentId, distinctSubmitters },
           'Computed distinct submitters'
         );
-        
+
         // Score statistics are now handled in a separate function
-        const scoreStatsResult = await pool.query(`
-          SELECT 
+        const scoreStatsResult = await client.query(`
+          SELECT
             COALESCE(AVG(final_score), 0) as average_score,
             COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY final_score), 0) as median_score
-          FROM submissions 
+          FROM submissions
           WHERE assignment_id = $1 AND final_score IS NOT NULL
         `, [assignmentId]);
-        
+
         const averageScore = scoreStatsResult.rows[0].average_score;
         const medianScore = scoreStatsResult.rows[0].median_score;
-        
+
         // Score distribution
         const scoreDistribution: ScoreDistributionBucket[] = [];
         for (const bucket of SCORE_BUCKETS) {
-          const bucketResult = await pool.query(`
+          const bucketResult = await client.query(`
             SELECT COUNT(*) as count
             FROM submissions
-            WHERE assignment_id = $1 AND final_score IS NOT NULL 
+            WHERE assignment_id = $1 AND final_score IS NOT NULL
               AND final_score >= $2 AND final_score <= $3
           `, [assignmentId, bucket.start, bucket.end]);
-          
+
           const count = parseInt(bucketResult.rows[0].count, 10);
           scoreDistribution.push({
             bucketStart: bucket.start,
             bucketEnd: bucket.end,
             count
           });
-          
-          await pool.query(`
+
+          await client.query(`
             INSERT INTO assignment_score_distribution
               (assignment_id, snapshot_time, bucket_start, bucket_end, count)
             VALUES ($1, $2, $3, $4, $5)
@@ -1376,10 +1380,10 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
             DO UPDATE SET count = $5
           `, [assignmentId, snapshotTime, bucket.start, bucket.end, count]);
         }
-        
+
         // Attempts distribution
-        const attemptsResult = await pool.query(`
-          SELECT 
+        const attemptsResult = await client.query(`
+          SELECT
             AVG(submission_count) as avg_attempts,
             PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY submission_count) as median_attempts,
             MAX(submission_count) as max_attempts
@@ -1390,7 +1394,7 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
             GROUP BY student_id
           ) as student_attempts
         `, [assignmentId]);
-        
+
         const attemptsDistribution: AttemptsDistribution = {
           avgAttempts: parseFloat(attemptsResult.rows[0].avg_attempts) || 0,
           medianAttempts: parseInt(attemptsResult.rows[0].median_attempts, 10) || 0,
@@ -1406,36 +1410,36 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
           },
           'Computed attempts distribution'
         );
-        
-        await pool.query(`
+
+        await client.query(`
           INSERT INTO assignment_attempts_distribution
             (assignment_id, snapshot_time, avg_attempts, median_attempts, max_attempts)
           VALUES ($1, $2, $3, $4, $5)
           ON CONFLICT (assignment_id, snapshot_time)
-          DO UPDATE SET 
+          DO UPDATE SET
             avg_attempts = $3,
             median_attempts = $4,
             max_attempts = $5
         `, [
-          assignmentId, 
-          snapshotTime, 
+          assignmentId,
+          snapshotTime,
           attemptsDistribution.avgAttempts,
           attemptsDistribution.medianAttempts,
           attemptsDistribution.maxAttempts
         ]);
-        
+
         // Runtime statistics
-        const runtimeResult = await pool.query(`
+        const runtimeResult = await client.query(`
           WITH submission_runtimes AS (
-            SELECT 
+            SELECT
               s.submission_id,
               AVG(sr.execution_time_ms) as avg_runtime
             FROM submissions s
             JOIN submission_results sr ON s.submission_id = sr.submission_id
             WHERE s.assignment_id = $1 AND sr.execution_time_ms IS NOT NULL
-            GROUP BY s.submission_id 
+            GROUP BY s.submission_id
           )
-          SELECT 
+          SELECT
             AVG(avg_runtime) as average_runtime,
             MIN(avg_runtime) as min_runtime,
             PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY avg_runtime) as p25_runtime,
@@ -1444,7 +1448,7 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
             MAX(avg_runtime) as max_runtime
           FROM submission_runtimes
         `, [assignmentId]);
-        
+
         const raw = runtimeResult.rows[0]
         const averageRuntimeMs = Math.round(Number(raw.average_runtime));
         const runtimeDistribution: RuntimeDistribution = {
@@ -1454,7 +1458,7 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
           percentile75Ms:  Math.round(Number(raw.p75_runtime)),
           maxRuntimeMs:    Math.round(Number(raw.max_runtime)),
         };
-        
+
         logger.debug(
           {
             function: fn,
@@ -1465,33 +1469,33 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
           },
           'Computed runtime statistics'
         );
-        
-        await pool.query(`
+
+        await client.query(`
           INSERT INTO assignment_runtime_distribution
-            (assignment_id, snapshot_time, min_runtime_ms, percentile_25_ms, 
+            (assignment_id, snapshot_time, min_runtime_ms, percentile_25_ms,
             median_runtime_ms, percentile_75_ms, max_runtime_ms)
           VALUES ($1, $2, $3, $4, $5, $6, $7)
           ON CONFLICT (assignment_id, snapshot_time)
-          DO UPDATE SET 
+          DO UPDATE SET
             min_runtime_ms = $3,
             percentile_25_ms = $4,
             median_runtime_ms = $5,
             percentile_75_ms = $6,
             max_runtime_ms = $7
         `, [
-          assignmentId, 
-          snapshotTime, 
+          assignmentId,
+          snapshotTime,
           runtimeDistribution.minRuntimeMs,
           runtimeDistribution.percentile25Ms,
           runtimeDistribution.medianRuntimeMs,
           runtimeDistribution.percentile75Ms,
           runtimeDistribution.maxRuntimeMs
         ]);
-        
+
         // Test pass rates
-        const testPassRatesResult = await pool.query(`
+        const testPassRatesResult = await client.query(`
           WITH test_results AS (
-            SELECT 
+            SELECT
               sr.test_case_id,
               pt.is_public,
               sr.passed,
@@ -1502,17 +1506,17 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
             WHERE s.assignment_id = $1
             GROUP BY sr.test_case_id, pt.is_public, sr.passed
           )
-          SELECT 
+          SELECT
             is_public,
             SUM(CASE WHEN passed THEN total_count ELSE 0 END) as passed_count,
             SUM(total_count) as total_count
           FROM test_results
           GROUP BY is_public
         `, [assignmentId]);
-        
+
         let publicTestPassRate = null;
         let privateTestPassRate = null;
-        
+
         for (const row of testPassRatesResult.rows) {
           const passRate = (row.passed_count / row.total_count) * 100;
           if (row.is_public) {
@@ -1530,12 +1534,12 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
           },
           'Computed test pass rates'
         );
-        
-        
+
+
         // Plagiarism statistics
-        const plagiarismResult = await pool.query(`
+        const plagiarismResult = await client.query(`
           WITH submission_plagiarism AS (
-            SELECT 
+            SELECT
               s.submission_id,
               CASE WHEN pr.similarity IS NOT NULL AND pr.similarity >= 75 THEN 1 ELSE 0 END as is_flagged,
               pr.similarity
@@ -1543,18 +1547,18 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
             LEFT JOIN plagiarism_reports pr ON s.submission_id = pr.submission_id
             WHERE s.assignment_id = $1
           )
-          SELECT 
+          SELECT
             COUNT(*) as total_submissions,
             SUM(is_flagged) as flagged_submissions,
             AVG(CASE WHEN is_flagged = 1 THEN similarity ELSE NULL END) as avg_similarity,
             MAX(CASE WHEN is_flagged = 1 THEN similarity ELSE NULL END) as max_similarity
           FROM submission_plagiarism
         `, [assignmentId]);
-        
-        const plagiarismRate = plagiarismResult.rows[0].total_submissions > 0 
+
+        const plagiarismRate = plagiarismResult.rows[0].total_submissions > 0
           ? (plagiarismResult.rows[0].flagged_submissions / plagiarismResult.rows[0].total_submissions) * 100
           : null;
-        
+
         const maxSimilarity = plagiarismResult.rows[0].max_similarity;
         const avgSimilarity = plagiarismResult.rows[0].avg_similarity;
         logger.debug(
@@ -1567,16 +1571,16 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
           },
           'Computed plagiarism statistics'
         );
-        
+
         // Runtime error rate
-        const runtimeErrorResult = await pool.query(`
-          SELECT 
+        const runtimeErrorResult = await client.query(`
+          SELECT
             COUNT(*) as total_submissions,
             SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END) as error_submissions
           FROM submissions
           WHERE assignment_id = $1
         `, [assignmentId]);
-        
+
         const runtimeErrorRate = runtimeErrorResult.rows[0].total_submissions > 0
           ? (runtimeErrorResult.rows[0].error_submissions / runtimeErrorResult.rows[0].total_submissions) * 100
           : null;
@@ -1588,9 +1592,9 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
             },
             'Computed runtime error rate'
           );
-        
+
         // Update main statistics
-        await pool.query(`
+        await client.query(`
           INSERT INTO assignment_statistics
             (assignment_id, snapshot_time, total_submissions, distinct_submitters,
             average_score, median_score, average_runtime_ms,
@@ -1626,14 +1630,14 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
           avgSimilarity,
           runtimeErrorRate
         ]);
-        
-        await pool.query('COMMIT');
-        
+
+        await client.query('COMMIT');
+
         logger.debug(
           { function: fn, assignmentId },
           'Transaction committed'
         );
-        
+
         // Construct full statistics object
         logger.debug(
           { function: fn, assignmentId },
@@ -1662,20 +1666,22 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
           avgSimilarity,
           runtimeErrorRate
         };
-        
+
         logger.info(
           { function: fn, assignmentId },
           'Completed calculating all statistics'
         );
         return stats;
       } catch (error) {
-        await pool.query('ROLLBACK');
+        await client.query('ROLLBACK');
         const msg = error instanceof Error ? error.message : String(error);
         logger.error(
           { function: fn, assignmentId, error },
           `Error calculating statistics: ${msg}`
         );
         throw error;
+      } finally {
+        client.release();
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';

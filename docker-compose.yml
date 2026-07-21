@@ -63,6 +63,12 @@ services:
     environment:
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      # Worker thread count for the judge's internal pool -- see main.cpp.
+      # Default (unset) is 4x host cores; each concurrent worker spawns a
+      # docker container, which has real host-side overhead beyond the
+      # sandbox's own --cpus limit, so this needs tuning per host rather
+      # than left at the aggressive default.
+      JUDGE_THREADS: 8
     volumes:
       # Docker-out-of-Docker: share the host Docker socket so the judge
       # can spawn sandbox containers (judge-py, judge-cpp, judge-js) on the host

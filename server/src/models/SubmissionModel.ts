@@ -537,6 +537,9 @@ export function saveSubmissionResults(
           );
           throw err;
         })
+        .finally(() => {
+          client.release();
+        });
     })
     .catch((err) => {
       return Promise.reject(err);

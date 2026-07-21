@@ -150,9 +150,19 @@ def main():
 
             results.append(result)
 
+    passed_tests = sum(1 for r in results if r["status"] == "passed")
+    total_tests = len(results)
+    total_runtime = sum(r["executionTime"] or 0 for r in results)
+    average_runtime = total_runtime // total_tests if total_tests > 0 else 0
+
     verdict = {
       "status": "completed",
-      "testResults": results
+      "testResults": results,
+      "metrics": {
+        "passedTests": passed_tests,
+        "totalTests": total_tests,
+        "averageRuntime": average_runtime
+      }
     }
     print(json.dumps(verdict))
 

@@ -190,6 +190,16 @@ export const getSubmissionsFingerprintsByAssignment = async (assignmentId: numbe
   }
 };
 
+export async function getSubmissionStatus(
+  submissionId: number
+): Promise<string | null> {
+  const { rows } = await pool.query<{ status: string }>(
+    `SELECT status FROM submissions WHERE submission_id = $1`,
+    [submissionId]
+  );
+  return rows[0]?.status ?? null;
+}
+
 export function updateSubmissionStatus(
   submissionId: number,
   status: string

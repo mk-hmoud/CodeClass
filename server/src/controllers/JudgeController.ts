@@ -6,7 +6,7 @@ import { nanoid } from 'nanoid';
 import redisClient from '../config/redis';
 import { JudgeVerdict, TestCase, TestResult } from '../types';
 import { getAssignmentTestCases } from '../models/ProblemModel';
-import { createSubmission, getSubmissionById, saveSubmissionResults, updateSubmissionStatus } from '../models/SubmissionModel';
+import { createSubmission, getSubmissionById, getSubmissionStatus, saveSubmissionResults, updateSubmissionStatus } from '../models/SubmissionModel';
 import { runPlagiarismCheck } from './PlagiarismController';
 import { systemEventEmitter } from '../services/statistics/emitter'; 
 import { SubmissionCompletedEvent, SubmissionCreatedEvent } from '../services/statistics/events';
@@ -467,6 +467,18 @@ export const getSubmitStatusHandler = async (
         averageRuntime: avgRuntime,
       },
     };
+
+    const currentStatus = await getSubmissionStatus(submissionId);
+    if (currentStatus === "completed" || currentStatus === "error") {
+      // A previous poll already ran grading/plagiarism/statistics for this
+      // submission -- just return the verdict, don't repeat that work.
+      logger.debug(
+        { fn, submissionId, currentStatus },
+        "Submission already fully processed by an earlier poll; skipping grading/plagiarism/statistics side effects"
+      );
+      res.status(200).json(verdict);
+      return;
+    }
 
     updateSubmissionStatus(submissionId, "completed");
     console.log(verdict);

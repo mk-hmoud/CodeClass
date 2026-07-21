@@ -33,6 +33,11 @@ interface InputData {
 interface Verdict {
   status: string;
   testResults?: TestResult[];
+  metrics?: {
+    passedTests: number;
+    totalTests: number;
+    averageRuntime: number;
+  };
   error?: {
     errorType: string;
     errorMessage: string;
@@ -243,11 +248,21 @@ async function main() {
       results.push(result);
     }
     
+    const passedTests = results.filter(r => r.status === "passed").length;
+    const totalTests = results.length;
+    const totalRuntime = results.reduce((sum, r) => sum + (r.executionTime || 0), 0);
+    const averageRuntime = totalTests > 0 ? Math.floor(totalRuntime / totalTests) : 0;
+
     const verdict: Verdict = {
       status: "completed",
-      testResults: results
+      testResults: results,
+      metrics: {
+        passedTests,
+        totalTests,
+        averageRuntime
+      }
     };
-    
+
     console.log(JSON.stringify(verdict));
     
   } catch (e) {

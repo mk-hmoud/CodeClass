@@ -48,7 +48,11 @@ def main():
     with TemporaryDirectory() as tmpdir:
         code_file = Path(tmpdir) / 'submission.py'
         code_file.write_text(data['code'])
-        
+
+        library_code = data.get('libraryCode')
+        if library_code:
+            (Path(tmpdir) / 'lib.py').write_text(library_code)
+
         syntax_check = subprocess.run(
             ['python3', '-m', 'py_compile', str(code_file)],
             capture_output=True,

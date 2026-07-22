@@ -37,6 +37,7 @@ export interface AssignmentCreationData {
   plagiarism_detection: boolean;
   publish_date?: Date | string;
   due_date?: Date | string;
+  libraryId?: number;
   languages: Array<{
     languageId: number;
     initial_code?: string;

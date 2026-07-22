@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { GraduationCap, Users, BookOpen, LayoutGrid, FolderOpen } from "lucide-react";
+import { GraduationCap, Users, BookOpen, LayoutGrid, FolderOpen, Library as LibraryIcon } from "lucide-react";
 import ClassroomsSection from "@/components/instructor/dashboard/ClassroomSection";
 import ProblemsSection from "@/components/instructor/dashboard/ProblemsSection";
+import LibrariesSection from "@/components/instructor/dashboard/LibrariesSection";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getClassrooms } from "@/services/ClassroomService";
 import { getCurrentUser } from "@/services/AuthService";
@@ -109,8 +110,12 @@ const InstructorDashboard = () => {
               <BookOpen size={16} />
               Problem Library
             </TabsTrigger>
+            <TabsTrigger value="libraries" className="gap-2">
+              <LibraryIcon size={16} />
+              Code Libraries
+            </TabsTrigger>
           </TabsList>
-          
+
           <TabsContent value="classrooms" className="m-0">
             <ClassroomsSection
               classrooms={classrooms}
@@ -118,9 +123,13 @@ const InstructorDashboard = () => {
               onRefetch={fetchClassrooms}
             />
           </TabsContent>
-          
+
           <TabsContent value="problems" className="m-0">
             <ProblemsSection activeTab="problems" />
+          </TabsContent>
+
+          <TabsContent value="libraries" className="m-0">
+            <LibrariesSection />
           </TabsContent>
         </Tabs>
       </div>

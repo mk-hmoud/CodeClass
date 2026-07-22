@@ -23,8 +23,9 @@ export const createAssignment = async (
         max_submissions,
         plagiarism_detection,
         publish_date,
-        due_date
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+        due_date,
+        library_id
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
       RETURNING assignment_id, title, description
     `;
     const {
@@ -41,6 +42,7 @@ export const createAssignment = async (
       assignment.plagiarism_detection,
       assignment.publish_date || null,
       assignment.due_date || null,
+      assignment.libraryId ?? null,
     ]);
 
     const assignmentId: number = inserted.assignment_id;

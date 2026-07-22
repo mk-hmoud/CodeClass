@@ -137,6 +137,28 @@ CREATE TABLE assignment_languages_pairs (
   UNIQUE (assignment_id, language_id)
 );
 
+CREATE TABLE libraries (
+  library_id SERIAL PRIMARY KEY,
+  instructor_id INT NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (instructor_id) REFERENCES instructors(instructor_id) ON DELETE CASCADE
+);
+
+CREATE TABLE library_files (
+  library_file_id SERIAL PRIMARY KEY,
+  library_id INT NOT NULL,
+  language_id INT NOT NULL,
+  content TEXT NOT NULL,
+  FOREIGN KEY (library_id) REFERENCES libraries(library_id) ON DELETE CASCADE,
+  FOREIGN KEY (language_id) REFERENCES languages(language_id) ON DELETE CASCADE,
+  UNIQUE (library_id, language_id)
+);
+
+ALTER TABLE assignments
+  ADD COLUMN library_id INT REFERENCES libraries(library_id) ON DELETE SET NULL;
+
 CREATE TABLE submissions (
   submission_id   SERIAL PRIMARY KEY,
   student_id      INT NOT NULL REFERENCES students(student_id) ON DELETE CASCADE,

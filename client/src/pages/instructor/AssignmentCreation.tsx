@@ -51,6 +51,7 @@ const CreateAssignmentPage: React.FC = () => {
     resolver: zodResolver(formSchema),
     defaultValues: {
       problemId: "",
+      libraryId: "",
       title: "",
       description: "",
       difficulty_level: "Medium",
@@ -175,6 +176,7 @@ const CreateAssignmentPage: React.FC = () => {
       plagiarism_detection: formData.plagiarism_detection,
       publish_date: publishDate,
       due_date: dueDate,
+      libraryId: formData.libraryId ? Number(formData.libraryId) : undefined,
       languages: selectedLanguages.map((lang) => ({
         languageId: languages?.find((l) => l.name === lang)?.language_id || 0,
         initial_code: codeByLanguage[lang] || "",

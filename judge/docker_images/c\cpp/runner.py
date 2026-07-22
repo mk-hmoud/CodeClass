@@ -32,6 +32,11 @@ def main():
         with open(source_path, 'w') as f:
             f.write(code)
 
+        library_code = data.get('libraryCode')
+        if library_code:
+            with open(os.path.join(tmpdir, 'lib.h'), 'w') as f:
+                f.write(library_code)
+
         # Compile
         # compile_result = subprocess.run(
         #     ['g++', '-std=c++17', '-Wall', '-Wextra', '-O2', '-o', exe_path, source_path],

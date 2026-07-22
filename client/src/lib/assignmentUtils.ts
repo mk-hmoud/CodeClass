@@ -18,6 +18,7 @@ export const languageDefaultCode: Record<string, string> = {
 
 export const formSchema = z.object({
   problemId: z.string().min(1, "You must select a problem"),
+  libraryId: z.string().optional(),
   title: z.string().optional(),
   description: z.string().optional(),
   difficulty_level: z.enum(['Easy', 'Medium', 'Hard']),

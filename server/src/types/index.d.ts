@@ -61,6 +61,27 @@ export interface ProblemCreationData {
   testCases: TestCase[];
 }
 
+export interface LibraryFile {
+  languageId: number;
+  content: string;
+}
+
+export interface Library {
+  libraryId: number;
+  instructorId: number;
+  name: string;
+  description?: string;
+  created_at?: Date;
+  files: LibraryFile[];
+}
+
+export interface LibraryCreationData {
+  instructorId: number;
+  name: string;
+  description?: string;
+  files: LibraryFile[];
+}
+
 export type AssignmentStatus = 'not_published' | 'active' | 'expired';
 
 export interface Assignment {
@@ -98,6 +119,7 @@ export interface AssignmentCreationData{
   plagiarism_detection: boolean;
   publish_date?: Date;
   due_date?: Date;
+  libraryId?: number;
   languages?: Array<{
     languageId: number;
     initial_code?: string;

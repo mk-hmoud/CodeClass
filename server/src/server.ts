@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import ClassroomRoutes from './routes/ClassroomRoutes';
 import ProblemRoutes from './routes/ProblemRoutes';
+import LibraryRoutes from './routes/LibraryRoutes';
 import AssignmentRoutes from './routes/AssignmentRoutes';
 import QuizRoutes from './routes/QuizRoutes';
 import LanguageRoutes from './routes/LanguageRoutes';
@@ -33,6 +34,8 @@ app.use('/api/assignments', AssignmentRoutes);
 app.use('/api/quizzes', QuizRoutes);
 
 app.use('/api/problems', ProblemRoutes);
+
+app.use('/api/libraries', LibraryRoutes);
 
 app.use('/api/auth', AuthRoutes);
 

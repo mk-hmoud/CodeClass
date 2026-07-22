@@ -25,6 +25,7 @@ void JudgeWorker::processSubmission(const std::string &jobId,
     json inputJson;
     inputJson["language"] = submission.language;
     inputJson["code"] = submission.code;
+    inputJson["libraryCode"] = submission.libraryCode;
     inputJson["testCases"] = json::array();
     for (const auto &tc : submission.testCases)
     {
@@ -149,9 +150,17 @@ void JudgeWorker::processSubmission(const std::string &jobId,
 Submission JudgeWorker::parseSubmission(const std::string &jsonSubmissionData)
 {
     auto j = json::parse(jsonSubmissionData);
+
+    std::string libraryCode;
+    if (j.contains("libraryCode") && !j["libraryCode"].is_null())
+    {
+        libraryCode = j["libraryCode"].get<std::string>();
+    }
+
     return {
         j["code"].get<std::string>(),
         j["language"].get<std::string>(),
         j["testCases"].get<std::vector<TestCase>>(),
-        j["mode"].get<std::string>()};
+        j["mode"].get<std::string>(),
+        libraryCode};
 }

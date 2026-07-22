@@ -28,6 +28,7 @@ interface InputData {
   code: string;
   testCases: TestCase[];
   language: string;
+  libraryCode?: string;
 }
 
 interface Verdict {
@@ -81,7 +82,14 @@ async function main() {
     const compiledPath = path.join(tmpDir, 'main.js');
     
     writeFileSync(sourcePath, code);
-    
+
+    const libraryCode = data.libraryCode;
+    let libPath: string | null = null;
+    if (libraryCode) {
+      libPath = path.join(tmpDir, `lib.${ext}`);
+      writeFileSync(libPath, libraryCode);
+    }
+
     if (lang === 'typescript') {
       // Create a basic tsconfig.json
       const tsConfig = {
@@ -94,7 +102,7 @@ async function main() {
           forceConsistentCasingInFileNames: true,
           outDir: tmpDir
         },
-        files: [sourcePath]
+        files: libPath ? [sourcePath, libPath] : [sourcePath]
       };
       
       writeFileSync(path.join(tmpDir, 'tsconfig.json'), JSON.stringify(tsConfig));

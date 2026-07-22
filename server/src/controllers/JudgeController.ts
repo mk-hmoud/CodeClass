@@ -6,6 +6,7 @@ import { nanoid } from 'nanoid';
 import redisClient from '../config/redis';
 import { JudgeVerdict, TestCase, TestResult } from '../types';
 import { getAssignmentTestCases } from '../models/ProblemModel';
+import { getLibraryCodeForAssignment } from '../models/LibraryModel';
 import { createSubmission, getSubmissionById, getSubmissionStatus, saveSubmissionResults, updateSubmissionStatus } from '../models/SubmissionModel';
 import { runPlagiarismCheck } from './PlagiarismController';
 import { systemEventEmitter } from '../services/statistics/emitter'; 
@@ -319,9 +320,19 @@ export const submitHandler = async (req: Request, res: Response): Promise<void> 
     return;
   }
 
+  let libraryCode: string | null = null;
+  try {
+    libraryCode = await getLibraryCodeForAssignment(assignmentId, language);
+  } catch (err) {
+    logger.error(
+      { fn: functionName, assignmentId, language, error: err },
+      `Error fetching library code, proceeding without it: ${err}`
+    );
+  }
+
   try {
     await redisClient.hSet(`judge:${submissionId}`, {
-      data: JSON.stringify({ code, language, testCases, mode: "submit"}),
+      data: JSON.stringify({ code, language, testCases, mode: "submit", libraryCode }),
       createdAt: Date.now().toString(),
     });
     await redisClient.lPush("judge:queue", submissionId.toString());

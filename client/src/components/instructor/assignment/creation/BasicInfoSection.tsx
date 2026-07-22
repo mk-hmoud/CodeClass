@@ -27,12 +27,16 @@ import {
 import { UseFormReturn } from "react-hook-form";
 import { FormValues } from "@/lib/assignmentUtils";
 import { getProblems } from "@/services/ProblemService";
+import { getLibraries } from "@/services/LibraryService";
 import { Problem } from "@/types/Problem";
+import { Library } from "@/types/Library";
 
 interface BasicInfoSectionProps {
   form: UseFormReturn<FormValues>;
   onSelectedProblemChange?: (problem: Problem | null) => void;
 }
+
+const NO_LIBRARY_VALUE = "none";
 
 const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
   form,
@@ -40,6 +44,7 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
 }) => {
   const [problems, setProblems] = useState<Problem[]>([]);
   const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null);
+  const [libraries, setLibraries] = useState<Library[]>([]);
 
   useEffect(() => {
     const fetchProblems = async () => {
@@ -51,6 +56,18 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
       }
     };
     fetchProblems();
+  }, []);
+
+  useEffect(() => {
+    const fetchLibraries = async () => {
+      try {
+        const fetchedLibraries = await getLibraries();
+        setLibraries(fetchedLibraries);
+      } catch (error) {
+        console.error("Error fetching libraries:", error);
+      }
+    };
+    fetchLibraries();
   }, []);
 
   const watchProblemId = form.watch("problemId");
@@ -99,6 +116,44 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
               </Select>
               <FormDescription>
                 Select the problem to base this assignment on.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="libraryId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Library</FormLabel>
+              <Select
+                onValueChange={(value) =>
+                  field.onChange(value === NO_LIBRARY_VALUE ? "" : value)
+                }
+                defaultValue={field.value || NO_LIBRARY_VALUE}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="No library" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value={NO_LIBRARY_VALUE}>No library</SelectItem>
+                  {libraries.map((library) => (
+                    <SelectItem
+                      key={library.libraryId}
+                      value={String(library.libraryId)}
+                    >
+                      {library.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                Optional: make this instructor library's helper code available
+                to student submissions when grading this assignment.
               </FormDescription>
               <FormMessage />
             </FormItem>

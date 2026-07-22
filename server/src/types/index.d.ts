@@ -174,6 +174,12 @@ export interface AssignmentCreationData{
   publish_date?: Date;
   due_date?: Date;
   libraryId?: number;
+  groupId?: number;
+  testCaseOverrides?: Array<{
+    testCaseId: number;
+    input?: string;
+    expectedOutput?: string;
+  }>;
   languages?: Array<{
     languageId: number;
     initial_code?: string;

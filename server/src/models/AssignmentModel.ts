@@ -24,8 +24,9 @@ export const createAssignment = async (
         plagiarism_detection,
         publish_date,
         due_date,
-        library_id
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+        library_id,
+        group_id
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
       RETURNING assignment_id, title, description
     `;
     const {
@@ -43,6 +44,7 @@ export const createAssignment = async (
       assignment.publish_date || null,
       assignment.due_date || null,
       assignment.libraryId ?? null,
+      assignment.groupId ?? null,
     ]);
 
     const assignmentId: number = inserted.assignment_id;
@@ -86,6 +88,24 @@ export const createAssignment = async (
       logger.debug({ fn, assignmentId }, 'Inserted languages');
     }
 
+    if (assignment.groupId && assignment.testCaseOverrides?.length) {
+      const overrideSql = `
+        INSERT INTO group_test_case_overrides (test_case_id, group_id, input, expected_output)
+        VALUES ($1,$2,$3,$4)
+        ON CONFLICT (test_case_id, group_id) DO UPDATE
+          SET input = EXCLUDED.input, expected_output = EXCLUDED.expected_output
+      `;
+      for (const override of assignment.testCaseOverrides) {
+        await client.query(overrideSql, [
+          override.testCaseId,
+          assignment.groupId,
+          override.input ?? null,
+          override.expectedOutput ?? null,
+        ]);
+      }
+      logger.debug({ fn, assignmentId }, 'Inserted test case overrides');
+    }
+
     await client.query("COMMIT");
     logger.info({ fn, assignmentId }, 'Transaction committed');
     return { assignmentId };
@@ -111,6 +131,7 @@ export const getAssignmentById = async (
        a.assignment_id,
        a.classroom_id,
        a.problem_id,
+       a.group_id,
        COALESCE(a.title, p.title)           AS assignment_title,
        COALESCE(a.description, p.description) AS assignment_description,
        a.difficulty_level,
@@ -166,15 +187,17 @@ export const getAssignmentById = async (
 
     const testCaseQuery = `
       SELECT
-        test_case_id     AS "testCaseId",
-        input            AS "input",
-        expected_output  AS "expectedOutput",
-        is_public        AS "isPublic"
-      FROM problem_test_cases
-      WHERE problem_id = $1
-      ORDER BY test_case_id
+        tc.test_case_id                            AS "testCaseId",
+        COALESCE(gto.input, tc.input)               AS "input",
+        COALESCE(gto.expected_output, tc.expected_output) AS "expectedOutput",
+        tc.is_public                                AS "isPublic"
+      FROM problem_test_cases tc
+      LEFT JOIN group_test_case_overrides gto
+        ON gto.test_case_id = tc.test_case_id AND gto.group_id = $2
+      WHERE tc.problem_id = $1
+      ORDER BY tc.test_case_id
     `;
-    const resT = await pool.query(testCaseQuery, [row.problem_id]);
+    const resT = await pool.query(testCaseQuery, [row.problem_id, row.group_id]);
     const testCases: TestCase[] = resT.rows.map(r => ({
       testCaseId: r.testCaseId,
       input: r.input ?? undefined,
@@ -415,9 +438,16 @@ export async function getAssignmentsForStudentClassroom(
          WHERE alp.assignment_id = a.assignment_id
         )                          AS languages
 
-      FROM assignments_with_status a 
+      FROM assignments_with_status a
       JOIN problems p ON p.problem_id = a.problem_id
-     WHERE a.classroom_id = $1;
+     WHERE a.classroom_id = $1
+       AND (
+         a.group_id IS NULL
+         OR a.group_id = (
+           SELECT lge.group_id FROM lab_group_enrollments lge
+           WHERE lge.classroom_id = $1 AND lge.student_id = $2
+         )
+       );
     `;
 
     logger.debug({ fn, classroomId, studentId }, `Executing assignments query for classroom ${classroomId}`);

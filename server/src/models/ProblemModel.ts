@@ -205,12 +205,14 @@ export const getAssignmentTestCases = async (
 ): Promise<TestCase[]> => {
   const sql = `
     SELECT tc.test_case_id   AS "testCaseId",
-           tc.input          AS input,
-           tc.expected_output AS "expectedOutput",
+           COALESCE(gto.input, tc.input) AS input,
+           COALESCE(gto.expected_output, tc.expected_output) AS "expectedOutput",
            tc.is_public      AS "isPublic"
     FROM assignments a
     JOIN problem_test_cases tc
       ON a.problem_id = tc.problem_id
+    LEFT JOIN group_test_case_overrides gto
+      ON gto.test_case_id = tc.test_case_id AND gto.group_id = a.group_id
     WHERE a.assignment_id = $1
     ORDER BY tc.test_case_id
   `;

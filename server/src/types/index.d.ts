@@ -82,6 +82,25 @@ export interface LibraryCreationData {
   files: LibraryFile[];
 }
 
+export interface LabGroup {
+  groupId: number;
+  classroomId: number;
+  name: string;
+  dayOfWeek?: number | null;
+  startTime?: string | null;
+  endTime?: string | null;
+  created_at?: Date;
+  roster?: number[];
+}
+
+export interface LabGroupCreationData {
+  classroomId: number;
+  name: string;
+  dayOfWeek?: number;
+  startTime?: string;
+  endTime?: string;
+}
+
 export type AssignmentStatus = 'not_published' | 'active' | 'expired';
 
 export interface Assignment {

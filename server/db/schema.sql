@@ -19,9 +19,15 @@ CREATE TYPE grading_method_enum AS ENUM (
 );
 
 CREATE TYPE grading_status_enum AS ENUM (
-  'pending', 
-  'system graded', 
+  'pending',
+  'system graded',
   'graded'
+);
+
+CREATE TYPE attendance_status_enum AS ENUM (
+  'present',
+  'absent',
+  'excused'
 );
 
 CREATE TABLE languages (
@@ -158,6 +164,74 @@ CREATE TABLE library_files (
 
 ALTER TABLE assignments
   ADD COLUMN library_id INT REFERENCES libraries(library_id) ON DELETE SET NULL;
+
+CREATE TABLE lab_groups (
+  group_id SERIAL PRIMARY KEY,
+  classroom_id INT NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  day_of_week SMALLINT,
+  start_time TIME,
+  end_time TIME,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (classroom_id) REFERENCES classrooms(classroom_id) ON DELETE CASCADE
+);
+
+CREATE TABLE lab_group_enrollments (
+  enrollment_id SERIAL PRIMARY KEY,
+  group_id INT NOT NULL,
+  classroom_id INT NOT NULL,
+  student_id INT NOT NULL,
+  FOREIGN KEY (group_id) REFERENCES lab_groups(group_id) ON DELETE CASCADE,
+  FOREIGN KEY (classroom_id) REFERENCES classrooms(classroom_id) ON DELETE CASCADE,
+  FOREIGN KEY (student_id) REFERENCES students(student_id) ON DELETE CASCADE,
+  UNIQUE (classroom_id, student_id)
+);
+
+CREATE TABLE lab_sessions (
+  session_id SERIAL PRIMARY KEY,
+  classroom_id INT NOT NULL,
+  group_id INT,
+  session_date DATE NOT NULL,
+  start_time TIME,
+  end_time TIME,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (classroom_id) REFERENCES classrooms(classroom_id) ON DELETE CASCADE,
+  FOREIGN KEY (group_id) REFERENCES lab_groups(group_id) ON DELETE CASCADE,
+  UNIQUE (classroom_id, group_id, session_date)
+);
+
+CREATE TABLE lab_attendance (
+  attendance_id SERIAL PRIMARY KEY,
+  session_id INT NOT NULL,
+  student_id INT NOT NULL,
+  status attendance_status_enum NOT NULL DEFAULT 'absent',
+  marked_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (session_id) REFERENCES lab_sessions(session_id) ON DELETE CASCADE,
+  FOREIGN KEY (student_id) REFERENCES students(student_id) ON DELETE CASCADE,
+  UNIQUE (session_id, student_id)
+);
+
+ALTER TABLE assignments
+  ADD COLUMN group_id INT REFERENCES lab_groups(group_id) ON DELETE SET NULL;
+
+-- assignments already has a plain UNIQUE(classroom_id, problem_id) constraint for the
+-- no-group case. Postgres treats NULLs as distinct, so that constraint only protects
+-- rows where group_id IS NULL. This partial index protects the group-linked case
+-- without touching the original constraint.
+CREATE UNIQUE INDEX assignments_classroom_problem_group_uq
+  ON assignments (classroom_id, problem_id, group_id)
+  WHERE group_id IS NOT NULL;
+
+CREATE TABLE group_test_case_overrides (
+  override_id SERIAL PRIMARY KEY,
+  test_case_id INT NOT NULL,
+  group_id INT NOT NULL,
+  input TEXT,
+  expected_output TEXT,
+  FOREIGN KEY (test_case_id) REFERENCES problem_test_cases(test_case_id) ON DELETE CASCADE,
+  FOREIGN KEY (group_id) REFERENCES lab_groups(group_id) ON DELETE CASCADE,
+  UNIQUE (test_case_id, group_id)
+);
 
 CREATE TABLE submissions (
   submission_id   SERIAL PRIMARY KEY,

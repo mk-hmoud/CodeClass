@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   MoreVertical, Trash2, Clock, Calendar, BookOpen,
-  BarChart2, ArrowLeft, Zap,
+  BarChart2, ArrowLeft, Zap, ClipboardCheck,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -160,6 +160,14 @@ const InstructorAssignment: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => navigate(`/instructor/classrooms/${classroomId}/assignments/${assignmentId}/attendance`)}
+                >
+                  <ClipboardCheck size={14} />Attendance
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"

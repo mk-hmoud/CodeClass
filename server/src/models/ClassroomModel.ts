@@ -61,7 +61,7 @@ export const getInstructorClassroomById = async (classroomId: number): Promise<C
     const classroomData = classroomRes.rows[0];
 
     const studentsRes = await pool.query(
-      `SELECT u.email, CONCAT(u.first_name, ' ', u.last_name) AS name, ce.enrollment_date
+      `SELECT s.student_id, u.email, CONCAT(u.first_name, ' ', u.last_name) AS name, ce.enrollment_date
        FROM classroom_enrollments ce
        JOIN students s ON ce.student_id = s.student_id
        JOIN users u ON s.user_id = u.user_id

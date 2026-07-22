@@ -38,6 +38,12 @@ export interface AssignmentCreationData {
   publish_date?: Date | string;
   due_date?: Date | string;
   libraryId?: number;
+  groupId?: number;
+  testCaseOverrides?: Array<{
+    testCaseId: number;
+    input?: string;
+    expectedOutput?: string;
+  }>;
   languages: Array<{
     languageId: number;
     initial_code?: string;

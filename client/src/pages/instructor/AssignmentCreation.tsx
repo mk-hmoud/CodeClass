@@ -19,7 +19,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import BasicInfoSection from "@/components/instructor/assignment/creation/BasicInfoSection";
+import BasicInfoSection, { TestCaseOverrideDraft } from "@/components/instructor/assignment/creation/BasicInfoSection";
 import SubmissionSettingsSection from "@/components/instructor/assignment/creation/SubmissionSettingsSection";
 import ScheduleSection from "@/components/instructor/assignment/creation/ScheduleSection";
 import AssignmentCodeEditor from "@/components/editors/AssignmentCodeEditor";
@@ -46,12 +46,14 @@ const CreateAssignmentPage: React.FC = () => {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [formData, setFormData] = useState<FormValues | null>(null);
   const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null);
+  const [testCaseOverrides, setTestCaseOverrides] = useState<TestCaseOverrideDraft[]>([]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       problemId: "",
       libraryId: "",
+      groupId: "",
       title: "",
       description: "",
       difficulty_level: "Medium",
@@ -177,6 +179,8 @@ const CreateAssignmentPage: React.FC = () => {
       publish_date: publishDate,
       due_date: dueDate,
       libraryId: formData.libraryId ? Number(formData.libraryId) : undefined,
+      groupId: formData.groupId ? Number(formData.groupId) : undefined,
+      testCaseOverrides: formData.groupId && testCaseOverrides.length > 0 ? testCaseOverrides : undefined,
       languages: selectedLanguages.map((lang) => ({
         languageId: languages?.find((l) => l.name === lang)?.language_id || 0,
         initial_code: codeByLanguage[lang] || "",
@@ -220,7 +224,9 @@ const CreateAssignmentPage: React.FC = () => {
           <div className="max-w-5xl mx-auto w-full px-6 py-6 space-y-6">
             <BasicInfoSection
               form={form}
+              classroomId={Number(classroomId)}
               onSelectedProblemChange={setSelectedProblem}
+              onTestCaseOverridesChange={setTestCaseOverrides}
             />
 
             <SubmissionSettingsSection

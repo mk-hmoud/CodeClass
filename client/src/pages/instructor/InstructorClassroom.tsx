@@ -9,6 +9,8 @@ import { motion } from "framer-motion";
 import AssignmentsTab from "@/components/instructor/classroom/AssignmentsTab";
 import StudentsTab from "@/components/instructor/classroom/StudentsTab";
 import QuizzesTab from "@/components/instructor/classroom/QuizzesTab";
+import GroupsTab from "@/components/instructor/classroom/GroupsTab";
+import AttendanceTab from "@/components/instructor/classroom/AttendanceTab";
 
 import { getClassroomById } from "@/services/ClassroomService";
 import { Classroom } from "@/types/Classroom";
@@ -101,6 +103,8 @@ const InstructorClassroom = () => {
     { id: "assignments", label: "Assignments", count: classroom.assignments.length },
     { id: "quizzes", label: "Quizzes", count: null },
     { id: "students", label: "Students", count: classroom.students?.length ?? 0 },
+    { id: "groups", label: "Groups", count: null },
+    { id: "attendance", label: "Attendance", count: null },
   ];
 
   return (
@@ -205,6 +209,14 @@ const InstructorClassroom = () => {
 
           <TabsContent value="students" className="mt-0">
             <StudentsTab students={students} />
+          </TabsContent>
+
+          <TabsContent value="groups" className="mt-0">
+            <GroupsTab classroomId={classroom.id} students={classroom.students ?? []} />
+          </TabsContent>
+
+          <TabsContent value="attendance" className="mt-0">
+            <AttendanceTab classroomId={classroom.id} />
           </TabsContent>
         </Tabs>
       </div>

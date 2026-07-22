@@ -1,4 +1,5 @@
 export interface ClassroomStudent {
+    student_id: number;
     email: string;
     name: string;
     enrollment_date: string;

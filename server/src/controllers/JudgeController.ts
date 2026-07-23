@@ -20,11 +20,12 @@ interface RunCodeRequest {
   language: string;
   testCases: TestCase[];
   outputType?: 'text' | 'image';
+  assignmentId?: number;
 }
 
 export const runCodeHandler = async (req: Request, res: Response): Promise<void> => {
   const startTime = Date.now();
-  const { code, language, testCases, outputType } = req.body as RunCodeRequest;
+  const { code, language, testCases, outputType, assignmentId } = req.body as RunCodeRequest;
 
   logger.info(
     { fn: 'runCode', language, codeLen: code?.length, testCount: testCases?.length },
@@ -67,9 +68,21 @@ export const runCodeHandler = async (req: Request, res: Response): Promise<void>
       `Enqueueing job ${jobId}`
     );
 
+    let libraryCode: string | null = null;
+    if (assignmentId) {
+      try {
+        libraryCode = await getLibraryCodeForAssignment(assignmentId, language);
+      } catch (err) {
+        logger.error(
+          { fn: 'runCode', assignmentId, language, error: err },
+          `Error fetching library code, proceeding without it: ${err}`
+        );
+      }
+    }
+
     const mode = "run";
     await redisClient.hSet(`judge:${jobId}`, {
-      data: JSON.stringify({ code, language, testCases, mode, outputType: outputType || 'text' }),
+      data: JSON.stringify({ code, language, testCases, mode, outputType: outputType || 'text', libraryCode }),
       createdAt: Date.now().toString(),
     });
 

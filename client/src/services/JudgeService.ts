@@ -10,12 +10,13 @@ export const runCode = async (
   code: string,
   language: string,
   testCases: TestCase[],
-  outputType?: "text" | "image"
+  outputType?: "text" | "image",
+  assignmentId?: number
 ): Promise<JudgeResponse> => {
   try {
     const { data } = await apiClient.post<JudgeResponse>(
       "/judge/run",
-      { code, language, testCases, outputType }
+      { code, language, testCases, outputType, assignmentId }
     );
     return data;
   } catch (error) {

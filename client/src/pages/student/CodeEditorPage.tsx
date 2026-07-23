@@ -193,7 +193,7 @@ const CodeEditorPage = () => {
     setRunVerdict({ ...emptyVerdict });
 
     try {
-      const { job_id } = await runCode(src, selectedLanguage, publicTestCases, assignment?.problem?.outputType);
+      const { job_id } = await runCode(src, selectedLanguage, publicTestCases, assignment?.problem?.outputType, assignment?.assignmentId);
       let statusData: JudgeVerdict;
       do {
         await new Promise((r) => setTimeout(r, POLL_INTERVAL));

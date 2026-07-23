@@ -18,6 +18,7 @@ struct Submission
     std::vector<TestCase> testCases;
     std::string mode;
     std::string libraryCode;
+    std::string outputType;
 };
 
 namespace nlohmann

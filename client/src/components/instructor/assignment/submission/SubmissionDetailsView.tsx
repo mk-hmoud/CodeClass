@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ArrowLeft, Check, X, Clock, Code, FileText, FileX } from "lucide-react";
+import { ArrowLeft, Check, X, Clock, Code, FileText, FileX, Image as ImageIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -62,47 +62,68 @@ const SubmissionDetailsView: React.FC<SubmissionDetailsViewProps> = ({
     }
   };
 
-  const renderTestCase = (result: TestResult, index: number) => (
-    <div key={index} className="border border-border rounded-xl overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-2.5 bg-muted/30 border-b border-border">
-        <div className="flex items-center gap-2">
-          {result.status === "passed" ? (
-            <div className="w-5 h-5 rounded-full bg-green-500/15 flex items-center justify-center">
-              <Check size={11} className="text-green-600" />
+  const renderTestCase = (result: TestResult, index: number) => {
+    const isImage = result.actual?.startsWith("data:image/");
+
+    return (
+      <div key={index} className="border border-border rounded-xl overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-2.5 bg-muted/30 border-b border-border">
+          <div className="flex items-center gap-2">
+            {isImage ? (
+              <div className="w-5 h-5 rounded-full bg-blue-500/15 flex items-center justify-center">
+                <ImageIcon size={11} className="text-blue-600" />
+              </div>
+            ) : result.status === "passed" ? (
+              <div className="w-5 h-5 rounded-full bg-green-500/15 flex items-center justify-center">
+                <Check size={11} className="text-green-600" />
+              </div>
+            ) : (
+              <div className="w-5 h-5 rounded-full bg-destructive/15 flex items-center justify-center">
+                <X size={11} className="text-destructive" />
+              </div>
+            )}
+            <span className="text-xs font-medium">Test Case #{index + 1}</span>
+          </div>
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            <Clock size={11} />{result.executionTime}ms
+          </span>
+        </div>
+        <div className="grid grid-cols-1 divide-y divide-border">
+          <div className="p-3">
+            <p className="text-xs text-muted-foreground mb-1.5">Input</p>
+            <pre className="text-xs font-mono text-foreground/80">{result.input ?? "[]"}</pre>
+          </div>
+          {isImage ? (
+            <div className="p-3">
+              <p className="text-xs text-muted-foreground mb-1.5">Output</p>
+              {result.status === "produced" ? (
+                <img src={result.actual} alt="Program output" className="max-w-full rounded-md border border-border" />
+              ) : (
+                <p className="text-xs text-muted-foreground italic">No image produced</p>
+              )}
             </div>
           ) : (
-            <div className="w-5 h-5 rounded-full bg-destructive/15 flex items-center justify-center">
-              <X size={11} className="text-destructive" />
+            <>
+              <div className="p-3">
+                <p className="text-xs text-muted-foreground mb-1.5">Output</p>
+                <pre className="text-xs font-mono text-foreground/80">{result.actual ?? "None"}</pre>
+              </div>
+              <div className="p-3">
+                <p className="text-xs text-muted-foreground mb-1.5">Expected</p>
+                <pre className="text-xs font-mono text-foreground/80">{result.expectedOutput ?? "0"}</pre>
+              </div>
+            </>
+          )}
+          {!isImage && result.status !== "passed" && result.errorMessage && (
+            <div className="p-3 bg-destructive/5">
+              <p className="text-xs text-destructive font-medium mb-1">Error</p>
+              <pre className="text-xs font-mono text-destructive/80">{result.errorMessage}</pre>
             </div>
           )}
-          <span className="text-xs font-medium">Test Case #{index + 1}</span>
         </div>
-        <span className="text-xs text-muted-foreground flex items-center gap-1">
-          <Clock size={11} />{result.executionTime}ms
-        </span>
       </div>
-      <div className="grid grid-cols-1 divide-y divide-border">
-        <div className="p-3">
-          <p className="text-xs text-muted-foreground mb-1.5">Input</p>
-          <pre className="text-xs font-mono text-foreground/80">{result.input ?? "[]"}</pre>
-        </div>
-        <div className="p-3">
-          <p className="text-xs text-muted-foreground mb-1.5">Output</p>
-          <pre className="text-xs font-mono text-foreground/80">{result.actual ?? "None"}</pre>
-        </div>
-        <div className="p-3">
-          <p className="text-xs text-muted-foreground mb-1.5">Expected</p>
-          <pre className="text-xs font-mono text-foreground/80">{result.expectedOutput ?? "0"}</pre>
-        </div>
-        {result.status !== "passed" && result.errorMessage && (
-          <div className="p-3 bg-destructive/5">
-            <p className="text-xs text-destructive font-medium mb-1">Error</p>
-            <pre className="text-xs font-mono text-destructive/80">{result.errorMessage}</pre>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+    );
+  };
 
   const ScoreBlock = ({ label, value, sub }: { label: string; value: number; sub?: string }) => (
     <div>
@@ -327,22 +348,28 @@ const SubmissionDetailsView: React.FC<SubmissionDetailsViewProps> = ({
                   <div className="space-y-3">
                     {submission.verdict.testResults.map((result, idx) => renderTestCase(result, idx))}
                   </div>
-                  <div className="bg-card border border-border rounded-xl p-4">
-                    <div className="flex justify-between items-center mb-2 text-sm">
-                      <span>Passed {submission.verdict.metrics.passedTests} of {submission.verdict.metrics.totalTests} tests</span>
-                      <span className="font-bold">
-                        {submission.verdict.metrics.totalTests > 0
-                          ? Math.round((submission.verdict.metrics.passedTests / submission.verdict.metrics.totalTests) * 100)
-                          : 0}%
-                      </span>
+                  {submission.verdict.testResults.every((r) => r.actual?.startsWith("data:image/")) ? (
+                    <div className="bg-card border border-border rounded-xl p-4 text-sm text-muted-foreground">
+                      Image output — no automated pass/fail. Review the produced images above and grade manually.
                     </div>
-                    <Progress
-                      value={submission.verdict.metrics.totalTests > 0
-                        ? (submission.verdict.metrics.passedTests / submission.verdict.metrics.totalTests) * 100
-                        : 0}
-                      className="h-1.5"
-                    />
-                  </div>
+                  ) : (
+                    <div className="bg-card border border-border rounded-xl p-4">
+                      <div className="flex justify-between items-center mb-2 text-sm">
+                        <span>Passed {submission.verdict.metrics.passedTests} of {submission.verdict.metrics.totalTests} tests</span>
+                        <span className="font-bold">
+                          {submission.verdict.metrics.totalTests > 0
+                            ? Math.round((submission.verdict.metrics.passedTests / submission.verdict.metrics.totalTests) * 100)
+                            : 0}%
+                        </span>
+                      </div>
+                      <Progress
+                        value={submission.verdict.metrics.totalTests > 0
+                          ? (submission.verdict.metrics.passedTests / submission.verdict.metrics.totalTests) * 100
+                          : 0}
+                        className="h-1.5"
+                      />
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-10 text-sm text-muted-foreground">No test results available.</div>

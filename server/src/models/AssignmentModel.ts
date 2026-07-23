@@ -149,7 +149,8 @@ export const getAssignmentById = async (
         COALESCE(p.prerequisites, '')   AS prerequisites,
         COALESCE(p.learning_outcomes,'') AS learning_outcomes,
         COALESCE(p.tags, '')            AS tags,
-        p.created_at AS problem_created_at
+        p.created_at AS problem_created_at,
+        p.output_type AS "problemOutputType"
       FROM assignments_with_status a 
       JOIN problems p
         ON a.problem_id = p.problem_id
@@ -189,7 +190,7 @@ export const getAssignmentById = async (
       SELECT
         tc.test_case_id                            AS "testCaseId",
         COALESCE(gto.input, tc.input)               AS "input",
-        COALESCE(gto.expected_output, tc.expected_output) AS "expectedOutput",
+        COALESCE(gto.expected_output, tc.expected_output, '') AS "expectedOutput",
         tc.is_public                                AS "isPublic"
       FROM problem_test_cases tc
       LEFT JOIN group_test_case_overrides gto
@@ -236,6 +237,7 @@ export const getAssignmentById = async (
         tags: row.tags ?? undefined,
         created_at: new Date(row.problem_created_at),
         testCases: testCases,
+        outputType: row.problemOutputType ?? 'text',
       }
     };
 

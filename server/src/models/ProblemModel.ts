@@ -14,8 +14,8 @@ export const createProblem = async (
     await client.query("BEGIN");
 
     const insertProblemQuery = `
-      INSERT INTO problems (instructor_id, title, description, category, prerequisites, learning_outcomes, tags)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO problems (instructor_id, title, description, category, prerequisites, learning_outcomes, tags, output_type)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING problem_id
     `;
     const result = await client.query(insertProblemQuery, [
@@ -26,6 +26,7 @@ export const createProblem = async (
       data.prerequisites || null,
       data.learning_outcomes || null,
       data.tags || null,
+      data.outputType || 'text',
     ]);
     const problemId: number = result.rows[0].problem_id;
     logger.info({ functionName, problemId }, `Inserted problem with ID: ${problemId}`);
@@ -39,7 +40,7 @@ export const createProblem = async (
         await client.query(insertTestCaseQuery, [
           problemId,
           tc.input || null,
-          tc.expectedOutput,
+          tc.expectedOutput ?? null,
           tc.isPublic !== undefined ? tc.isPublic : false,
         ]);
       }
@@ -83,6 +84,7 @@ export const getProblemById = async (
       tags: row.tags,
       created_at: row.created_at,
       testCases: [],
+      outputType: row.output_type,
     };
 
     const testCasesQuery = `
@@ -147,6 +149,7 @@ export const getProblemsByInstructor = async (
       tags: row.tags,
       created_at: row.created_at,
       testCases: row.testcases,
+      outputType: row.output_type,
     }));
   } catch (error) {
     logger.error({ functionName, instructorId, error }, `Error fetching problems: ${error}`);
@@ -161,17 +164,18 @@ export const updateProblem = async (
   const functionName = "updateProblem";
   try {
     const query = `
-      UPDATE 
-        problems 
-      SET 
-        title = $1, 
-        description = $2, 
-        category = $3, 
-        prerequisites = $4, 
-        learning_outcomes = $5, 
-        tags = $6 
-      WHERE 
-        problem_id = $7 RETURNING *`;
+      UPDATE
+        problems
+      SET
+        title = $1,
+        description = $2,
+        category = $3,
+        prerequisites = $4,
+        learning_outcomes = $5,
+        tags = $6,
+        output_type = $7
+      WHERE
+        problem_id = $8 RETURNING *`;
     const result = await pool.query(query, [
       data.title,
       data.description,
@@ -179,6 +183,7 @@ export const updateProblem = async (
       data.prerequisites,
       data.learning_outcomes,
       data.tags,
+      data.outputType || 'text',
       problemId,
     ]);
     return result.rows[0];
@@ -206,7 +211,7 @@ export const getAssignmentTestCases = async (
   const sql = `
     SELECT tc.test_case_id   AS "testCaseId",
            COALESCE(gto.input, tc.input) AS input,
-           COALESCE(gto.expected_output, tc.expected_output) AS "expectedOutput",
+           COALESCE(gto.expected_output, tc.expected_output, '') AS "expectedOutput",
            tc.is_public      AS "isPublic"
     FROM assignments a
     JOIN problem_test_cases tc
@@ -218,4 +223,17 @@ export const getAssignmentTestCases = async (
   `;
   const { rows } = await pool.query(sql, [assignmentId]);
   return rows;
+};
+
+export const getProblemOutputTypeForAssignment = async (
+  assignmentId: number
+): Promise<'text' | 'image'> => {
+  const sql = `
+    SELECT p.output_type AS "outputType"
+    FROM assignments a
+    JOIN problems p ON a.problem_id = p.problem_id
+    WHERE a.assignment_id = $1
+  `;
+  const { rows } = await pool.query(sql, [assignmentId]);
+  return (rows[0]?.outputType as 'text' | 'image') ?? 'text';
 };

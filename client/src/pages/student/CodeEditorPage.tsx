@@ -5,6 +5,7 @@ import {
   ArrowLeft, CheckCircle, XCircle, Save, FileCode,
   Clock, AlertTriangle, Play, Send, ChevronRight,
   RotateCcw, Terminal, BookOpen, Loader2, CheckCheck,
+  Image as ImageIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
@@ -192,7 +193,7 @@ const CodeEditorPage = () => {
     setRunVerdict({ ...emptyVerdict });
 
     try {
-      const { job_id } = await runCode(src, selectedLanguage, publicTestCases);
+      const { job_id } = await runCode(src, selectedLanguage, publicTestCases, assignment?.problem?.outputType);
       let statusData: JudgeVerdict;
       do {
         await new Promise((r) => setTimeout(r, POLL_INTERVAL));
@@ -361,25 +362,35 @@ const CodeEditorPage = () => {
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Public Tests</p>
             <div className="space-y-1.5">
-              {testResults.filter((r) => r.isPublic).map((result, idx) => (
-                <div
-                  key={result.testCaseId ?? idx}
-                  className={cn(
-                    "flex items-center gap-2 px-3 py-2 rounded-md border text-sm",
-                    result.status === "passed"
-                      ? "bg-green-500/5 border-green-500/30 text-green-700 dark:text-green-400"
-                      : "bg-red-500/5 border-red-500/30 text-red-700 dark:text-red-400"
-                  )}
-                >
-                  {result.status === "passed"
-                    ? <CheckCircle size={14} />
-                    : <XCircle size={14} />}
-                  <span>Test {idx + 1}</span>
-                  <span className="ml-auto text-xs opacity-70 flex items-center gap-1">
-                    <Clock size={10} />{result.executionTime}ms
-                  </span>
-                </div>
-              ))}
+              {testResults.filter((r) => r.isPublic).map((result, idx) => {
+                const isImage = result.actual?.startsWith("data:image/");
+                return (
+                  <div
+                    key={result.testCaseId ?? idx}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 rounded-md border text-sm",
+                      isImage
+                        ? "bg-muted/40 border-border text-foreground"
+                        : result.status === "passed"
+                        ? "bg-green-500/5 border-green-500/30 text-green-700 dark:text-green-400"
+                        : "bg-red-500/5 border-red-500/30 text-red-700 dark:text-red-400"
+                    )}
+                  >
+                    {isImage ? (
+                      <img src={result.actual} alt="" className="w-6 h-6 rounded object-cover border border-border" />
+                    ) : result.status === "passed" ? (
+                      <CheckCircle size={14} />
+                    ) : (
+                      <XCircle size={14} />
+                    )}
+                    <span>Test {idx + 1}</span>
+                    {isImage && <span className="text-xs text-muted-foreground">Awaiting review</span>}
+                    <span className="ml-auto text-xs opacity-70 flex items-center gap-1">
+                      <Clock size={10} />{result.executionTime}ms
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -415,8 +426,9 @@ const CodeEditorPage = () => {
           {publicTestCases.map((tc, idx) => {
             const result = testResults.find((r) => r.testCaseId === tc.testCaseId);
             const isActive = activeTestCaseId === tc.testCaseId;
-            const passed = result?.status === "passed";
-            const failed = result && result.status !== "passed";
+            const isImage = result?.actual?.startsWith("data:image/");
+            const passed = !isImage && result?.status === "passed";
+            const failed = !isImage && result && result.status !== "passed";
 
             return (
               <button
@@ -426,6 +438,8 @@ const CodeEditorPage = () => {
                   "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all",
                   isActive
                     ? "bg-primary text-primary-foreground border-primary"
+                    : isImage
+                    ? "bg-blue-500/10 border-blue-500/40 text-blue-700 dark:text-blue-400 hover:bg-blue-500/20"
                     : passed
                     ? "bg-green-500/10 border-green-500/40 text-green-700 dark:text-green-400 hover:bg-green-500/20"
                     : failed
@@ -460,38 +474,57 @@ const CodeEditorPage = () => {
                       </span>
                     )}
                   </div>
-                  <MonoBlock className={cn(
-                    activeTestResult.status === "passed" && "border-green-500/40 bg-green-500/5",
-                    activeTestResult.status !== "passed" && activeTestResult.actual && "border-red-500/40 bg-red-500/5",
-                  )}>
-                    {activeTestResult.actual || (
-                      <span className="text-muted-foreground italic">no output</span>
-                    )}
-                  </MonoBlock>
+                  {activeTestResult.actual?.startsWith("data:image/") ? (
+                    <div className="border border-border rounded-md p-2 bg-muted/30">
+                      <img src={activeTestResult.actual} alt="Program output" className="max-w-full rounded" />
+                    </div>
+                  ) : (
+                    <MonoBlock className={cn(
+                      activeTestResult.status === "passed" && "border-green-500/40 bg-green-500/5",
+                      activeTestResult.status !== "passed" && activeTestResult.actual && "border-red-500/40 bg-red-500/5",
+                    )}>
+                      {activeTestResult.actual || (
+                        <span className="text-muted-foreground italic">no output</span>
+                      )}
+                    </MonoBlock>
+                  )}
                 </div>
 
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Expected</p>
-                  <MonoBlock>{activeTestCase.expectedOutput}</MonoBlock>
-                </div>
+                {activeTestResult.actual?.startsWith("data:image/") ? (
+                  <div className="flex items-center gap-2 text-sm px-3 py-2 rounded-md bg-blue-500/10 text-blue-700 dark:text-blue-400">
+                    <ImageIcon size={14} />
+                    <span className="font-medium">
+                      {activeTestResult.status === "produced"
+                        ? "Image produced — awaiting instructor review"
+                        : "No image produced"}
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Expected</p>
+                      <MonoBlock>{activeTestCase.expectedOutput}</MonoBlock>
+                    </div>
 
-                {/* Verdict chip */}
-                <div className={cn(
-                  "flex items-center gap-2 text-sm px-3 py-2 rounded-md",
-                  activeTestResult.status === "passed"
-                    ? "bg-green-500/10 text-green-700 dark:text-green-400"
-                    : "bg-red-500/10 text-red-700 dark:text-red-400"
-                )}>
-                  {activeTestResult.status === "passed"
-                    ? <CheckCircle size={14} />
-                    : <XCircle size={14} />}
-                  <span className="font-medium">
-                    {activeTestResult.status === "passed" ? "Accepted"
-                      : activeTestResult.status === "timeout" ? "Time Limit Exceeded"
-                      : activeTestResult.status === "runtime_error" ? "Runtime Error"
-                      : "Wrong Answer"}
-                  </span>
-                </div>
+                    {/* Verdict chip */}
+                    <div className={cn(
+                      "flex items-center gap-2 text-sm px-3 py-2 rounded-md",
+                      activeTestResult.status === "passed"
+                        ? "bg-green-500/10 text-green-700 dark:text-green-400"
+                        : "bg-red-500/10 text-red-700 dark:text-red-400"
+                    )}>
+                      {activeTestResult.status === "passed"
+                        ? <CheckCircle size={14} />
+                        : <XCircle size={14} />}
+                      <span className="font-medium">
+                        {activeTestResult.status === "passed" ? "Accepted"
+                          : activeTestResult.status === "timeout" ? "Time Limit Exceeded"
+                          : activeTestResult.status === "runtime_error" ? "Runtime Error"
+                          : "Wrong Answer"}
+                      </span>
+                    </div>
+                  </>
+                )}
 
                 {(activeTestResult.status === "runtime_error" || activeTestResult.status === "error") && activeTestResult.error && (
                   <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3">
@@ -502,6 +535,10 @@ const CodeEditorPage = () => {
                   </div>
                 )}
               </>
+            ) : assignment?.problem?.outputType === "image" ? (
+              <p className="text-xs text-muted-foreground italic">
+                Run your code to see the produced image here.
+              </p>
             ) : (
               <div>
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Expected</p>

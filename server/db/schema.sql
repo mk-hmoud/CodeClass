@@ -30,6 +30,11 @@ CREATE TYPE attendance_status_enum AS ENUM (
   'excused'
 );
 
+CREATE TYPE problem_output_type_enum AS ENUM (
+  'text',
+  'image'
+);
+
 CREATE TABLE languages (
   language_id SERIAL PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
@@ -214,10 +219,38 @@ CREATE TABLE lab_attendance (
 ALTER TABLE assignments
   ADD COLUMN group_id INT REFERENCES lab_groups(group_id) ON DELETE SET NULL;
 
--- assignments already has a plain UNIQUE(classroom_id, problem_id) constraint for the
--- no-group case. Postgres treats NULLs as distinct, so that constraint only protects
--- rows where group_id IS NULL. This partial index protects the group-linked case
--- without touching the original constraint.
+-- The original inline UNIQUE(classroom_id, problem_id) constraint (from the initial
+-- CREATE TABLE above) does not include group_id, so it blocks ANY second assignment
+-- for the same (classroom, problem) pair regardless of group -- including the
+-- per-group variant case this feature is meant to allow. Replace it with two partial
+-- unique indexes: one preserving the original "one assignment per problem" rule for
+-- group-less assignments, one allowing one per (problem, group) for group-linked ones.
+-- The constraint name is looked up rather than hardcoded since Postgres's default
+-- auto-generated name isn't guaranteed and this needs to work whether applied to a
+-- fresh install or an already-deployed database.
+DO $$
+DECLARE
+  cname text;
+BEGIN
+  SELECT conname INTO cname
+  FROM pg_constraint
+  WHERE conrelid = 'assignments'::regclass
+    AND contype = 'u'
+    AND conkey = (
+      SELECT array_agg(attnum ORDER BY attnum)
+      FROM pg_attribute
+      WHERE attrelid = 'assignments'::regclass
+        AND attname IN ('classroom_id', 'problem_id')
+    );
+  IF cname IS NOT NULL THEN
+    EXECUTE format('ALTER TABLE assignments DROP CONSTRAINT %I', cname);
+  END IF;
+END $$;
+
+CREATE UNIQUE INDEX assignments_classroom_problem_no_group_uq
+  ON assignments (classroom_id, problem_id)
+  WHERE group_id IS NULL;
+
 CREATE UNIQUE INDEX assignments_classroom_problem_group_uq
   ON assignments (classroom_id, problem_id, group_id)
   WHERE group_id IS NOT NULL;
@@ -232,6 +265,12 @@ CREATE TABLE group_test_case_overrides (
   FOREIGN KEY (group_id) REFERENCES lab_groups(group_id) ON DELETE CASCADE,
   UNIQUE (test_case_id, group_id)
 );
+
+-- Image-output problems (e.g. Computer Graphics assignments): the judge captures
+-- a produced PNG instead of diffing stdout, and there's nothing to compare against,
+-- so expected_output has to become optional.
+ALTER TABLE problems ADD COLUMN output_type problem_output_type_enum NOT NULL DEFAULT 'text';
+ALTER TABLE problem_test_cases ALTER COLUMN expected_output DROP NOT NULL;
 
 CREATE TABLE submissions (
   submission_id   SERIAL PRIMARY KEY,
@@ -477,7 +516,13 @@ CREATE TABLE submission_attempts (
 
 CREATE INDEX idx_submission_attempts ON submission_attempts(student_id, assignment_id);
 
-CREATE OR REPLACE VIEW assignments_with_status AS
+-- CREATE OR REPLACE VIEW can only append new output columns at the very end;
+-- a.* means any ALTER TABLE ADD COLUMN on assignments lands *before* the
+-- manually-appended `status` column below, which CREATE OR REPLACE rejects
+-- as a rename. Drop and recreate instead so future assignments columns
+-- don't silently fail to propagate into this view.
+DROP VIEW IF EXISTS assignments_with_status;
+CREATE VIEW assignments_with_status AS
 SELECT
   a.*,
 

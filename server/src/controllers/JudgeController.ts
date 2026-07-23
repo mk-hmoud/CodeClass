@@ -5,7 +5,7 @@ import { nanoid } from 'nanoid';
 
 import redisClient from '../config/redis';
 import { JudgeVerdict, TestCase, TestResult } from '../types';
-import { getAssignmentTestCases } from '../models/ProblemModel';
+import { getAssignmentTestCases, getProblemOutputTypeForAssignment } from '../models/ProblemModel';
 import { getLibraryCodeForAssignment } from '../models/LibraryModel';
 import { createSubmission, getSubmissionById, getSubmissionStatus, saveSubmissionResults, updateSubmissionStatus } from '../models/SubmissionModel';
 import { runPlagiarismCheck } from './PlagiarismController';
@@ -19,11 +19,12 @@ interface RunCodeRequest {
   code: string;
   language: string;
   testCases: TestCase[];
+  outputType?: 'text' | 'image';
 }
 
 export const runCodeHandler = async (req: Request, res: Response): Promise<void> => {
   const startTime = Date.now();
-  const { code, language, testCases } = req.body as RunCodeRequest;
+  const { code, language, testCases, outputType } = req.body as RunCodeRequest;
 
   logger.info(
     { fn: 'runCode', language, codeLen: code?.length, testCount: testCases?.length },
@@ -68,7 +69,7 @@ export const runCodeHandler = async (req: Request, res: Response): Promise<void>
 
     const mode = "run";
     await redisClient.hSet(`judge:${jobId}`, {
-      data: JSON.stringify({ code, language, testCases, mode }),
+      data: JSON.stringify({ code, language, testCases, mode, outputType: outputType || 'text' }),
       createdAt: Date.now().toString(),
     });
 
@@ -330,9 +331,19 @@ export const submitHandler = async (req: Request, res: Response): Promise<void> 
     );
   }
 
+  let outputType: 'text' | 'image' = 'text';
+  try {
+    outputType = await getProblemOutputTypeForAssignment(assignmentId);
+  } catch (err) {
+    logger.error(
+      { fn: functionName, assignmentId, error: err },
+      `Error fetching problem output type, defaulting to text: ${err}`
+    );
+  }
+
   try {
     await redisClient.hSet(`judge:${submissionId}`, {
-      data: JSON.stringify({ code, language, testCases, mode: "submit", libraryCode }),
+      data: JSON.stringify({ code, language, testCases, mode: "submit", libraryCode, outputType }),
       createdAt: Date.now().toString(),
     });
     await redisClient.lPush("judge:queue", submissionId.toString());

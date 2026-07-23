@@ -16,4 +16,5 @@ export interface Problem {
   tags?: string;
   createdAt: Date;
   testCases: TestCase[];
+  outputType?: "text" | "image";
 }

@@ -45,13 +45,12 @@ const formSchema = z.object({
   prerequisites: z.string().optional(),
   learning_outcomes: z.string().optional(),
   tags: z.string().optional(),
+  outputType: z.enum(["text", "image"]).default("text"),
   testCases: z
     .array(
       z.object({
         input: z.string(),
-        expectedOutput: z
-          .string()
-          .min(1, "Expected output is required for each test case"),
+        expectedOutput: z.string(),
         isPublic: z.boolean().default(false),
       })
     )
@@ -75,17 +74,22 @@ const ProblemCreation = () => {
       prerequisites: "",
       learning_outcomes: "",
       tags: "",
+      outputType: "text",
       testCases: [{ input: "", expectedOutput: "", isPublic: false }],
     },
   });
 
+  const outputType = form.watch("outputType");
+
   const onSubmit = async (data: FormValues) => {
-    const emptyOutputs = data.testCases.filter(
-      (tc) => !tc.expectedOutput.trim()
-    );
-    if (emptyOutputs.length > 0) {
-      toast.error("Please provide expected output for all test cases");
-      return;
+    if (data.outputType !== "image") {
+      const emptyOutputs = data.testCases.filter(
+        (tc) => !tc.expectedOutput.trim()
+      );
+      if (emptyOutputs.length > 0) {
+        toast.error("Please provide expected output for all test cases");
+        return;
+      }
     }
 
     try {
@@ -199,6 +203,35 @@ const ProblemCreation = () => {
                     </Select>
                     <FormDescription>
                       Choose the category that best fits this problem.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="outputType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Output Type</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select an output type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="text">Text (stdout comparison)</SelectItem>
+                        <SelectItem value="image">Image (PNG, manually graded)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Image problems skip automatic grading — the judge captures the
+                      PNG the program produces and an instructor reviews it by hand.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -337,7 +370,10 @@ const ProblemCreation = () => {
                     </div>
                     <div>
                       <Label htmlFor={`expected-${index}`}>
-                        Expected Output <span className="text-red-500">*</span>
+                        Expected Output{" "}
+                        {outputType !== "image" && (
+                          <span className="text-red-500">*</span>
+                        )}
                       </Label>
                       <Textarea
                         id={`expected-${index}`}
@@ -349,10 +385,15 @@ const ProblemCreation = () => {
                             e.target.value
                           )
                         }
-                        placeholder="Expected output for this test case"
+                        placeholder={
+                          outputType === "image"
+                            ? "Not used for image problems — graded manually"
+                            : "Expected output for this test case"
+                        }
+                        disabled={outputType === "image"}
                         className="mt-1 min-h-[80px]"
                       />
-                      {!testCase.expectedOutput && (
+                      {outputType !== "image" && !testCase.expectedOutput && (
                         <p className="text-red-500 text-sm mt-1">
                           Expected output is required
                         </p>

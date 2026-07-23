@@ -49,6 +49,7 @@ export interface Problem {
   tags?: string;
   created_at: Date;
   testCases: TestCase[];
+  outputType?: 'text' | 'image';
 }
 
 export interface ProblemCreationData {
@@ -60,6 +61,7 @@ export interface ProblemCreationData {
   learning_outcomes?: string;
   tags?: string;
   testCases: TestCase[];
+  outputType?: 'text' | 'image';
 }
 
 export interface LibraryFile {
@@ -190,7 +192,7 @@ export interface AssignmentCreationData{
 export interface TestCase{
   testCaseId: number;
   input?: string;
-  expectedOutput: string;
+  expectedOutput?: string;
   isPublic: boolean;
 }
 
@@ -211,7 +213,7 @@ export interface TestResult {
   actual?: string;
   expectedOutput?: string;
   executionTime?: number;
-  status: 'passed' | 'failed' | 'timeout' | 'error';
+  status: 'passed' | 'failed' | 'timeout' | 'error' | 'produced' | 'no_output';
   errorType?: string;
   errorMessage?: string
   fullError?: string;

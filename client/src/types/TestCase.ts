@@ -1,7 +1,7 @@
 export interface TestCase {
   testCaseId?: number;
   input?: string;
-  expectedOutput: string;
+  expectedOutput?: string;
   isPublic: boolean;
 }
 
@@ -11,7 +11,7 @@ export interface TestResult {
   actual?: string;
   expectedOutput?: string;
   executionTime?: number;
-  status: 'passed' | 'failed' | 'error' | 'timeout' | 'runtime_error';
+  status: 'passed' | 'failed' | 'error' | 'timeout' | 'runtime_error' | 'produced' | 'no_output';
   errorType?: string;   
   error?: string;         
   errorMessage?: string;

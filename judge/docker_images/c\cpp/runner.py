@@ -4,6 +4,8 @@ import sys
 import os
 import time
 import re
+import glob
+import base64
 from tempfile import TemporaryDirectory
 
 def main():
@@ -19,6 +21,7 @@ def main():
     code = data.get('code', '')
     test_cases = data.get('testCases', [])
     lang = data.get('language', 'cpp').lower()
+    output_type = (data.get('outputType') or 'text').lower()
 
     results = []
 
@@ -43,7 +46,7 @@ def main():
         #     capture_output=True, text=True
         # )
         compiler = ['gcc', '-std=c11'] if lang == 'c' else ['g++', '-std=c++17']
-        compile_cmd = compiler + ['-Wall', '-Wextra', '-O2', '-o', exe_path, source_path]
+        compile_cmd = compiler + ['-Wall', '-Wextra', '-O2', '-o', exe_path, source_path, '-lpng']
         compile_result = subprocess.run(compile_cmd, capture_output=True, text=True)
         
         if compile_result.returncode != 0:
@@ -78,7 +81,7 @@ def main():
         for tc in test_cases:
             test_case_id = tc.get('testCaseId')
             raw_input = tc.get('input', '')
-            expected_output = tc.get('expectedOutput', '').strip()
+            expected_output = (tc.get('expectedOutput') or '').strip()
             is_public = tc.get('isPublic')
 
             # parse input, this supports both comma,separated and space separated arguments
@@ -100,6 +103,15 @@ def main():
                 "isPublic": is_public
             }
 
+            if output_type == 'image':
+                # Clear any PNG left over from a previous test case's run so we
+                # don't pick up a stale image if this run doesn't produce one.
+                for stale in glob.glob(os.path.join(tmpdir, '*.png')):
+                    try:
+                        os.remove(stale)
+                    except OSError:
+                        pass
+
             try:
                 start = time.time()
                 proc = subprocess.run(
@@ -110,15 +122,12 @@ def main():
                 )
                 elapsed = (time.time() - start) * 1000
 
-                actual = proc.stdout.strip()
                 errout = proc.stderr.strip()
-
-                result["actual"] = actual
                 result["executionTime"] = int(elapsed)
 
                 if proc.returncode != 0:
                     result["status"] = "runtime_error"
-                    
+
                     if "Segmentation fault" in errout:
                         result["errorType"] = "SEGMENTATION_FAULT"
                         result["error"] = "Segmentation fault - program tried to access invalid memory"
@@ -134,9 +143,25 @@ def main():
                     else:
                         result["errorType"] = "RUNTIME_ERROR"
                         result["error"] = errout if errout else f"Program exited with code {proc.returncode}"
-                    
+
                     result["fullError"] = errout
+                elif output_type == 'image':
+                    png_files = sorted(
+                        glob.glob(os.path.join(tmpdir, '*.png')),
+                        key=os.path.getmtime,
+                        reverse=True
+                    )
+                    if png_files:
+                        with open(png_files[0], 'rb') as img_f:
+                            b64 = base64.b64encode(img_f.read()).decode('ascii')
+                        result["actual"] = f"data:image/png;base64,{b64}"
+                        result["status"] = "produced"
+                    else:
+                        result["status"] = "no_output"
+                        result["error"] = "Program completed but did not produce a .png file"
                 else:
+                    actual = proc.stdout.strip()
+                    result["actual"] = actual
                     if actual == expected_output:
                         result["status"] = "passed"
                     else:

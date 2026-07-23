@@ -9,12 +9,13 @@ export interface JudgeResponse {
 export const runCode = async (
   code: string,
   language: string,
-  testCases: TestCase[]
+  testCases: TestCase[],
+  outputType?: "text" | "image"
 ): Promise<JudgeResponse> => {
   try {
     const { data } = await apiClient.post<JudgeResponse>(
       "/judge/run",
-      { code, language, testCases }
+      { code, language, testCases, outputType }
     );
     return data;
   } catch (error) {

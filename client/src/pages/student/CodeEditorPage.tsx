@@ -475,8 +475,13 @@ const CodeEditorPage = () => {
                     )}
                   </div>
                   {activeTestResult.actual?.startsWith("data:image/") ? (
-                    <div className="border border-border rounded-md p-2 bg-muted/30">
-                      <img src={activeTestResult.actual} alt="Program output" className="max-w-full rounded" />
+                    <div className="border border-border rounded-md p-2 bg-muted/30 flex justify-center">
+                      <img
+                        src={activeTestResult.actual}
+                        alt="Program output"
+                        className="rounded"
+                        style={{ minWidth: 120, minHeight: 120, maxWidth: "100%", imageRendering: "pixelated" }}
+                      />
                     </div>
                   ) : (
                     <MonoBlock className={cn(
@@ -495,7 +500,7 @@ const CodeEditorPage = () => {
                     <ImageIcon size={14} />
                     <span className="font-medium">
                       {activeTestResult.status === "produced"
-                        ? "Image produced — awaiting instructor review"
+                        ? "Image produced"
                         : "No image produced"}
                     </span>
                   </div>

@@ -97,7 +97,12 @@ const SubmissionDetailsView: React.FC<SubmissionDetailsViewProps> = ({
             <div className="p-3">
               <p className="text-xs text-muted-foreground mb-1.5">Output</p>
               {result.status === "produced" ? (
-                <img src={result.actual} alt="Program output" className="max-w-full rounded-md border border-border" />
+                <img
+                  src={result.actual}
+                  alt="Program output"
+                  className="rounded-md border border-border"
+                  style={{ minWidth: 120, minHeight: 120, maxWidth: "100%", imageRendering: "pixelated" }}
+                />
               ) : (
                 <p className="text-xs text-muted-foreground italic">No image produced</p>
               )}

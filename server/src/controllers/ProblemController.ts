@@ -39,6 +39,7 @@ export const createProblemController = async (
       learning_outcomes: req.body.learning_outcomes,
       tags: req.body.tags,
       testCases: req.body.testCases,
+      outputType: req.body.outputType,
     };
 
     const result = await createProblem(problemData);

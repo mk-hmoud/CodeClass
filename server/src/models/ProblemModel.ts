@@ -210,7 +210,7 @@ export const getAssignmentTestCases = async (
 ): Promise<TestCase[]> => {
   const sql = `
     SELECT tc.test_case_id   AS "testCaseId",
-           COALESCE(gto.input, tc.input) AS input,
+           COALESCE(gto.input, tc.input, '') AS input,
            COALESCE(gto.expected_output, tc.expected_output, '') AS "expectedOutput",
            tc.is_public      AS "isPublic"
     FROM assignments a

@@ -115,7 +115,7 @@ const AdminCreateUser: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <div className={cn("bg-card border border-border rounded-2xl p-8 shadow-sm", shake && "animate-shake")}>
+        <div className={cn("bg-card border border-border rounded-lg p-8 shadow-sm", shake && "animate-shake")}>
           <div className="mb-6 flex justify-between items-center">
             <div>
               <h1 className="text-2xl font-bold mb-1">Create User</h1>
@@ -221,7 +221,7 @@ const AdminCreateUser: React.FC = () => {
                     {PASSWORD_REQS.map(req => (
                       <div key={req.id} className="flex items-center gap-1.5 text-xs">
                         {strength[req.id]
-                          ? <Check size={11} className="text-green-500 shrink-0" />
+                          ? <Check size={11} className="text-success shrink-0" />
                           : <X size={11} className="text-orange-400 shrink-0" />}
                         <span className={strength[req.id] ? "text-muted-foreground" : "text-orange-400"}>
                           {req.text}

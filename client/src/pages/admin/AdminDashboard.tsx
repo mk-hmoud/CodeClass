@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import PageHeader from "@/components/PageHeader";
 
 const AdminDashboard: React.FC = () => {
   const [users, setUsers] = useState<UserSummary[]>([]);
@@ -154,32 +155,33 @@ const AdminDashboard: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-6xl">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
-          <p className="text-muted-foreground mt-1">Manage users and platform settings</p>
-        </div>
-        <div className="flex gap-2">
-          <input 
-            type="file" 
-            accept=".csv" 
-            ref={fileInputRef} 
-            className="hidden" 
-            onChange={handleFileUpload}
-          />
-          <Button variant="outline" className="gap-2" onClick={() => fileInputRef.current?.click()}>
-            <Upload size={16} />
-            Import CSV
-          </Button>
-          <Link to="/admin/users/create">
-            <Button className="gap-2">
-              <PlusCircle size={16} />
-              Create User
+    <div className="max-w-6xl mx-auto px-6 py-8">
+      <PageHeader
+        title="Admin Dashboard"
+        description="Manage users and platform settings"
+        className="mb-8"
+        actions={
+          <>
+            <input
+              type="file"
+              accept=".csv"
+              ref={fileInputRef}
+              className="hidden"
+              onChange={handleFileUpload}
+            />
+            <Button variant="outline" className="gap-2" onClick={() => fileInputRef.current?.click()}>
+              <Upload size={16} />
+              Import CSV
             </Button>
-          </Link>
-        </div>
-      </div>
+            <Link to="/admin/users/create">
+              <Button className="gap-2">
+                <PlusCircle size={16} />
+                Create User
+              </Button>
+            </Link>
+          </>
+        }
+      />
 
       <Tabs defaultValue="users" className="space-y-6">
         <TabsList>
@@ -224,9 +226,9 @@ const AdminDashboard: React.FC = () => {
                           <td className="px-4 py-3 text-muted-foreground">{user.email}</td>
                           <td className="px-4 py-3">
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize
-                              ${user.role === 'admin' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' : 
-                                user.role === 'instructor' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' : 
-                                'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'}`}>
+                              ${user.role === 'admin' ? 'bg-primary/10 text-primary' :
+                                user.role === 'instructor' ? 'bg-info/10 text-info' :
+                                'bg-success/10 text-success'}`}>
                               {user.role}
                             </span>
                           </td>
@@ -237,7 +239,7 @@ const AdminDashboard: React.FC = () => {
                                   variant="ghost" 
                                   size="icon"
                                   onClick={() => handleChangePassword(user.user_id, user.email)}
-                                  className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-600/10"
+                                  className="h-8 w-8 text-info hover:text-info hover:bg-info/10"
                                   title="Change Password"
                                 >
                                   <Key size={16} />
@@ -307,7 +309,7 @@ const AdminDashboard: React.FC = () => {
                           <td className="px-4 py-3">{c.student_count}</td>
                           <td className="px-4 py-3 capitalize">
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize
-                              ${c.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
+                              ${c.status === 'active' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>
                               {c.status}
                             </span>
                           </td>
@@ -317,7 +319,7 @@ const AdminDashboard: React.FC = () => {
                                 variant="ghost" 
                                 size="icon"
                                 onClick={() => triggerEnrollModal(c.classroom_id)}
-                                className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-600/10"
+                                className="h-8 w-8 text-info hover:text-info hover:bg-info/10"
                                 title="Enroll Students"
                               >
                                 <UserPlus size={16} />

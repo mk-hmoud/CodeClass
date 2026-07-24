@@ -45,6 +45,12 @@ const CodeEditorPage = () => {
   const editorRef = useRef<HTMLDivElement>(null);
   const monacoInstance = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const onRunCodeRef = useRef<(src: string) => void>(() => {});
+  // Monaco's keybindings are registered once, on mount, so they'd otherwise close
+  // over stale state (e.g. the language selected at mount time, not whatever the
+  // user has since picked). Route them through refs that are kept fresh every
+  // render instead of calling the handlers directly.
+  const handleRunCodeRef = useRef<() => void>(() => {});
+  const handleSubmitCodeRef = useRef<() => void>(() => {});
 
   const [isRunning, setIsRunning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -107,11 +113,11 @@ const CodeEditorPage = () => {
     // Ctrl+Enter = Run, Ctrl+Shift+Enter = Submit
     monacoInstance.current.addCommand(
       monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter,
-      () => { if (monacoInstance.current) handleRunCode(); }
+      () => { if (monacoInstance.current) handleRunCodeRef.current(); }
     );
     monacoInstance.current.addCommand(
       monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter,
-      () => { if (monacoInstance.current) handleSubmitCode(); }
+      () => { if (monacoInstance.current) handleSubmitCodeRef.current(); }
     );
 
     if (publicTestCases.length > 0) setActiveTestCaseId(publicTestCases[0].testCaseId);
@@ -268,6 +274,11 @@ const CodeEditorPage = () => {
       setIsSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    handleRunCodeRef.current = handleRunCode;
+    handleSubmitCodeRef.current = handleSubmitCode;
+  });
 
   // ── Derived ───────────────────────────────────────────────────────────────
   const currentVerdict = resultTab === "submit" ? submitVerdict : runVerdict;

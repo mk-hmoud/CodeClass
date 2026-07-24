@@ -60,6 +60,7 @@ const CodeEditorPage = () => {
   const supportedLanguages = assignment?.languages?.map((l) => l.language.name) ?? [];
   const initialCodes = assignment?.languages?.map((l) => l.initial_code) ?? [];
   const publicTestCases: TestCase[] = assignment?.problem?.testCases ?? [];
+  const isImageAssignment = assignment?.problem?.outputType === "image";
 
   // ── Monaco setup ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -206,9 +207,16 @@ const CodeEditorPage = () => {
       } else if (statusData.status === "system_error") {
         toast.error("System error — please try again");
       } else if (statusData.status === "completed" && statusData.metrics) {
-        const { passedTests, totalTests } = statusData.metrics;
-        if (passedTests === totalTests) toast.success(`All ${totalTests} tests passed!`);
-        else toast.warning(`${passedTests}/${totalTests} tests passed`);
+        const { totalTests = 0 } = statusData.metrics;
+        if (isImageAssignment) {
+          const produced = (statusData.testResults ?? []).filter((r) => r.status === "produced").length;
+          if (produced === totalTests) toast.success(`Image produced for all ${totalTests} test case${totalTests === 1 ? "" : "s"}`);
+          else toast.warning(`${produced}/${totalTests} test case${totalTests === 1 ? "" : "s"} produced an image`);
+        } else {
+          const { passedTests } = statusData.metrics;
+          if (passedTests === totalTests) toast.success(`All ${totalTests} tests passed!`);
+          else toast.warning(`${passedTests}/${totalTests} tests passed`);
+        }
         setActiveTestCaseId(publicTestCases[0]?.testCaseId ?? 0);
       }
     } catch {
@@ -242,11 +250,15 @@ const CodeEditorPage = () => {
       } else if (statusData.status === "completed" && statusData.metrics) {
         removeCodeDraft(assignmentId);
         setSaveStatus("saved");
-        const { passedTests, totalTests, privatePassedTests = 0, privateTestsTotal = 0 } = statusData.metrics;
-        if (passedTests === totalTests && privatePassedTests === privateTestsTotal) {
-          toast.success("All tests passed! 🎉");
+        if (isImageAssignment) {
+          toast.success("Submitted — your instructor will review the output and grade manually.");
         } else {
-          toast.warning(`${passedTests}/${totalTests} public, ${privatePassedTests}/${privateTestsTotal} private passed`);
+          const { passedTests, totalTests, privatePassedTests = 0, privateTestsTotal = 0 } = statusData.metrics;
+          if (passedTests === totalTests && privatePassedTests === privateTestsTotal) {
+            toast.success("All tests passed! 🎉");
+          } else {
+            toast.warning(`${passedTests}/${totalTests} public, ${privatePassedTests}/${privateTestsTotal} private passed`);
+          }
         }
         if (remainingAttempts !== null) setRemainingAttempts((p) => (p ?? 1) - 1);
       }
@@ -260,14 +272,19 @@ const CodeEditorPage = () => {
   // ── Derived ───────────────────────────────────────────────────────────────
   const currentVerdict = resultTab === "submit" ? submitVerdict : runVerdict;
   const testResults = currentVerdict.testResults ?? [];
-  const testsPassed = currentVerdict.metrics?.passedTests ?? 0;
   const totalTests = currentVerdict.metrics?.totalTests ?? 0;
+  const testsPassed = isImageAssignment
+    ? testResults.filter((r) => r.status === "produced").length
+    : currentVerdict.metrics?.passedTests ?? 0;
   const activeTestCase = publicTestCases.find((tc) => tc.testCaseId === activeTestCaseId);
   const activeTestResult = testResults.find((r) => r.testCaseId === activeTestCaseId);
   const isWorking = isRunning || isSubmitting;
 
   const allPassed = totalTests > 0 && testsPassed === totalTests;
   const hasResults = testResults.length > 0;
+  const runPassedCount = isImageAssignment
+    ? (runVerdict.testResults ?? []).filter((r) => r.status === "produced").length
+    : runVerdict.metrics?.passedTests ?? 0;
 
   // ── Render helpers ────────────────────────────────────────────────────────
   const MonoBlock = ({ children, className }: { children: React.ReactNode; className?: string }) => (
@@ -398,20 +415,27 @@ const CodeEditorPage = () => {
           {privTotal > 0 && (
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Private Tests</p>
-              <div className="rounded-md border border-border p-3 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Score</span>
-                  <span className={cn("font-semibold", privPassed === privTotal ? "text-success" : "text-warning")}>
-                    {privPassed} / {privTotal}
-                  </span>
+              {isImageAssignment ? (
+                <div className="flex items-center gap-2 text-sm px-3 py-2 rounded-md bg-info/10 text-info">
+                  <ImageIcon size={14} />
+                  <span>{privTotal} private test case{privTotal === 1 ? "" : "s"} submitted for manual review</span>
                 </div>
-                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                  <div
-                    className={cn("h-full rounded-full transition-all", privPassed === privTotal ? "bg-success" : "bg-warning")}
-                    style={{ width: `${privTotal > 0 ? (privPassed / privTotal) * 100 : 0}%` }}
-                  />
+              ) : (
+                <div className="rounded-md border border-border p-3 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Score</span>
+                    <span className={cn("font-semibold", privPassed === privTotal ? "text-success" : "text-warning")}>
+                      {privPassed} / {privTotal}
+                    </span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={cn("h-full rounded-full transition-all", privPassed === privTotal ? "bg-success" : "bg-warning")}
+                      style={{ width: `${privTotal > 0 ? (privPassed / privTotal) * 100 : 0}%` }}
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
         </div>
@@ -686,8 +710,8 @@ const CodeEditorPage = () => {
                           <TabsTrigger value="run" className="h-7 px-2.5 text-xs data-[state=active]:bg-muted data-[state=active]:text-foreground rounded">
                             <Play size={11} className="mr-1" />Run
                             {runVerdict.status === "completed" && (
-                              <span className={cn("ml-1 text-[10px] font-bold", allPassed ? "text-success" : "text-destructive")}>
-                                {runVerdict.metrics?.passedTests}/{runVerdict.metrics?.totalTests}
+                              <span className={cn("ml-1 text-[10px] font-bold", runPassedCount === runVerdict.metrics?.totalTests ? "text-success" : "text-destructive")}>
+                                {runPassedCount}/{runVerdict.metrics?.totalTests}
                               </span>
                             )}
                           </TabsTrigger>

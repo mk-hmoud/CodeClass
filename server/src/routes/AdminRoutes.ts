@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createUser, getAllUsers, deleteUser, getAllClassrooms, deleteClassroom, getAnalytics, changeUserPassword, bulkCreateUsers, bulkEnrollStudents } from '../controllers/AdminController';
+import { createUser, getAllUsers, deleteUser, getAllClassrooms, deleteClassroom, getAnalytics, changeUserPassword, bulkCreateUsers, bulkEnrollStudents, getMaintenanceStatus, setMaintenanceStatus } from '../controllers/AdminController';
 import { authMiddleware, requireRole } from '../middleware/AuthMiddleware';
 
 const router = Router();
@@ -18,5 +18,8 @@ router.get('/classrooms', getAllClassrooms);
 router.delete('/classrooms/:id', deleteClassroom);
 router.post('/classrooms/:id/enroll-bulk', bulkEnrollStudents);
 router.get('/analytics', getAnalytics);
+
+router.get('/maintenance', getMaintenanceStatus);
+router.put('/maintenance', setMaintenanceStatus);
 
 export default router;

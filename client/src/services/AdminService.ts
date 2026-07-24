@@ -133,3 +133,30 @@ export const adminBulkEnrollStudents = async (classroomId: number, emails: strin
     };
   }
 };
+
+export const getMaintenanceStatus = async (): Promise<boolean> => {
+  try {
+    const response = await apiClient.get('/admin/maintenance');
+    return response.data.maintenance_mode ?? false;
+  } catch (error) {
+    console.error("Get maintenance status error:", error);
+    return false;
+  }
+};
+
+export const setMaintenanceStatus = async (enabled: boolean): Promise<{ success: boolean; message: string; maintenance_mode?: boolean }> => {
+  try {
+    const response = await apiClient.put('/admin/maintenance', { enabled });
+    return {
+      success: true,
+      message: response.data.maintenance_mode ? "Maintenance mode enabled" : "Maintenance mode disabled",
+      maintenance_mode: response.data.maintenance_mode,
+    };
+  } catch (error: any) {
+    console.error("Set maintenance status error:", error);
+    return {
+      success: false,
+      message: error.response?.data?.message || "Network error occurred",
+    };
+  }
+};

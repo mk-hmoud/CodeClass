@@ -35,6 +35,17 @@ CREATE TYPE problem_output_type_enum AS ENUM (
   'image'
 );
 
+-- Single-row settings table (id is always 1). Currently just the maintenance
+-- mode flag; not a key/value store since there's only ever one setting to add
+-- when needed.
+CREATE TABLE system_settings (
+  id SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  maintenance_mode BOOLEAN NOT NULL DEFAULT FALSE,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+INSERT INTO system_settings (id, maintenance_mode) VALUES (1, FALSE);
+
 CREATE TABLE languages (
   language_id SERIAL PRIMARY KEY,
   name VARCHAR(255) NOT NULL,

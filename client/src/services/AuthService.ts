@@ -46,11 +46,11 @@ export const loginUser = async ({
       token: data.token,
       user: data.user,
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error("Login error:", error);
     return {
       success: false,
-      message: error instanceof Error ? error.message : "Network error occurred",
+      message: error.response?.data?.message || "Network error occurred",
     };
   }
 };

@@ -3,6 +3,7 @@ import { RequestHandler } from 'express';
 import { createUser as createAuthUser, findUserByEmail } from '../models/AuthModel';
 import { getAllUsers as fetchAllUsers, getAllClassroomsAdmin, deleteClassroomAdmin, getPlatformAnalytics } from '../models/AdminModel';
 import { deleteUser as deleteUserModel } from '../models/UserModel';
+import { getMaintenanceMode, setMaintenanceMode } from '../models/SystemSettingsModel';
 import bcrypt from 'bcrypt';
 
 export const createUser: RequestHandler = async (req, res) => {
@@ -109,6 +110,32 @@ export const getAnalytics: RequestHandler = async (req, res) => {
   } catch (error) {
     logger.error({ fn: 'getAnalytics', error }, `Get analytics error: ${error}`);
     res.status(500).json({ success: false, message: 'An error occurred while fetching analytics' });
+  }
+};
+
+export const getMaintenanceStatus: RequestHandler = async (req, res) => {
+  try {
+    const maintenance_mode = await getMaintenanceMode();
+    res.status(200).json({ success: true, maintenance_mode });
+  } catch (error) {
+    logger.error({ fn: 'getMaintenanceStatus', error }, `Get maintenance status error: ${error}`);
+    res.status(500).json({ success: false, message: 'An error occurred while fetching maintenance status' });
+  }
+};
+
+export const setMaintenanceStatus: RequestHandler = async (req, res) => {
+  try {
+    const { enabled } = req.body;
+    if (typeof enabled !== 'boolean') {
+      res.status(400).json({ success: false, message: 'enabled must be a boolean' });
+      return;
+    }
+    await setMaintenanceMode(enabled);
+    logger.info({ fn: 'setMaintenanceStatus', enabled, adminId: req.user?.id }, `Maintenance mode set to ${enabled}`);
+    res.status(200).json({ success: true, maintenance_mode: enabled });
+  } catch (error) {
+    logger.error({ fn: 'setMaintenanceStatus', error }, `Set maintenance status error: ${error}`);
+    res.status(500).json({ success: false, message: 'An error occurred while updating maintenance status' });
   }
 };
 

@@ -1,6 +1,7 @@
 import logger from '../config/logger';
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { getMaintenanceMode } from '../models/SystemSettingsModel';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
 
@@ -20,7 +21,7 @@ declare global {
   }
 }
 
-export const authMiddleware = (req: Request, res: Response, next: NextFunction): void => {
+export const authMiddleware = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const fn = "authMiddleware";
   logger.debug({ fn, url: req.originalUrl }, "Auth middleware invoked");
   try {
@@ -50,6 +51,17 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction):
     };
     
     logger.info({ fn, userId: decoded.id, role: decoded.role, role_id: decoded.role_id }, "Token verified successfully");    req.user = decoded;
+
+    if (decoded.role !== 'admin' && await getMaintenanceMode()) {
+      logger.warn({ fn, userId: decoded.id, role: decoded.role }, "Request blocked: platform in maintenance mode");
+      res.status(503).json({
+        success: false,
+        maintenance: true,
+        message: 'The platform is currently under maintenance. Please try again later.'
+      });
+      return;
+    }
+
     next();
   } catch (error) {
     logger.error({ fn, error }, "Error during token verification");

@@ -7,6 +7,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/shared/Home";
 import Login from "./pages/shared/Login";
 import NotFound from "./pages/shared/NotFound";
+import MaintenancePage from "./pages/shared/MaintenancePage";
 import Profile from "./pages/shared/Profile";
 
 import InstructorLayout from "./layouts/InstructorLayout";
@@ -48,6 +49,7 @@ const App = () => (
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/maintenance" element={<MaintenancePage />} />
 
           {/* Admin Routes */}
           <Route path="/admin" element={<AdminLayout />}>

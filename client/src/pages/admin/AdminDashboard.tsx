@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
-import { fetchAllUsers, deleteUser, UserSummary, fetchAllClassroomsAdmin, deleteClassroomAdmin, fetchPlatformAnalytics, adminChangeUserPassword, adminBulkCreateUsers, adminBulkEnrollStudents } from "@/services/AdminService";
+import { fetchAllUsers, deleteUser, UserSummary, fetchAllClassroomsAdmin, deleteClassroomAdmin, fetchPlatformAnalytics, adminChangeUserPassword, adminBulkCreateUsers, adminBulkEnrollStudents, getMaintenanceStatus, setMaintenanceStatus } from "@/services/AdminService";
 import { Button } from "@/components/ui/button";
 import { Trash2, PlusCircle, UserCog, BookOpen, BarChart, Settings, Users as UsersIcon, Key, Upload, UserPlus } from "lucide-react";
 import { toast } from "sonner";
@@ -16,6 +16,7 @@ const AdminDashboard: React.FC = () => {
   const [classrooms, setClassrooms] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<any>(null);
   const [maintenance, setMaintenance] = useState(false);
+  const [maintenanceUpdating, setMaintenanceUpdating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -26,20 +27,34 @@ const AdminDashboard: React.FC = () => {
 
   const loadData = async () => {
     setIsLoading(true);
-    const [userData, classData, analyticsData] = await Promise.all([
+    const [userData, classData, analyticsData, maintenanceStatus] = await Promise.all([
       fetchAllUsers(),
       fetchAllClassroomsAdmin(),
-      fetchPlatformAnalytics()
+      fetchPlatformAnalytics(),
+      getMaintenanceStatus(),
     ]);
     setUsers(userData);
     setClassrooms(classData);
     setAnalytics(analyticsData);
+    setMaintenance(maintenanceStatus);
     setIsLoading(false);
   };
 
   useEffect(() => {
     loadData();
   }, []);
+
+  const handleToggleMaintenance = async () => {
+    setMaintenanceUpdating(true);
+    const response = await setMaintenanceStatus(!maintenance);
+    if (response.success && response.maintenance_mode !== undefined) {
+      setMaintenance(response.maintenance_mode);
+      toast.success(response.message);
+    } else {
+      toast.error(response.message);
+    }
+    setMaintenanceUpdating(false);
+  };
 
   const handleDelete = async (id: number, email: string) => {
     if (window.confirm(`Are you sure you want to delete user ${email}?`)) {
@@ -400,9 +415,10 @@ const AdminDashboard: React.FC = () => {
                 </div>
                 <Button
                   variant={maintenance ? "destructive" : "default"}
-                  onClick={() => setMaintenance(!maintenance)}
+                  onClick={handleToggleMaintenance}
+                  disabled={maintenanceUpdating}
                 >
-                  {maintenance ? "Disable Maintenance" : "Enable Maintenance"}
+                  {maintenanceUpdating ? "Updating…" : maintenance ? "Disable Maintenance" : "Enable Maintenance"}
                 </Button>
               </div>
             </CardContent>

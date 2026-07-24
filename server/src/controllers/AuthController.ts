@@ -2,6 +2,7 @@ import logger from '../config/logger';
 import { RequestHandler } from 'express';
 import jwt from 'jsonwebtoken';
 import { createUser, findUserByEmail, findUserById, validateUserPassword } from '../models/AuthModel';
+import { getMaintenanceMode } from '../models/SystemSettingsModel';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
 const TOKEN_EXPIRY = '24h';
@@ -42,6 +43,15 @@ export const login: RequestHandler = async (req, res, next) => {
       res.status(401).json({
         success: false,
         message: 'Invalid email or password'
+      });
+      return;
+    }
+    if (user.role !== 'admin' && await getMaintenanceMode()) {
+      logger.warn({ fn: functionName, email, role: user.role }, `Login blocked: platform in maintenance mode`);
+      res.status(503).json({
+        success: false,
+        maintenance: true,
+        message: 'The platform is currently under maintenance. Please try again later.'
       });
       return;
     }

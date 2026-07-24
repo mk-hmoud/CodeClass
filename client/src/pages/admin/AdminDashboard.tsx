@@ -209,7 +209,7 @@ const AdminDashboard: React.FC = () => {
                   No users found.
                 </div>
               ) : (
-                <div className="rounded-md border overflow-hidden">
+                <div className="rounded-md border overflow-x-auto">
                   <table className="w-full text-sm text-left">
                     <thead className="bg-muted/50 text-muted-foreground">
                       <tr>
@@ -285,7 +285,7 @@ const AdminDashboard: React.FC = () => {
                   No classrooms found.
                 </div>
               ) : (
-                <div className="rounded-md border overflow-hidden">
+                <div className="rounded-md border overflow-x-auto">
                   <table className="w-full text-sm text-left">
                     <thead className="bg-muted/50 text-muted-foreground">
                       <tr>

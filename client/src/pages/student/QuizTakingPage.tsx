@@ -39,6 +39,7 @@ import {
   getQuizSubmitStatus,
   submitSession,
 } from "@/services/QuizService";
+import { useIsCompactLayout } from "@/hooks/use-media-query";
 
 const POLL_INTERVAL = 1000;
 
@@ -71,6 +72,7 @@ interface Session {
 const QuizTakingPage: React.FC = () => {
   const { classroomId, quizId } = useParams<{ classroomId: string; quizId: string }>();
   const navigate = useNavigate();
+  const isCompact = useIsCompactLayout();
 
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -429,9 +431,9 @@ const QuizTakingPage: React.FC = () => {
 
       {/* Main content */}
       <div className="flex-1 overflow-hidden">
-        <ResizablePanelGroup direction="horizontal" className="h-full">
-          {/* Problem sidebar */}
-          <ResizablePanel defaultSize={20} minSize={15} maxSize={30}>
+        <ResizablePanelGroup direction={isCompact ? "vertical" : "horizontal"} className="h-full">
+          {/* Problem sidebar (top, when stacked) */}
+          <ResizablePanel defaultSize={isCompact ? 18 : 20} minSize={isCompact ? 12 : 15} maxSize={isCompact ? 35 : 30}>
             <div className="h-full flex flex-col border-r overflow-y-auto">
               <div className="p-3 border-b font-semibold text-sm text-muted-foreground uppercase tracking-wide">
                 Problems
@@ -458,8 +460,8 @@ const QuizTakingPage: React.FC = () => {
 
           <ResizableHandle withHandle />
 
-          {/* Problem description + verdict */}
-          <ResizablePanel defaultSize={30} minSize={20}>
+          {/* Problem description + verdict (middle, when stacked) */}
+          <ResizablePanel defaultSize={isCompact ? 32 : 30} minSize={20}>
             <ResizablePanelGroup direction="vertical">
               <ResizablePanel defaultSize={65} minSize={30}>
                 <div className="h-full overflow-y-auto p-6 space-y-4">
@@ -509,7 +511,7 @@ const QuizTakingPage: React.FC = () => {
 
           <ResizableHandle withHandle />
 
-          {/* Code editor */}
+          {/* Code editor (bottom, when stacked) */}
           <ResizablePanel defaultSize={50} minSize={30}>
             <div className="h-full flex flex-col">
               <CodeEditor

@@ -23,6 +23,7 @@ import { getRemainingAttempts } from "@/services/AssignmentService";
 import { getCodeDraft, removeCodeDraft, saveCodeDraft } from "@/utils/CodeDraftManager";
 import { LANGUAGE_LABELS } from "@/lib/assignmentUtils";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useIsCompactLayout } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 
 const POLL_INTERVAL = 1000;
@@ -41,6 +42,7 @@ const CodeEditorPage = () => {
   const { classroomId, assignmentId } = useParams();
   const { state = {} } = useLocation();
   const { theme } = useTheme();
+  const isCompact = useIsCompactLayout();
   const [assignment] = useState<Assignment | null>(state as Assignment | null);
 
   const editorRef = useRef<HTMLDivElement>(null);
@@ -650,10 +652,10 @@ const CodeEditorPage = () => {
 
         {/* ── Main layout ──────────────────────────────────────────────── */}
         <div className="flex-1 overflow-hidden">
-          <ResizablePanelGroup direction="horizontal" className="h-full">
+          <ResizablePanelGroup direction={isCompact ? "vertical" : "horizontal"} className="h-full">
 
-            {/* ── Left column ─────────────────────────────────────────── */}
-            <ResizablePanel defaultSize={38} minSize={22} maxSize={55}>
+            {/* ── Left column (top, when stacked) ─────────────────────── */}
+            <ResizablePanel defaultSize={isCompact ? 45 : 38} minSize={isCompact ? 25 : 22} maxSize={isCompact ? 70 : 55}>
               <ResizablePanelGroup direction="vertical" className="h-full">
 
                 {/* Description */}
@@ -765,8 +767,8 @@ const CodeEditorPage = () => {
 
             <ResizableHandle withHandle />
 
-            {/* ── Editor column ────────────────────────────────────────── */}
-            <ResizablePanel defaultSize={62} minSize={35}>
+            {/* ── Editor column (bottom, when stacked) ────────────────── */}
+            <ResizablePanel defaultSize={isCompact ? 55 : 62} minSize={isCompact ? 30 : 35}>
               <div className="h-full flex flex-col">
 
                 {/* Editor toolbar */}

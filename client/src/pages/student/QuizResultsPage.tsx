@@ -58,8 +58,11 @@ const QuizResultsPage: React.FC = () => {
       : null;
 
   const scoreColor =
-    percentage >= 80 ? "#10b981" :
-    percentage >= 50 ? "#f59e0b" : "#ef4444";
+    percentage >= 80 ? "hsl(var(--success))" :
+    percentage >= 50 ? "hsl(var(--warning))" : "hsl(var(--destructive))";
+  const scoreColorBg =
+    percentage >= 80 ? "hsl(var(--success) / 0.15)" :
+    percentage >= 50 ? "hsl(var(--warning) / 0.15)" : "hsl(var(--destructive) / 0.15)";
 
   return (
     <div className="flex-1 flex flex-col">
@@ -81,7 +84,7 @@ const QuizResultsPage: React.FC = () => {
         >
           <div
             className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5"
-            style={{ backgroundColor: scoreColor + "18" }}
+            style={{ backgroundColor: scoreColorBg }}
           >
             <Trophy size={28} style={{ color: scoreColor }} />
           </div>
@@ -140,12 +143,12 @@ const QuizResultsPage: React.FC = () => {
                         <Minus size={13} className="text-muted-foreground" />
                       </div>
                     ) : allPassed ? (
-                      <div className="w-8 h-8 rounded-full bg-green-500/15 flex items-center justify-center">
-                        <CheckCircle size={16} className="text-green-500" />
+                      <div className="w-8 h-8 rounded-full bg-success/15 flex items-center justify-center">
+                        <CheckCircle size={16} className="text-success" />
                       </div>
                     ) : (
-                      <div className="w-8 h-8 rounded-full bg-amber-500/15 flex items-center justify-center">
-                        <XCircle size={16} className="text-amber-500" />
+                      <div className="w-8 h-8 rounded-full bg-warning/15 flex items-center justify-center">
+                        <XCircle size={16} className="text-warning" />
                       </div>
                     )}
                   </div>
@@ -170,8 +173,8 @@ const QuizResultsPage: React.FC = () => {
                         variant="outline"
                         className={cn("text-[11px] mt-1 border",
                           allPassed
-                            ? "text-green-600 border-green-500/30 bg-green-500/8"
-                            : "text-amber-600 border-amber-500/30 bg-amber-500/8"
+                            ? "text-success border-success/30 bg-success/8"
+                            : "text-warning border-warning/30 bg-warning/8"
                         )}
                       >
                         {allPassed ? "Full marks" : "Partial"}

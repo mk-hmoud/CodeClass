@@ -53,14 +53,14 @@ const AssignmentCard = ({
   const urgent =
     !submitted && !expired && !!assignment.dueDate && hoursLeft(assignment.dueDate.toString()) < 24;
 
-  const borderColor = submitted ? "#10b981" : expired ? "#ef4444" : urgent ? "#f59e0b" : accent;
+  const borderColor = submitted ? "hsl(var(--success))" : expired ? "hsl(var(--destructive))" : urgent ? "hsl(var(--warning))" : accent;
 
   const statusBadge = submitted ? (
-    <Badge className="bg-green-500/15 text-green-600 border-green-500/30 border text-[11px]">Completed</Badge>
+    <Badge variant="success" className="text-[11px]">Completed</Badge>
   ) : expired ? (
-    <Badge className="bg-red-500/15 text-red-500 border-red-500/30 border text-[11px]">Expired</Badge>
+    <Badge className="bg-destructive/15 text-destructive border-destructive/30 border text-[11px]">Expired</Badge>
   ) : urgent ? (
-    <Badge className="bg-amber-500/15 text-amber-600 border-amber-500/30 border text-[11px]">Due soon</Badge>
+    <Badge variant="warning" className="text-[11px]">Due soon</Badge>
   ) : (
     <Badge className="bg-primary/10 text-primary border-primary/20 border text-[11px]">Active</Badge>
   );
@@ -85,9 +85,9 @@ const AssignmentCard = ({
         {/* Top row */}
         <div className="flex items-start justify-between gap-2 mb-3">
           <div className="flex items-center gap-2 min-w-0">
-            {submitted && <CheckCircle size={14} className="text-green-500 shrink-0" />}
-            {expired && <AlertCircle size={14} className="text-red-500 shrink-0" />}
-            {urgent && !submitted && <Clock size={14} className="text-amber-500 shrink-0" />}
+            {submitted && <CheckCircle size={14} className="text-success shrink-0" />}
+            {expired && <AlertCircle size={14} className="text-destructive shrink-0" />}
+            {urgent && !submitted && <Clock size={14} className="text-warning shrink-0" />}
             <h3 className="font-medium text-sm leading-tight truncate">{assignment.title}</h3>
           </div>
           {statusBadge}
@@ -105,9 +105,9 @@ const AssignmentCard = ({
 
         {/* Grade box (submitted) */}
         {submitted && (
-          <div className="rounded-lg bg-green-500/8 border border-green-500/20 px-3 py-2 flex items-center justify-between mb-3">
-            <span className="text-xs text-green-600">Grade</span>
-            <span className="text-sm font-bold text-green-600">
+          <div className="rounded-lg bg-success/[0.08] border border-success/20 px-3 py-2 flex items-center justify-between mb-3">
+            <span className="text-xs text-success">Grade</span>
+            <span className="text-sm font-bold text-success">
               {assignment.finalScore != null
                 ? `${assignment.finalScore}/${assignment.points}`
                 : "Pending"}
@@ -117,9 +117,9 @@ const AssignmentCard = ({
 
         {/* Expired notice */}
         {expired && (
-          <div className="rounded-lg bg-red-500/8 border border-red-500/20 px-3 py-2 flex items-center gap-2 mb-3">
-            <AlertCircle size={13} className="text-red-500 shrink-0" />
-            <span className="text-xs text-red-500">
+          <div className="rounded-lg bg-destructive/[0.08] border border-destructive/20 px-3 py-2 flex items-center gap-2 mb-3">
+            <AlertCircle size={13} className="text-destructive shrink-0" />
+            <span className="text-xs text-destructive">
               Overdue by {Math.abs(daysLeft(assignment.dueDate!.toString()))}d
             </span>
           </div>
@@ -130,7 +130,7 @@ const AssignmentCard = ({
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
             <Clock size={12} />
             {urgent
-              ? <span className="text-amber-600 font-medium">{Math.round(hoursLeft(assignment.dueDate.toString()))}h left</span>
+              ? <span className="text-warning font-medium">{Math.round(hoursLeft(assignment.dueDate.toString()))}h left</span>
               : <span>{daysLeft(assignment.dueDate.toString())}d remaining</span>}
           </div>
         )}
@@ -172,8 +172,8 @@ const QuizCard = ({
             <Zap size={14} className="text-violet-500 shrink-0" />
             <h3 className="font-medium text-sm">{quiz.title}</h3>
           </div>
-          {done && <Badge className="bg-green-500/15 text-green-600 border border-green-500/30 text-[11px]">Done</Badge>}
-          {inProgress && <Badge className="bg-amber-500/15 text-amber-600 border border-amber-500/30 text-[11px]">In Progress</Badge>}
+          {done && <Badge variant="success" className="text-[11px]">Done</Badge>}
+          {inProgress && <Badge variant="warning" className="text-[11px]">In Progress</Badge>}
         </div>
         <div className="flex items-center gap-4 text-xs text-muted-foreground mb-3">
           <span><span className="font-semibold text-foreground">{quiz.problemCount}</span> problems</span>
@@ -188,7 +188,7 @@ const QuizCard = ({
           onClick={() => onNavigate(path)}
           className={cn(
             "text-xs font-medium transition-colors",
-            done ? "text-green-600" : inProgress ? "text-amber-600" : "text-violet-500"
+            done ? "text-success" : inProgress ? "text-warning" : "text-violet-500"
           )}
         >
           {done ? "View Results" : inProgress ? "Resume Quiz" : "Start Quiz →"}
@@ -324,13 +324,13 @@ const StudentClassroom: React.FC = () => {
           {/* Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
             {[
-              { icon: BookOpen, label: "Assignments", value: totalAssignments, color: accent },
-              { icon: CheckCircle, label: "Completed", value: completed, color: "#10b981" },
-              { icon: AlertCircle, label: "Pending", value: pending, color: "#f59e0b" },
-              { icon: GraduationCap, label: "Completion", value: `${completionPct}%`, color: "#8b5cf6" },
-            ].map(({ icon: Icon, label, value, color }) => (
+              { icon: BookOpen, label: "Assignments", value: totalAssignments, color: accent, bg: accent + "18" },
+              { icon: CheckCircle, label: "Completed", value: completed, color: "hsl(var(--success))", bg: "hsl(var(--success) / 0.15)" },
+              { icon: AlertCircle, label: "Pending", value: pending, color: "hsl(var(--warning))", bg: "hsl(var(--warning) / 0.15)" },
+              { icon: GraduationCap, label: "Completion", value: `${completionPct}%`, color: "#8b5cf6", bg: "#8b5cf618" },
+            ].map(({ icon: Icon, label, value, color, bg }) => (
               <div key={label} className="bg-card border border-border rounded-xl p-3 flex items-center gap-3">
-                <div className="rounded-lg p-2 shrink-0" style={{ backgroundColor: color + "18" }}>
+                <div className="rounded-lg p-2 shrink-0" style={{ backgroundColor: bg }}>
                   <Icon size={15} style={{ color }} />
                 </div>
                 <div>

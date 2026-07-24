@@ -109,7 +109,7 @@ const ProblemsSection = ({ activeTab }: ProblemsSectionProps) => {
       {showProblems && problems.length === 0 && (
         <div className="text-center py-8 border border-dashed border-border rounded-lg bg-background">
           <div className="bg-primary/10 rounded-full p-3 inline-flex mb-4">
-            <Book className="text-[#00b7ff]" size={24} />
+            <Book className="text-primary" size={24} />
           </div>
           <p className="text-muted-foreground mb-4">No problems found</p>
           <Button onClick={() => openNewProblemDialog()}>

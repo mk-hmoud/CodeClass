@@ -34,9 +34,9 @@ const getStatus = (a: Assignment) => {
 };
 
 const STATUS_META = {
-  active:  { label: "Active",  icon: CheckCircle, color: "#10b981", badge: "bg-green-500/10 text-green-600 border-green-500/25" },
-  expired: { label: "Expired", icon: AlertCircle, color: "#ef4444", badge: "bg-red-500/10 text-red-500 border-red-500/25" },
-  open:    { label: "Open",    icon: Clock,        color: "#3b82f6", badge: "bg-blue-500/10 text-blue-600 border-blue-500/25" },
+  active:  { label: "Active",  icon: CheckCircle, color: "hsl(var(--success))", bg: "hsl(var(--success) / 0.15)", badge: "bg-success/10 text-success border-success/25" },
+  expired: { label: "Expired", icon: AlertCircle, color: "hsl(var(--destructive))", bg: "hsl(var(--destructive) / 0.15)", badge: "bg-destructive/10 text-destructive border-destructive/25" },
+  open:    { label: "Open",    icon: Clock,        color: "hsl(var(--info))", bg: "hsl(var(--info) / 0.15)", badge: "bg-info/10 text-info border-info/25" },
 };
 
 const AssignmentRow = ({
@@ -60,7 +60,7 @@ const AssignmentRow = ({
       className="flex items-center justify-between px-4 py-3.5 border-b border-border last:border-0 hover:bg-muted/30 transition-colors group"
     >
       <div className="flex items-center gap-3 min-w-0">
-        <div className="rounded-lg p-1.5 shrink-0" style={{ backgroundColor: meta.color + "18" }}>
+        <div className="rounded-lg p-1.5 shrink-0" style={{ backgroundColor: meta.bg }}>
           <StatusIcon size={13} style={{ color: meta.color }} />
         </div>
         <div className="min-w-0">
@@ -131,8 +131,8 @@ const AssignmentsTab: React.FC<Props> = ({ classroom, onAssignmentDeleted }) => 
         <div className="flex items-center gap-3">
           <h2 className="font-semibold text-lg">Assignments</h2>
           <div className="flex items-center gap-1.5 text-xs">
-            <span className="px-2 py-0.5 rounded-full bg-green-500/10 text-green-600 border border-green-500/20">{active} active</span>
-            {expired > 0 && <span className="px-2 py-0.5 rounded-full bg-red-500/10 text-red-500 border border-red-500/20">{expired} expired</span>}
+            <span className="px-2 py-0.5 rounded-full bg-success/10 text-success border border-success/20">{active} active</span>
+            {expired > 0 && <span className="px-2 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/20">{expired} expired</span>}
           </div>
         </div>
         <Button

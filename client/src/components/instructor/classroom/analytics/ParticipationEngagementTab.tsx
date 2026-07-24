@@ -1,6 +1,7 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { chartColor, chartTooltipStyle } from "@/lib/chartColors";
 import {
   LineChart,
   Line,
@@ -200,18 +201,12 @@ const ParticipationEngagementTab: React.FC<ParticipationEngagementTabProps> = ({
                       style: { textAnchor: "middle" },
                     }}
                   />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#1f2937",
-                      borderColor: "#374151",
-                      color: "white",
-                    }}
-                  />
+                  <Tooltip contentStyle={chartTooltipStyle()} />
                   <Legend />
                   <Line
                     type="monotone"
                     dataKey="submissions"
-                    stroke="#3b82f6"
+                    stroke={chartColor.primary()}
                     strokeWidth={2}
                     activeDot={{ r: 8 }}
                     name="Submissions per Student"

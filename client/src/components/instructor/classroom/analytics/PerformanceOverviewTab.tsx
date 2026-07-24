@@ -12,6 +12,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import { chartColor, chartTooltipStyle } from "@/lib/chartColors";
 
 interface PerformanceData {
   averageAssignmentScore: number | null;
@@ -107,23 +108,17 @@ const PerformanceOverviewTab: React.FC<PerformanceOverviewTabProps> = ({
                   <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                   <XAxis dataKey="range" />
                   <YAxis />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#1f2937",
-                      borderColor: "#374151",
-                      color: "white",
-                    }}
-                  />
+                  <Tooltip contentStyle={chartTooltipStyle()} />
                   <Legend />
                   <Bar
                     dataKey="count"
                     name="Student Submissions"
-                    fill="#4f46e5"
+                    fill={chartColor.primary()}
                   />
                   <Bar
                     dataKey="assignments"
                     name="Total Assignments"
-                    fill="#10b981"
+                    fill={chartColor.success()}
                   />
                 </BarChart>
               </ResponsiveContainer>
@@ -148,18 +143,12 @@ const PerformanceOverviewTab: React.FC<PerformanceOverviewTabProps> = ({
                   <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                   <XAxis dataKey="period" />
                   <YAxis domain={[0, 100]} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#1f2937",
-                      borderColor: "#374151",
-                      color: "white",
-                    }}
-                  />
+                  <Tooltip contentStyle={chartTooltipStyle()} />
                   <Legend />
                   <Line
                     type="monotone"
                     dataKey="averageScore"
-                    stroke="#3b82f6"
+                    stroke={chartColor.primary()}
                     strokeWidth={2}
                     activeDot={{ r: 8 }}
                     name="Average Score %"

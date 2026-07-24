@@ -47,7 +47,7 @@ const LibraryCard: React.FC<LibraryCardProps> = ({
             <Button
               variant="outline"
               size="icon"
-              className="text-red-500"
+              className="text-destructive"
               aria-label="Delete Library"
               onClick={(e) => {
                 e.stopPropagation();

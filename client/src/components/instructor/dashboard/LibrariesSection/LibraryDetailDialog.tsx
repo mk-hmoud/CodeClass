@@ -106,7 +106,7 @@ const LibraryDetailDialog = ({
                 <Button
                   variant="outline"
                   size="icon"
-                  className="text-red-500"
+                  className="text-destructive"
                   aria-label="Delete Library"
                   onClick={(e) => onDelete(library, e)}
                 >
@@ -118,7 +118,7 @@ const LibraryDetailDialog = ({
           <div className="space-y-4 py-4">
             <div>
               <Label htmlFor="library-name">
-                Name <span className="text-red-500">*</span>
+                Name <span className="text-destructive">*</span>
               </Label>
               {isEditing ? (
                 <Input

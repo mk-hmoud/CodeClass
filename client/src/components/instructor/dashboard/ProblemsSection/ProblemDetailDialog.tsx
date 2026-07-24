@@ -173,7 +173,7 @@ const ProblemDetailDialog = ({
                 <Button
                   variant="outline"
                   size="icon"
-                  className="text-red-500"
+                  className="text-destructive"
                   aria-label="Delete Problem"
                   onClick={(e) => onDelete(problem, e)}
                 >
@@ -187,7 +187,7 @@ const ProblemDetailDialog = ({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="problem-title">
-                    Title <span className="text-red-500">*</span>
+                    Title <span className="text-destructive">*</span>
                   </Label>
                   {isEditing ? (
                     <Input
@@ -231,14 +231,14 @@ const ProblemDetailDialog = ({
                       <Badge
                         key={index}
                         variant="outline"
-                        className="bg-blue-900/30 text-blue-400 border-blue-700 flex items-center gap-1"
+                        className="bg-info/10 text-info border-info/30 flex items-center gap-1"
                       >
                         {tag}
                         {isEditing && (
                           <button
                             type="button"
                             onClick={() => handleRemoveTag(tag)}
-                            className="ml-1 hover:text-red-400"
+                            className="ml-1 hover:text-destructive"
                           >
                             <X size={12} />
                           </button>
@@ -264,7 +264,7 @@ const ProblemDetailDialog = ({
 
               <div>
                 <Label htmlFor="problem-description">
-                  Description <span className="text-red-500">*</span>
+                  Description <span className="text-destructive">*</span>
                 </Label>
                 {isEditing ? (
                   <Textarea
@@ -385,7 +385,7 @@ const ProblemDetailDialog = ({
                             variant="ghost"
                             size="sm"
                             onClick={() => handleRemoveTestCase(index)}
-                            className="h-7 w-7 p-0 text-red-500"
+                            className="h-7 w-7 p-0 text-destructive"
                           >
                             <Trash size={14} />
                           </Button>

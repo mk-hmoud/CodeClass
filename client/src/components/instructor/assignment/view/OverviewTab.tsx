@@ -3,12 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Assignment } from "../../../../types/Assignment";
 import { LANGUAGE_LABELS } from "@/lib/assignmentUtils";
 import { Code, ShieldCheck, BarChart2 } from "lucide-react";
-
-const DIFF_META: Record<string, { color: string }> = {
-  Easy:   { color: "#10b981" },
-  Medium: { color: "#f59e0b" },
-  Hard:   { color: "#ef4444" },
-};
+import { DIFFICULTY_META } from "@/lib/difficultyMeta";
 
 interface OverviewTabProps {
   assignment: Assignment;
@@ -18,7 +13,7 @@ interface OverviewTabProps {
 
 const OverviewTab: React.FC<OverviewTabProps> = ({ assignment }) => {
   const diff = assignment.difficulty_level;
-  const diffColor = diff ? DIFF_META[diff]?.color : undefined;
+  const diffMeta = diff ? DIFFICULTY_META[diff] : undefined;
 
   return (
     <div className="space-y-4">
@@ -26,10 +21,10 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ assignment }) => {
       <div className="bg-card border border-border rounded-xl overflow-hidden">
         <div className="px-5 py-4 border-b border-border flex items-center justify-between">
           <h2 className="font-semibold text-sm">Assignment Overview</h2>
-          {diff && diffColor && (
+          {diff && diffMeta && (
             <Badge
               className="text-xs border"
-              style={{ backgroundColor: diffColor + "18", color: diffColor, borderColor: diffColor + "40" }}
+              style={{ backgroundColor: diffMeta.bg, color: diffMeta.color, borderColor: diffMeta.border }}
             >
               {diff}
             </Badge>

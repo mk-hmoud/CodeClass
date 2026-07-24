@@ -85,12 +85,12 @@ const QuizzesTab: React.FC<QuizzesTabProps> = ({ classroomId }) => {
     }
     const now = new Date();
     if (quiz.startDate && now < new Date(quiz.startDate)) {
-      return <Badge variant="outline" className="border-amber-500 text-amber-400">Scheduled</Badge>;
+      return <Badge variant="warning">Scheduled</Badge>;
     }
     if (quiz.endDate && now > new Date(quiz.endDate)) {
       return <Badge variant="outline" className="border-border text-muted-foreground">Ended</Badge>;
     }
-    return <Badge className="bg-green-600">Live</Badge>;
+    return <Badge variant="success">Live</Badge>;
   };
 
   return (
@@ -187,7 +187,7 @@ const QuizzesTab: React.FC<QuizzesTabProps> = ({ classroomId }) => {
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
-                              className="text-red-500"
+                              className="text-destructive"
                               onClick={() => handleDelete(quiz.quizId)}
                             >
                               <Trash2 className="mr-2 h-4 w-4" />

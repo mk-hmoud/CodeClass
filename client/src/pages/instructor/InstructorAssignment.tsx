@@ -24,6 +24,7 @@ import PlagiarismTab from "@/components/instructor/assignment/view/PlagiarismTab
 import { getAssignmentById } from "@/services/AssignmentService";
 import { Assignment } from "@/types/Assignment";
 import { FullSubmission } from "@/types/Submission";
+import { DIFFICULTY_META } from "@/lib/difficultyMeta";
 
 const fmtDate = (d?: Date | string | number | null) => {
   if (!d) return "—";
@@ -32,12 +33,6 @@ const fmtDate = (d?: Date | string | number | null) => {
     if (isNaN(date.getTime())) return "—";
     return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(date);
   } catch { return "—"; }
-};
-
-const DIFF_META: Record<string, { color: string }> = {
-  Easy:   { color: "#10b981" },
-  Medium: { color: "#f59e0b" },
-  Hard:   { color: "#ef4444" },
 };
 
 const Skeleton = ({ className }: { className?: string }) => (
@@ -106,7 +101,7 @@ const InstructorAssignment: React.FC = () => {
   }
 
   const diff = assignment.difficulty_level;
-  const diffColor = diff ? DIFF_META[diff]?.color : undefined;
+  const diffMeta = diff ? DIFFICULTY_META[diff] : undefined;
   const isExpired = assignment.dueDate && new Date(assignment.dueDate) < new Date();
 
   return (
@@ -131,10 +126,10 @@ const InstructorAssignment: React.FC = () => {
               <div>
                 <div className="flex items-center gap-3 mb-2">
                   <h1 className="text-2xl font-bold">{assignment.title}</h1>
-                  {diff && diffColor && (
+                  {diff && diffMeta && (
                     <Badge
                       className="text-xs border"
-                      style={{ backgroundColor: diffColor + "18", color: diffColor, borderColor: diffColor + "40" }}
+                      style={{ backgroundColor: diffMeta.bg, color: diffMeta.color, borderColor: diffMeta.border }}
                     >
                       {diff}
                     </Badge>

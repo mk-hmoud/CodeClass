@@ -114,7 +114,7 @@ const LibrariesSection = () => {
       {showLibraries && libraries.length === 0 && (
         <div className="text-center py-8 border border-dashed border-border rounded-lg bg-background">
           <div className="bg-primary/10 rounded-full p-3 inline-flex mb-4">
-            <LibraryIcon className="text-[#00b7ff]" size={24} />
+            <LibraryIcon className="text-primary" size={24} />
           </div>
           <p className="text-muted-foreground mb-4">No libraries found</p>
           <Button onClick={() => openNewLibraryDialog()}>

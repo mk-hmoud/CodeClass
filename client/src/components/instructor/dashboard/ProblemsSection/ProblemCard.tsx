@@ -48,7 +48,7 @@ const ProblemCard: React.FC<ProblemCardProps> = ({
             <Button
               variant="outline"
               size="icon"
-              className="text-red-500"
+              className="text-destructive"
               aria-label="Delete Problem"
               onClick={(e) => {
                 e.stopPropagation();

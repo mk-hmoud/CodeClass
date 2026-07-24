@@ -13,6 +13,7 @@ import { getAssignmentById, getRemainingAttempts } from "@/services/AssignmentSe
 import { toast } from "sonner";
 import { Assignment } from "@/types/Assignment";
 import { LANGUAGE_LABELS } from "@/lib/assignmentUtils";
+import { DIFFICULTY_META } from "@/lib/difficultyMeta";
 
 const ACCENTS = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ef4444", "#06b6d4", "#6366f1", "#f97316"];
 
@@ -29,12 +30,6 @@ const splitList = (value?: string, delimiter = ";") =>
 const Skeleton = ({ className }: { className?: string }) => (
   <div className={cn("animate-pulse rounded-lg bg-muted", className)} />
 );
-
-const DIFF_META: Record<string, { color: string; bg: string }> = {
-  Easy:   { color: "#10b981", bg: "#10b98115" },
-  Medium: { color: "#f59e0b", bg: "#f59e0b15" },
-  Hard:   { color: "#ef4444", bg: "#ef444415" },
-};
 
 const StudentAssignment = () => {
   const { classroomId, assignmentId } = useParams();
@@ -102,7 +97,7 @@ const StudentAssignment = () => {
   const prereqList = splitList(p?.prerequisites);
   const outcomeList = splitList(p?.learning_outcomes);
   const diff = assignment.difficulty_level;
-  const diffMeta = diff ? DIFF_META[diff] ?? DIFF_META.Medium : null;
+  const diffMeta = diff ? DIFFICULTY_META[diff] ?? DIFFICULTY_META.Medium : null;
   const accent = ACCENTS[parseInt(classroomId ?? "0", 10) % ACCENTS.length];
 
   return (
@@ -125,7 +120,7 @@ const StudentAssignment = () => {
                 {diffMeta && diff && (
                   <Badge
                     className="text-xs border"
-                    style={{ backgroundColor: diffMeta.bg, color: diffMeta.color, borderColor: diffMeta.color + "40" }}
+                    style={{ backgroundColor: diffMeta.bg, color: diffMeta.color, borderColor: diffMeta.border }}
                   >
                     {diff}
                   </Badge>
@@ -141,7 +136,7 @@ const StudentAssignment = () => {
                   </span>
                 )}
                 {assignment.completed && (
-                  <span className="flex items-center gap-1.5 text-green-600">
+                  <span className="flex items-center gap-1.5 text-success">
                     <Check size={13} />Completed
                   </span>
                 )}
@@ -176,8 +171,8 @@ const StudentAssignment = () => {
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</h3>
 
               {assignment.completed ? (
-                <div className="flex items-center gap-2 text-green-600">
-                  <div className="w-8 h-8 rounded-lg bg-green-500/15 flex items-center justify-center">
+                <div className="flex items-center gap-2 text-success">
+                  <div className="w-8 h-8 rounded-lg bg-success/15 flex items-center justify-center">
                     <Check size={15} />
                   </div>
                   <div>
@@ -188,8 +183,8 @@ const StudentAssignment = () => {
                   </div>
                 </div>
               ) : expired ? (
-                <div className="flex items-center gap-2 text-red-500">
-                  <div className="w-8 h-8 rounded-lg bg-red-500/15 flex items-center justify-center">
+                <div className="flex items-center gap-2 text-destructive">
+                  <div className="w-8 h-8 rounded-lg bg-destructive/15 flex items-center justify-center">
                     <AlertCircle size={15} />
                   </div>
                   <div>
@@ -198,9 +193,9 @@ const StudentAssignment = () => {
                   </div>
                 </div>
               ) : timeLabel ? (
-                <div className="flex items-center gap-2" style={{ color: hoursLeft && hoursLeft < 24 ? "#f59e0b" : accent }}>
+                <div className="flex items-center gap-2" style={{ color: hoursLeft && hoursLeft < 24 ? "hsl(var(--warning))" : accent }}>
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-                    style={{ backgroundColor: (hoursLeft && hoursLeft < 24 ? "#f59e0b" : accent) + "15" }}>
+                    style={{ backgroundColor: hoursLeft && hoursLeft < 24 ? "hsl(var(--warning) / 0.15)" : accent + "15" }}>
                     <Clock size={15} />
                   </div>
                   <div>

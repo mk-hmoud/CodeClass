@@ -81,7 +81,7 @@ const Login = () => {
           <Link to="/"><Logo /></Link>
         </div>
 
-        <div className="bg-card border border-border rounded-2xl p-8 shadow-sm">
+        <div className="bg-card border border-border rounded-lg p-8 shadow-sm">
           <div className="mb-6">
             <h1 className="text-2xl font-bold mb-1">Sign in</h1>
             <p className="text-sm text-muted-foreground">Enter your credentials to access your account</p>

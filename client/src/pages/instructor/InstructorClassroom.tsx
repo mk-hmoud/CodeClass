@@ -157,7 +157,7 @@ const InstructorClassroom = () => {
                     onClick={copyCode}
                     className="flex items-center gap-2 px-3 py-1.5 text-sm font-mono rounded-lg border border-border hover:bg-muted transition-colors"
                   >
-                    {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} className="text-muted-foreground" />}
+                    {copied ? <Check size={14} className="text-success" /> : <Copy size={14} className="text-muted-foreground" />}
                     <span style={{ color: accent }}>{classroom.code}</span>
                   </button>
                 )}

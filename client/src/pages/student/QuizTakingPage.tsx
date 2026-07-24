@@ -169,9 +169,9 @@ const QuizTakingPage: React.FC = () => {
 
   const timerColor =
     secondsLeft !== null && secondsLeft < 120
-      ? "text-red-500"
+      ? "text-destructive"
       : secondsLeft !== null && secondsLeft < 300
-      ? "text-amber-500"
+      ? "text-warning"
       : "text-foreground";
 
   // ── Active problem ────────────────────────────────────────────────────────────
@@ -293,19 +293,19 @@ const QuizTakingPage: React.FC = () => {
   const getProblemStatusIcon = (problem: Problem) => {
     const verdict = verdicts[problem.quizProblemId];
     if (submitting[problem.quizProblemId]) {
-      return <div className="h-3.5 w-3.5 rounded-full border-2 border-blue-400 border-t-transparent animate-spin" />;
+      return <div className="h-3.5 w-3.5 rounded-full border-2 border-primary border-t-transparent animate-spin" />;
     }
     if (verdict?.status === "completed" && verdict.metrics) {
       const { passedTests = 0, totalTests = 0 } = verdict.metrics;
       return passedTests === totalTests
-        ? <CheckCircle className="h-3.5 w-3.5 text-green-500" />
-        : <XCircle className="h-3.5 w-3.5 text-amber-400" />;
+        ? <CheckCircle className="h-3.5 w-3.5 text-success" />
+        : <XCircle className="h-3.5 w-3.5 text-warning" />;
     }
     if (problem.submission?.status === "completed") {
       const { passedTests, totalTests } = problem.submission;
       return passedTests === totalTests
-        ? <CheckCircle className="h-3.5 w-3.5 text-green-500" />
-        : <XCircle className="h-3.5 w-3.5 text-amber-400" />;
+        ? <CheckCircle className="h-3.5 w-3.5 text-success" />
+        : <XCircle className="h-3.5 w-3.5 text-warning" />;
     }
     return <div className="h-3.5 w-3.5 rounded-full border border-border" />;
   };
@@ -340,7 +340,7 @@ const QuizTakingPage: React.FC = () => {
       const { passedTests = 0, totalTests = 0 } = verdict.metrics;
       return (
         <div className="space-y-3">
-          <div className={`flex items-center gap-2 font-medium ${passedTests === totalTests ? "text-green-500" : "text-amber-400"}`}>
+          <div className={`flex items-center gap-2 font-medium ${passedTests === totalTests ? "text-success" : "text-warning"}`}>
             {passedTests === totalTests
               ? <CheckCircle className="h-5 w-5" />
               : <AlertTriangle className="h-5 w-5" />}
@@ -490,8 +490,8 @@ const QuizTakingPage: React.FC = () => {
                         className={
                           (verdicts[activeProblem.quizProblemId].metrics?.passedTests ?? 0) ===
                           (verdicts[activeProblem.quizProblemId].metrics?.totalTests ?? 0)
-                            ? "text-green-500 border-green-500"
-                            : "text-amber-400 border-amber-400"
+                            ? "text-success border-success"
+                            : "text-warning border-warning"
                         }
                       >
                         {verdicts[activeProblem.quizProblemId].metrics?.passedTests}/

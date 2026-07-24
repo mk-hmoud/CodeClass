@@ -8,6 +8,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import { chartPalette, chartTooltipStyle } from "@/lib/chartColors";
 
 interface QualityReliabilityData {
   plagiarismRate: number | null;
@@ -29,7 +30,7 @@ const QualityReliabilityTab: React.FC<QualityReliabilityTabProps> = ({
   classId,
   data,
 }) => {
-  const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
+  const COLORS = chartPalette();
 
   const safeData: QualityReliabilityData = {
     plagiarismRate: data?.plagiarismRate ?? 0,
@@ -138,7 +139,7 @@ const QualityReliabilityTab: React.FC<QualityReliabilityTabProps> = ({
             </div>
             <div className="w-2/3 bg-muted rounded-full h-4">
               <div
-                className="bg-amber-600 h-4 rounded-full"
+                className="bg-warning h-4 rounded-full"
                 style={{ width: `${safeData.runtimeErrorRate ?? 0}%` }}
               />
             </div>
@@ -164,7 +165,7 @@ const QualityReliabilityTab: React.FC<QualityReliabilityTabProps> = ({
                     cy="50%"
                     labelLine={false}
                     outerRadius={120}
-                    fill="#8884d8"
+                    fill={COLORS[0]}
                     dataKey="value"
                     label={({ name, value }) => `${name}: ${value}%`}
                   >
@@ -176,11 +177,7 @@ const QualityReliabilityTab: React.FC<QualityReliabilityTabProps> = ({
                     ))}
                   </Pie>
                   <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#1f2937",
-                      borderColor: "#374151",
-                      color: "white",
-                    }}
+                    contentStyle={chartTooltipStyle()}
                     formatter={(value) => [`${value}%`, "Usage"]}
                   />
                   <Legend />

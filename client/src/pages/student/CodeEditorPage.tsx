@@ -288,7 +288,7 @@ const CodeEditorPage = () => {
     return (
       <Badge
         variant="outline"
-        className={cn("gap-1", remainingAttempts <= 2 && "border-amber-500 text-amber-600 bg-amber-50 dark:bg-amber-950/30")}
+        className={cn("gap-1", remainingAttempts <= 2 && "border-warning text-warning bg-warning/10")}
       >
         <FileCode size={12} />
         {remainingAttempts} attempt{remainingAttempts !== 1 ? "s" : ""} left
@@ -298,8 +298,8 @@ const CodeEditorPage = () => {
 
   const renderSaveStatus = () => {
     if (saveStatus === "saving") return <span className="text-xs text-muted-foreground flex items-center gap-1"><Loader2 size={11} className="animate-spin" />Saving…</span>;
-    if (saveStatus === "saved") return <span className="text-xs text-muted-foreground flex items-center gap-1"><CheckCheck size={11} className="text-green-500" />Saved</span>;
-    return <span className="text-xs text-amber-500 flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-amber-500" />Unsaved</span>;
+    if (saveStatus === "saved") return <span className="text-xs text-muted-foreground flex items-center gap-1"><CheckCheck size={11} className="text-success" />Saved</span>;
+    return <span className="text-xs text-warning flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-warning" />Unsaved</span>;
   };
 
   const renderError = () => {
@@ -372,8 +372,8 @@ const CodeEditorPage = () => {
                       isImage
                         ? "bg-muted/40 border-border text-foreground"
                         : result.status === "passed"
-                        ? "bg-green-500/5 border-green-500/30 text-green-700 dark:text-green-400"
-                        : "bg-red-500/5 border-red-500/30 text-red-700 dark:text-red-400"
+                        ? "bg-success/5 border-success/30 text-success"
+                        : "bg-destructive/5 border-destructive/30 text-destructive"
                     )}
                   >
                     {isImage ? (
@@ -401,13 +401,13 @@ const CodeEditorPage = () => {
               <div className="rounded-md border border-border p-3 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Score</span>
-                  <span className={cn("font-semibold", privPassed === privTotal ? "text-green-600" : "text-amber-600")}>
+                  <span className={cn("font-semibold", privPassed === privTotal ? "text-success" : "text-warning")}>
                     {privPassed} / {privTotal}
                   </span>
                 </div>
                 <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                   <div
-                    className={cn("h-full rounded-full transition-all", privPassed === privTotal ? "bg-green-500" : "bg-amber-500")}
+                    className={cn("h-full rounded-full transition-all", privPassed === privTotal ? "bg-success" : "bg-warning")}
                     style={{ width: `${privTotal > 0 ? (privPassed / privTotal) * 100 : 0}%` }}
                   />
                 </div>
@@ -439,11 +439,11 @@ const CodeEditorPage = () => {
                   isActive
                     ? "bg-primary text-primary-foreground border-primary"
                     : isImage
-                    ? "bg-blue-500/10 border-blue-500/40 text-blue-700 dark:text-blue-400 hover:bg-blue-500/20"
+                    ? "bg-info/10 border-info/40 text-info hover:bg-info/20"
                     : passed
-                    ? "bg-green-500/10 border-green-500/40 text-green-700 dark:text-green-400 hover:bg-green-500/20"
+                    ? "bg-success/10 border-success/40 text-success hover:bg-success/20"
                     : failed
-                    ? "bg-red-500/10 border-red-500/40 text-red-700 dark:text-red-400 hover:bg-red-500/20"
+                    ? "bg-destructive/10 border-destructive/40 text-destructive hover:bg-destructive/20"
                     : "bg-muted border-border text-muted-foreground hover:bg-muted/80"
                 )}
               >
@@ -485,8 +485,8 @@ const CodeEditorPage = () => {
                     </div>
                   ) : (
                     <MonoBlock className={cn(
-                      activeTestResult.status === "passed" && "border-green-500/40 bg-green-500/5",
-                      activeTestResult.status !== "passed" && activeTestResult.actual && "border-red-500/40 bg-red-500/5",
+                      activeTestResult.status === "passed" && "border-success/40 bg-success/5",
+                      activeTestResult.status !== "passed" && activeTestResult.actual && "border-destructive/40 bg-destructive/5",
                     )}>
                       {activeTestResult.actual || (
                         <span className="text-muted-foreground italic">no output</span>
@@ -496,7 +496,7 @@ const CodeEditorPage = () => {
                 </div>
 
                 {activeTestResult.actual?.startsWith("data:image/") ? (
-                  <div className="flex items-center gap-2 text-sm px-3 py-2 rounded-md bg-blue-500/10 text-blue-700 dark:text-blue-400">
+                  <div className="flex items-center gap-2 text-sm px-3 py-2 rounded-md bg-info/10 text-info">
                     <ImageIcon size={14} />
                     <span className="font-medium">
                       {activeTestResult.status === "produced"
@@ -515,8 +515,8 @@ const CodeEditorPage = () => {
                     <div className={cn(
                       "flex items-center gap-2 text-sm px-3 py-2 rounded-md",
                       activeTestResult.status === "passed"
-                        ? "bg-green-500/10 text-green-700 dark:text-green-400"
-                        : "bg-red-500/10 text-red-700 dark:text-red-400"
+                        ? "bg-success/10 text-success"
+                        : "bg-destructive/10 text-destructive"
                     )}>
                       {activeTestResult.status === "passed"
                         ? <CheckCircle size={14} />
@@ -686,7 +686,7 @@ const CodeEditorPage = () => {
                           <TabsTrigger value="run" className="h-7 px-2.5 text-xs data-[state=active]:bg-muted data-[state=active]:text-foreground rounded">
                             <Play size={11} className="mr-1" />Run
                             {runVerdict.status === "completed" && (
-                              <span className={cn("ml-1 text-[10px] font-bold", allPassed ? "text-green-500" : "text-red-500")}>
+                              <span className={cn("ml-1 text-[10px] font-bold", allPassed ? "text-success" : "text-destructive")}>
                                 {runVerdict.metrics?.passedTests}/{runVerdict.metrics?.totalTests}
                               </span>
                             )}
@@ -699,7 +699,7 @@ const CodeEditorPage = () => {
 
                       {resultTab === "cases" && hasResults && (
                         <Badge variant={allPassed ? "outline" : "secondary"}
-                          className={cn("text-[10px] h-5 px-1.5", allPassed && "border-green-500/50 text-green-600 bg-green-500/10")}>
+                          className={cn("text-[10px] h-5 px-1.5", allPassed && "border-success/50 text-success bg-success/10")}>
                           {testsPassed}/{totalTests}
                         </Badge>
                       )}
@@ -756,7 +756,7 @@ const CodeEditorPage = () => {
                       >
                         {isRunning
                           ? <Loader2 size={12} className="animate-spin" />
-                          : <Play size={12} className="text-green-500" />}
+                          : <Play size={12} className="text-success" />}
                         Run
                       </Button>
                     </TooltipTrigger>

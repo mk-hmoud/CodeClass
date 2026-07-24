@@ -176,10 +176,10 @@ const StudentDashboard = () => {
 
   const urgencyColor = (due: string) => {
     const h = (new Date(due).getTime() - Date.now()) / 3600000;
-    if (h < 0) return { bg: "bg-red-500/10", text: "text-red-600", label: "Overdue" };
-    if (h < 6) return { bg: "bg-red-500/10", text: "text-red-600", label: `${Math.round(h)}h left` };
-    if (h < 24) return { bg: "bg-amber-500/10", text: "text-amber-600", label: `${Math.round(h)}h left` };
-    return { bg: "bg-blue-500/10", text: "text-blue-600", label: `${Math.ceil(h / 24)}d left` };
+    if (h < 0) return { bg: "bg-destructive/10", text: "text-destructive", label: "Overdue" };
+    if (h < 6) return { bg: "bg-destructive/10", text: "text-destructive", label: `${Math.round(h)}h left` };
+    if (h < 24) return { bg: "bg-warning/10", text: "text-warning", label: `${Math.round(h)}h left` };
+    return { bg: "bg-info/10", text: "text-info", label: `${Math.ceil(h / 24)}d left` };
   };
 
   return (
@@ -287,7 +287,7 @@ const StudentDashboard = () => {
               <div className="space-y-2">
                 {deadlines.length === 0 ? (
                   <div className="rounded-xl border border-dashed border-border p-6 text-center">
-                    <CheckCircle size={24} className="mx-auto mb-2 text-emerald-500 opacity-60" />
+                    <CheckCircle size={24} className="mx-auto mb-2 text-success opacity-60" />
                     <p className="text-sm text-muted-foreground">No upcoming deadlines</p>
                   </div>
                 ) : (

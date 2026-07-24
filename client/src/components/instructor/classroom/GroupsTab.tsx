@@ -222,7 +222,7 @@ const GroupsTab: React.FC<Props> = ({ classroomId, students }) => {
                 <Button
                   variant="outline"
                   size="icon"
-                  className="text-red-500"
+                  className="text-destructive"
                   onClick={() => setDeleteTarget(group)}
                   aria-label="Delete Group"
                 >
@@ -242,7 +242,7 @@ const GroupsTab: React.FC<Props> = ({ classroomId, students }) => {
           <div className="space-y-4 py-2">
             <div>
               <Label htmlFor="group-name">
-                Name <span className="text-red-500">*</span>
+                Name <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="group-name"

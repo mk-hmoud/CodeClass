@@ -79,9 +79,9 @@ const Profile = () => {
           className="space-y-6"
         >
           {/* Identity hero */}
-          <div className="flex items-center gap-5 p-6 bg-card border border-border rounded-2xl">
+          <div className="flex items-center gap-5 p-6 bg-card border border-border rounded-lg">
             <div
-              className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold shrink-0"
+              className="w-16 h-16 rounded-xl flex items-center justify-center text-2xl font-bold shrink-0"
               style={{ backgroundColor: accent + "20", color: accent }}
             >
               {initial}
@@ -101,7 +101,7 @@ const Profile = () => {
           </div>
 
           {/* Account info */}
-          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="bg-card border border-border rounded-lg overflow-hidden">
             <div className="px-5 py-3.5 border-b border-border">
               <h2 className="font-semibold text-sm">Account Information</h2>
             </div>
@@ -119,7 +119,7 @@ const Profile = () => {
           </div>
 
           {/* Change password */}
-          <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="bg-card border border-border rounded-lg overflow-hidden">
             <div className="px-5 py-3.5 border-b border-border flex items-center gap-2">
               <KeyRound size={15} className="text-muted-foreground" />
               <h2 className="font-semibold text-sm">Change Password</h2>

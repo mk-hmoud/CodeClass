@@ -30,9 +30,9 @@ const WHOLE_CLASSROOM_VALUE = "whole";
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
 const STATUS_OPTIONS: { value: AttendanceStatus; label: string; color: string }[] = [
-  { value: "present", label: "Present", color: "text-green-500 border-green-500/40 bg-green-500/10" },
-  { value: "absent", label: "Absent", color: "text-red-500 border-red-500/40 bg-red-500/10" },
-  { value: "excused", label: "Excused", color: "text-amber-500 border-amber-500/40 bg-amber-500/10" },
+  { value: "present", label: "Present", color: "text-success border-success/40 bg-success/10" },
+  { value: "absent", label: "Absent", color: "text-destructive border-destructive/40 bg-destructive/10" },
+  { value: "excused", label: "Excused", color: "text-warning border-warning/40 bg-warning/10" },
 ];
 
 const AttendanceTab: React.FC<Props> = ({ classroomId }) => {

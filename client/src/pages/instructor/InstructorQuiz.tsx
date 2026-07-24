@@ -41,9 +41,9 @@ const InstructorQuiz: React.FC = () => {
       case "submitted":
         return <Badge className="bg-primary/15 text-primary border-primary/30 border text-[11px]">Submitted</Badge>;
       case "graded":
-        return <Badge className="bg-green-500/15 text-green-600 border-green-500/30 border text-[11px]">Graded</Badge>;
+        return <Badge variant="success" className="text-[11px]">Graded</Badge>;
       case "in_progress":
-        return <Badge variant="outline" className="border-amber-500/40 text-amber-600 bg-amber-500/10 text-[11px]">In Progress</Badge>;
+        return <Badge variant="warning" className="text-[11px]">In Progress</Badge>;
       default:
         return <Badge variant="outline" className="text-[11px]">{status}</Badge>;
     }
@@ -122,8 +122,8 @@ const InstructorQuiz: React.FC = () => {
           </div>
         </div>
         <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-4">
-          <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0">
-            <CheckCircle size={18} className="text-green-600" />
+          <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center shrink-0">
+            <CheckCircle size={18} className="text-success" />
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Average Score</p>

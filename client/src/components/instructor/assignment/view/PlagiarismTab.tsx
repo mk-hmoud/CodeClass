@@ -25,8 +25,8 @@ interface PlagiarismTabProps {
 const getSimilarityMeta = (similarity: number | null | undefined) => {
   const v = typeof similarity === "number" ? similarity : 0;
   if (v >= 75) return { label: `High (${v}%)`,   className: "bg-destructive/15 text-destructive border-destructive/30 border text-[11px]" };
-  if (v >= 50) return { label: `Medium (${v}%)`, className: "bg-amber-500/15 text-amber-600 border-amber-500/30 border text-[11px]" };
-  return       { label: `Low (${v}%)`,           className: "bg-green-500/15 text-green-600 border-green-500/30 border text-[11px]" };
+  if (v >= 50) return { label: `Medium (${v}%)`, className: "bg-warning/15 text-warning border-warning/30 border text-[11px]" };
+  return       { label: `Low (${v}%)`,           className: "bg-success/15 text-success border-success/30 border text-[11px]" };
 };
 
 const fmtDate = (dateString: string | null | undefined) => {

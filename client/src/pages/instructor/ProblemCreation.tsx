@@ -165,7 +165,7 @@ const ProblemCreation = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>
-                      Title <span className="text-red-500">*</span>
+                      Title <span className="text-destructive">*</span>
                     </FormLabel>
                     <FormControl>
                       <Input
@@ -305,7 +305,7 @@ const ProblemCreation = () => {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>
-                    Description <span className="text-red-500">*</span>
+                    Description <span className="text-destructive">*</span>
                   </FormLabel>
                   <FormControl>
                     <Textarea
@@ -323,7 +323,7 @@ const ProblemCreation = () => {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <Label>
-                Test Cases <span className="text-red-500">*</span>
+                Test Cases <span className="text-destructive">*</span>
               </Label>
               <Button
                 type="button"
@@ -349,7 +349,7 @@ const ProblemCreation = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => removeTestCase(index)}
-                      className="h-8 w-8 p-0 text-red-500"
+                      className="h-8 w-8 p-0 text-destructive"
                     >
                       <Trash size={14} />
                     </Button>
@@ -372,7 +372,7 @@ const ProblemCreation = () => {
                       <Label htmlFor={`expected-${index}`}>
                         Expected Output{" "}
                         {outputType !== "image" && (
-                          <span className="text-red-500">*</span>
+                          <span className="text-destructive">*</span>
                         )}
                       </Label>
                       <Textarea
@@ -394,7 +394,7 @@ const ProblemCreation = () => {
                         className="mt-1 min-h-[80px]"
                       />
                       {outputType !== "image" && !testCase.expectedOutput && (
-                        <p className="text-red-500 text-sm mt-1">
+                        <p className="text-destructive text-sm mt-1">
                           Expected output is required
                         </p>
                       )}

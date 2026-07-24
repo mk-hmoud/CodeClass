@@ -17,11 +17,11 @@ interface SubmissionsListProps {
 const getStatusMeta = (status: string) => {
   switch (status) {
     case "graded":
-      return { label: "Graded", className: "bg-green-500/15 text-green-600 border-green-500/30 border text-[11px]" };
+      return { label: "Graded", className: "bg-success/15 text-success border-success/30 border text-[11px]" };
     case "system graded":
       return { label: "System Graded", className: "bg-primary/15 text-primary border-primary/30 border text-[11px]" };
     case "pending":
-      return { label: "Pending", className: "bg-amber-500/15 text-amber-600 border-amber-500/30 border text-[11px]" };
+      return { label: "Pending", className: "bg-warning/15 text-warning border-warning/30 border text-[11px]" };
     default:
       return { label: status, className: "text-[11px]" };
   }

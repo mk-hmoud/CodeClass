@@ -107,7 +107,7 @@ const LibraryCreation = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>
-                      Name <span className="text-red-500">*</span>
+                      Name <span className="text-destructive">*</span>
                     </FormLabel>
                     <FormControl>
                       <Input placeholder="e.g. Vector2D Helpers" {...field} />

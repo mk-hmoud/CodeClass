@@ -16,13 +16,13 @@ import { LabSession, AttendanceReportRow } from "@/types/Attendance";
 
 const statusBadge = (status: AttendanceReportRow["attendanceStatus"]) => {
   if (status === "present") {
-    return <span className="text-xs px-2.5 py-1 rounded-full border text-green-500 border-green-500/40 bg-green-500/10">Present</span>;
+    return <span className="text-xs px-2.5 py-1 rounded-full border text-success border-success/40 bg-success/10">Present</span>;
   }
   if (status === "absent") {
-    return <span className="text-xs px-2.5 py-1 rounded-full border text-red-500 border-red-500/40 bg-red-500/10">Absent</span>;
+    return <span className="text-xs px-2.5 py-1 rounded-full border text-destructive border-destructive/40 bg-destructive/10">Absent</span>;
   }
   if (status === "excused") {
-    return <span className="text-xs px-2.5 py-1 rounded-full border text-amber-500 border-amber-500/40 bg-amber-500/10">Excused</span>;
+    return <span className="text-xs px-2.5 py-1 rounded-full border text-warning border-warning/40 bg-warning/10">Excused</span>;
   }
   return <span className="text-xs px-2.5 py-1 rounded-full border text-muted-foreground border-border">No record</span>;
 };

@@ -23,14 +23,14 @@ interface SubmissionDetailsViewProps {
 
 const GRADING_META: Record<string, { label: string; className: string }> = {
   Automatic: { label: "Automatic Grading", className: "bg-primary/15 text-primary border-primary/30 border text-[11px]" },
-  Manual:    { label: "Manual Grading",    className: "bg-amber-500/15 text-amber-600 border-amber-500/30 border text-[11px]" },
+  Manual:    { label: "Manual Grading",    className: "bg-warning/15 text-warning border-warning/30 border text-[11px]" },
   Hybrid:    { label: "Hybrid Grading",    className: "bg-violet-500/15 text-violet-600 border-violet-500/30 border text-[11px]" },
 };
 
 const STATUS_META: Record<string, { label: string; className: string }> = {
-  "graded":       { label: "Graded",       className: "bg-green-500/15 text-green-600 border-green-500/30 border text-[11px]" },
+  "graded":       { label: "Graded",       className: "bg-success/15 text-success border-success/30 border text-[11px]" },
   "system graded":{ label: "System Graded",className: "bg-primary/15 text-primary border-primary/30 border text-[11px]" },
-  "pending":      { label: "Pending",      className: "bg-amber-500/15 text-amber-600 border-amber-500/30 border text-[11px]" },
+  "pending":      { label: "Pending",      className: "bg-warning/15 text-warning border-warning/30 border text-[11px]" },
 };
 
 const SubmissionDetailsView: React.FC<SubmissionDetailsViewProps> = ({
@@ -70,12 +70,12 @@ const SubmissionDetailsView: React.FC<SubmissionDetailsViewProps> = ({
         <div className="flex items-center justify-between px-4 py-2.5 bg-muted/30 border-b border-border">
           <div className="flex items-center gap-2">
             {isImage ? (
-              <div className="w-5 h-5 rounded-full bg-blue-500/15 flex items-center justify-center">
-                <ImageIcon size={11} className="text-blue-600" />
+              <div className="w-5 h-5 rounded-full bg-info/15 flex items-center justify-center">
+                <ImageIcon size={11} className="text-info" />
               </div>
             ) : result.status === "passed" ? (
-              <div className="w-5 h-5 rounded-full bg-green-500/15 flex items-center justify-center">
-                <Check size={11} className="text-green-600" />
+              <div className="w-5 h-5 rounded-full bg-success/15 flex items-center justify-center">
+                <Check size={11} className="text-success" />
               </div>
             ) : (
               <div className="w-5 h-5 rounded-full bg-destructive/15 flex items-center justify-center">
@@ -389,8 +389,8 @@ const SubmissionDetailsView: React.FC<SubmissionDetailsViewProps> = ({
                     const simMeta = sim >= 80
                       ? { className: "bg-destructive/15 text-destructive border-destructive/30 border text-[11px]" }
                       : sim >= 50
-                      ? { className: "bg-amber-500/15 text-amber-600 border-amber-500/30 border text-[11px]" }
-                      : { className: "bg-green-500/15 text-green-600 border-green-500/30 border text-[11px]" };
+                      ? { className: "bg-warning/15 text-warning border-warning/30 border text-[11px]" }
+                      : { className: "bg-success/15 text-success border-success/30 border text-[11px]" };
                     return (
                       <div key={idx} className="bg-card border border-border rounded-xl p-4 flex items-center justify-between">
                         <div>

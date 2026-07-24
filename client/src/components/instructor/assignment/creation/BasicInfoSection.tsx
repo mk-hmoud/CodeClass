@@ -155,7 +155,7 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
           render={({ field }) => (
             <FormItem>
               <FormLabel>
-                Problem <span className="text-red-500">*</span>
+                Problem <span className="text-destructive">*</span>
               </FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
@@ -318,7 +318,7 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Info size={16} className="text-blue-400" />
+                      <Info size={16} className="text-info" />
                     </TooltipTrigger>
                     <TooltipContent>
                       <p>Leave blank to use problem title</p>
@@ -344,7 +344,7 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Info size={16} className="text-blue-400" />
+                      <Info size={16} className="text-info" />
                     </TooltipTrigger>
                     <TooltipContent>
                       <p>Leave blank to use problem description</p>
@@ -372,12 +372,12 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
               <FormItem>
                 <div className="flex items-center gap-2">
                   <FormLabel>
-                    Difficulty Level <span className="text-red-500">*</span>
+                    Difficulty Level <span className="text-destructive">*</span>
                   </FormLabel>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Info size={16} className="text-blue-400" />
+                        <Info size={16} className="text-info" />
                       </TooltipTrigger>
                       <TooltipContent>
                         <p>Set the difficulty level for this assignment</p>
@@ -412,12 +412,12 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
               <FormItem>
                 <div className="flex items-center gap-2">
                   <FormLabel>
-                    Points <span className="text-red-500">*</span>
+                    Points <span className="text-destructive">*</span>
                   </FormLabel>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Info size={16} className="text-blue-400" />
+                        <Info size={16} className="text-info" />
                       </TooltipTrigger>
                       <TooltipContent>
                         <p>The number of points this assignment is worth</p>
@@ -441,12 +441,12 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
             <FormItem>
               <div className="flex items-center gap-2">
                 <FormLabel>
-                  Grading Method <span className="text-red-500">*</span>
+                  Grading Method <span className="text-destructive">*</span>
                 </FormLabel>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Info size={16} className="text-blue-400" />
+                      <Info size={16} className="text-info" />
                     </TooltipTrigger>
                     <TooltipContent>
                       <p>How this assignment will be graded</p>

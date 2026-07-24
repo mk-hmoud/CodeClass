@@ -40,7 +40,7 @@ const SubmissionSettingsSection: React.FC<SubmissionSettingsSectionProps> = ({
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Info size={16} className="text-blue-400" />
+                  <Info size={16} className="text-info" />
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Restrict how many times students can submit</p>
@@ -73,7 +73,7 @@ const SubmissionSettingsSection: React.FC<SubmissionSettingsSectionProps> = ({
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Info size={16} className="text-blue-400" />
+                      <Info size={16} className="text-info" />
                     </TooltipTrigger>
                     <TooltipContent>
                       <p>Maximum number of submissions allowed</p>
@@ -105,7 +105,7 @@ const SubmissionSettingsSection: React.FC<SubmissionSettingsSectionProps> = ({
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Info size={16} className="text-blue-400" />
+                  <Info size={16} className="text-info" />
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Automatically check submissions for plagiarism</p>

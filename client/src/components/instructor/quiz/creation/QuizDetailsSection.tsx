@@ -23,7 +23,7 @@ const QuizDetailsSection: React.FC<QuizDetailsSectionProps> = ({ form }) => {
           name="title"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Title <span className="text-red-500">*</span></FormLabel>
+              <FormLabel>Title <span className="text-destructive">*</span></FormLabel>
               <FormControl>
                 <Input placeholder="e.g., Midterm 1: Data Structures" {...field} />
               </FormControl>

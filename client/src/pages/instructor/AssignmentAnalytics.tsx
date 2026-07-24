@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { chartColor, chartTooltipStyle } from "@/lib/chartColors";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   LineChart,
@@ -222,11 +223,7 @@ const AssignmentAnalytics: React.FC = () => {
                         <XAxis dataKey="range" />
                         <YAxis />
                         <Tooltip
-                          contentStyle={{
-                            backgroundColor: "hsl(var(--card))",
-                            borderColor: "hsl(var(--border))",
-                            color: "hsl(var(--foreground))",
-                          }}
+                          contentStyle={chartTooltipStyle()}
                         />
                         <Bar dataKey="count">
                           {analytics.scoreDistribution.map((entry, index) => (
@@ -251,16 +248,12 @@ const AssignmentAnalytics: React.FC = () => {
                         <XAxis dataKey="date" />
                         <YAxis />
                         <Tooltip
-                          contentStyle={{
-                            backgroundColor: "hsl(var(--card))",
-                            borderColor: "hsl(var(--border))",
-                            color: "hsl(var(--foreground))",
-                          }}
+                          contentStyle={chartTooltipStyle()}
                         />
                         <Line
                           type="monotone"
                           dataKey="count"
-                          stroke="#3b82f6"
+                          stroke={chartColor.primary()}
                           activeDot={{ r: 8 }}
                         />
                       </LineChart>
@@ -315,11 +308,7 @@ const AssignmentAnalytics: React.FC = () => {
                         <XAxis dataKey="attempts" />
                         <YAxis />
                         <Tooltip
-                          contentStyle={{
-                            backgroundColor: "hsl(var(--card))",
-                            borderColor: "hsl(var(--border))",
-                            color: "hsl(var(--foreground))",
-                          }}
+                          contentStyle={chartTooltipStyle()}
                         />
                         <Bar dataKey="count" fill="hsl(var(--primary))" />
                       </BarChart>
@@ -350,11 +339,7 @@ const AssignmentAnalytics: React.FC = () => {
                           tickLine={false}
                         />
                         <Tooltip
-                          contentStyle={{
-                            backgroundColor: "hsl(var(--card))",
-                            borderColor: "hsl(var(--border))",
-                            color: "hsl(var(--foreground))",
-                          }}
+                          contentStyle={chartTooltipStyle()}
                           formatter={(value: number) => [
                             `${value} submissions`,
                             "Count",
@@ -575,11 +560,7 @@ const AssignmentAnalytics: React.FC = () => {
                         <XAxis dataKey="type" />
                         <YAxis />
                         <Tooltip
-                          contentStyle={{
-                            backgroundColor: "hsl(var(--card))",
-                            borderColor: "hsl(var(--border))",
-                            color: "hsl(var(--foreground))",
-                          }}
+                          contentStyle={chartTooltipStyle()}
                         />
                         <Bar dataKey="count" fill="hsl(var(--destructive))" />
                       </BarChart>
@@ -639,7 +620,7 @@ const AssignmentAnalytics: React.FC = () => {
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-medium text-amber-600">
+                          <p className="font-medium text-warning">
                             {test.avgRuntime} ms
                           </p>
                           <p className="text-xs text-muted-foreground">

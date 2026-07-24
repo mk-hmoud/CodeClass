@@ -107,7 +107,7 @@ const QuizProblemsSection: React.FC<QuizProblemsSectionProps> = ({ form, selecte
                                 />
                             </div>
                             <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveProblem(index)}>
-                                <X className="h-4 w-4 text-red-500" />
+                                <X className="h-4 w-4 text-destructive" />
                             </Button>
                         </div>
                     );

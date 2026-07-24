@@ -45,8 +45,8 @@ export const HybridGrading: React.FC<HybridGradingProps> = ({
         <CardTitle>Grading</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="p-4 mb-6 bg-purple-900/20 border border-purple-500/30 rounded-md">
-          <h3 className="text-lg font-semibold text-purple-400 mb-1">
+        <div className="p-4 mb-6 bg-violet-500/8 border border-violet-500/25 rounded-md">
+          <h3 className="text-lg font-semibold text-violet-600 mb-1">
             Hybrid Grading
           </h3>
           <p className="text-sm text-foreground/80">

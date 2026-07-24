@@ -32,7 +32,7 @@ const QuizSettingsSection: React.FC<QuizSettingsSectionProps> = ({ form }) => {
               name="time_limit_minutes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Time Limit (minutes) <span className="text-red-500">*</span></FormLabel>
+                  <FormLabel>Time Limit (minutes) <span className="text-destructive">*</span></FormLabel>
                   <div className="relative">
                     <FormControl>
                       <Input type="number" min={5} {...field} />

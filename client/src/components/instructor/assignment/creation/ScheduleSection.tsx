@@ -48,7 +48,7 @@ const ScheduleSection: React.FC<ScheduleSectionProps> = ({
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Info size={16} className="text-blue-400" />
+                  <Info size={16} className="text-info" />
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Make assignment available now</p>
@@ -76,12 +76,12 @@ const ScheduleSection: React.FC<ScheduleSectionProps> = ({
                     <FormLabel
                       className={watchPublishImmediately ? "text-gray-500" : ""}
                     >
-                      Publish Date <span className="text-red-500">*</span>
+                      Publish Date <span className="text-destructive">*</span>
                     </FormLabel>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Info size={16} className="text-blue-400" />
+                          <Info size={16} className="text-info" />
                         </TooltipTrigger>
                         <TooltipContent>
                           <p>When the assignment will be visible to students</p>
@@ -132,12 +132,12 @@ const ScheduleSection: React.FC<ScheduleSectionProps> = ({
                     <FormLabel
                       className={watchPublishImmediately ? "text-gray-500" : ""}
                     >
-                      Publish Time <span className="text-red-500">*</span>
+                      Publish Time <span className="text-destructive">*</span>
                     </FormLabel>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Info size={16} className="text-blue-400" />
+                          <Info size={16} className="text-info" />
                         </TooltipTrigger>
                         <TooltipContent>
                           <p>Time when the assignment will be published</p>
@@ -171,12 +171,12 @@ const ScheduleSection: React.FC<ScheduleSectionProps> = ({
                 <FormItem>
                   <div className="flex items-center gap-2">
                     <FormLabel>
-                      Due Date <span className="text-red-500">*</span>
+                      Due Date <span className="text-destructive">*</span>
                     </FormLabel>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Info size={16} className="text-blue-400" />
+                          <Info size={16} className="text-info" />
                         </TooltipTrigger>
                         <TooltipContent>
                           <p>Final date for student submissions</p>
@@ -220,12 +220,12 @@ const ScheduleSection: React.FC<ScheduleSectionProps> = ({
                 <FormItem>
                   <div className="flex items-center gap-2">
                     <FormLabel>
-                      Due Time <span className="text-red-500">*</span>
+                      Due Time <span className="text-destructive">*</span>
                     </FormLabel>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Info size={16} className="text-blue-400" />
+                          <Info size={16} className="text-info" />
                         </TooltipTrigger>
                         <TooltipContent>
                           <p>Time when submissions will close</p>

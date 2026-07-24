@@ -128,7 +128,7 @@ const CreateAssignmentPage: React.FC = () => {
       description:
         "Some required information is missing. Check the highlighted fields.",
 
-      icon: <AlertCircle className="h-5 w-5 text-red-500" />,
+      icon: <AlertCircle className="h-5 w-5 text-destructive" />,
 
       duration: 5000,
     });
@@ -276,7 +276,7 @@ const CreateAssignmentPage: React.FC = () => {
                           Error loading programming languages. Please try again.
                         </div>
                       ) : !languages || languages.length === 0 ? (
-                        <div className="text-amber-600 p-4 border border-amber-500/30 rounded-lg bg-amber-500/8 text-sm">
+                        <div className="text-warning p-4 border border-warning/30 rounded-lg bg-warning/8 text-sm">
                           No programming languages are currently available.
                         </div>
                       ) : (

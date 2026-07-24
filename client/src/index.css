@@ -171,3 +171,9 @@
   overflow: hidden;
   transition: width 0.1s ease;
 }
+
+/* Backdrop for viewing produced images -- makes transparent PNG regions visible. */
+.bg-checkerboard {
+  background-image: repeating-conic-gradient(hsl(var(--muted-foreground) / 0.15) 0% 25%, transparent 0% 50%);
+  background-size: 16px 16px;
+}

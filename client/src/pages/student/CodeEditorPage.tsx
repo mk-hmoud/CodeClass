@@ -5,7 +5,7 @@ import {
   ArrowLeft, CheckCircle, XCircle, Save, FileCode,
   Clock, AlertTriangle, Play, Send, ChevronRight,
   RotateCcw, Terminal, BookOpen, Loader2, CheckCheck,
-  Image as ImageIcon,
+  Image as ImageIcon, ZoomIn, Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import * as monaco from "monaco-editor";
 import "@/lib/monacoConfig";
 import { TestCase, JudgeVerdict } from "@/types/TestCase";
@@ -62,6 +63,7 @@ const CodeEditorPage = () => {
   const [remainingAttempts, setRemainingAttempts] = useState<number | null>(null);
   const [saveStatus, setSaveStatus] = useState<"saved" | "unsaved" | "saving">("saved");
   const [descTab, setDescTab] = useState<"description" | "details">("description");
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   const supportedLanguages = assignment?.languages?.map((l) => l.language.name) ?? [];
   const initialCodes = assignment?.languages?.map((l) => l.initial_code) ?? [];
@@ -405,7 +407,13 @@ const CodeEditorPage = () => {
                     )}
                   >
                     {isImage ? (
-                      <img src={result.actual} alt="" className="w-6 h-6 rounded object-cover border border-border" />
+                      <button
+                        type="button"
+                        onClick={() => setLightboxImage(result.actual!)}
+                        className="w-6 h-6 rounded border border-border overflow-hidden bg-checkerboard shrink-0 hover:ring-2 hover:ring-primary/50 transition-shadow"
+                      >
+                        <img src={result.actual} alt="" className="w-full h-full object-cover" style={{ imageRendering: "pixelated" }} />
+                      </button>
                     ) : result.status === "passed" ? (
                       <CheckCircle size={14} />
                     ) : (
@@ -510,14 +518,21 @@ const CodeEditorPage = () => {
                     )}
                   </div>
                   {activeTestResult.actual?.startsWith("data:image/") ? (
-                    <div className="border border-border rounded-md p-2 bg-muted/30 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={() => setLightboxImage(activeTestResult.actual!)}
+                      className="group relative w-full border border-border rounded-md p-2 bg-checkerboard flex justify-center hover:border-primary/50 transition-colors"
+                    >
                       <img
                         src={activeTestResult.actual}
                         alt="Program output"
                         className="rounded"
                         style={{ minWidth: 120, minHeight: 120, maxWidth: "100%", imageRendering: "pixelated" }}
                       />
-                    </div>
+                      <span className="absolute inset-0 flex items-center justify-center bg-background/0 group-hover:bg-background/40 transition-colors rounded-md">
+                        <ZoomIn size={20} className="text-foreground opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
+                      </span>
+                    </button>
                   ) : (
                     <MonoBlock className={cn(
                       activeTestResult.status === "passed" && "border-success/40 bg-success/5",
@@ -830,6 +845,29 @@ const CodeEditorPage = () => {
           </ResizablePanelGroup>
         </div>
       </div>
+
+      <Dialog open={!!lightboxImage} onOpenChange={(open) => !open && setLightboxImage(null)}>
+        <DialogContent className="max-w-3xl p-2">
+          {lightboxImage && (
+            <div className="bg-checkerboard rounded-md flex items-center justify-center p-4 max-h-[80vh] overflow-auto">
+              <img
+                src={lightboxImage}
+                alt="Produced output, full size"
+                className="max-w-full rounded shadow-sm"
+                style={{ imageRendering: "pixelated" }}
+              />
+            </div>
+          )}
+          <a
+            href={lightboxImage ?? undefined}
+            download="output.png"
+            className="absolute left-4 top-4 inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md bg-background/90 border border-border hover:bg-muted transition-colors"
+          >
+            <Download size={13} />
+            Download
+          </a>
+        </DialogContent>
+      </Dialog>
     </TooltipProvider>
   );
 };

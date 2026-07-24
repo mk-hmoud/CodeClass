@@ -13,9 +13,9 @@ import { loginUser } from "@/services/AuthService";
 import { useTheme } from "@/contexts/ThemeContext";
 
 const FEATURES = [
-  { icon: Zap, label: "Multi-language code execution", desc: "Run Python, C++, JavaScript and more in isolated sandboxes." },
-  { icon: BarChart3, label: "Automated grading & analytics", desc: "Instant feedback with detailed classroom performance insights." },
-  { icon: Users, label: "Classroom management", desc: "Create classrooms, assign problems, and track every student." },
+  { icon: Zap, label: "Multi-language code execution", desc: "Python, C++, and JavaScript, run in isolated sandboxes." },
+  { icon: BarChart3, label: "Automated grading", desc: "Test-case results and classroom performance analytics." },
+  { icon: Users, label: "Classroom management", desc: "Classrooms, assignments, and per-student tracking." },
 ];
 
 const CODE_LINES = [
@@ -100,12 +100,11 @@ const Home = () => {
           </Link>
 
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-            <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-3 leading-tight">
-              Where coding<br />
-              <span className="text-primary">education</span> lives.
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3 leading-tight">
+              Coding assignments, grading, and classroom management.
             </h1>
             <p className="text-muted-foreground text-base mb-10 max-w-sm">
-              A professional platform for instructors and students to teach, learn, and grow through code.
+              A platform for instructors and students to manage coursework built around code.
             </p>
 
             <div className="space-y-5">

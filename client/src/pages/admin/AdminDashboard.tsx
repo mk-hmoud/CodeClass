@@ -183,7 +183,7 @@ const AdminDashboard: React.FC = () => {
         }
       />
 
-      <Tabs defaultValue="users" className="space-y-6">
+      <Tabs defaultValue="users" className="space-y-6 min-h-[560px]">
         <TabsList>
           <TabsTrigger value="users" className="gap-2"><UsersIcon size={16}/> Users</TabsTrigger>
           <TabsTrigger value="classrooms" className="gap-2"><BookOpen size={16}/> Classrooms</TabsTrigger>

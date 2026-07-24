@@ -79,11 +79,13 @@ const AssignmentAnalytics: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="max-w-6xl mx-auto px-6 py-8">
-        <div className="animate-pulse space-y-4">
-          <div className="h-6 w-32 bg-muted rounded" />
-          <div className="h-8 w-64 bg-muted rounded" />
-          <div className="grid grid-cols-4 gap-4"><div className="h-24 bg-muted rounded" /><div className="h-24 bg-muted rounded" /><div className="h-24 bg-muted rounded" /><div className="h-24 bg-muted rounded" /></div>
+      <div className="flex-1 flex flex-col">
+        <div className="max-w-6xl mx-auto w-full px-6 py-8">
+          <div className="animate-pulse space-y-4">
+            <div className="h-6 w-32 bg-muted rounded" />
+            <div className="h-8 w-64 bg-muted rounded" />
+            <div className="grid grid-cols-4 gap-4"><div className="h-24 bg-muted rounded" /><div className="h-24 bg-muted rounded" /><div className="h-24 bg-muted rounded" /><div className="h-24 bg-muted rounded" /></div>
+          </div>
         </div>
       </div>
     );

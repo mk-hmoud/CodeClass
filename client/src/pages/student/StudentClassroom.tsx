@@ -257,14 +257,16 @@ const StudentClassroom: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="p-6 max-w-6xl mx-auto space-y-6">
-        <Skeleton className="h-8 w-40" />
-        <Skeleton className="h-40 w-full" />
-        <div className="grid grid-cols-3 gap-4">
-          {[0,1,2].map(i => <Skeleton key={i} className="h-20" />)}
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {[0,1,2,3].map(i => <Skeleton key={i} className="h-44" />)}
+      <div className="flex-1 flex flex-col">
+        <div className="max-w-6xl mx-auto w-full px-6 py-6 space-y-6">
+          <Skeleton className="h-8 w-40" />
+          <Skeleton className="h-40 w-full" />
+          <div className="grid grid-cols-3 gap-4">
+            {[0,1,2].map(i => <Skeleton key={i} className="h-20" />)}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[0,1,2,3].map(i => <Skeleton key={i} className="h-44" />)}
+          </div>
         </div>
       </div>
     );

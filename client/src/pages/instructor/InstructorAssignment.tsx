@@ -82,11 +82,13 @@ const InstructorAssignment: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="max-w-6xl mx-auto px-6 py-8 space-y-6">
-        <Skeleton className="h-8 w-40" />
-        <Skeleton className="h-28 w-full" />
-        <Skeleton className="h-10 w-96" />
-        <Skeleton className="h-64 w-full" />
+      <div className="flex-1 flex flex-col">
+        <div className="max-w-6xl mx-auto w-full px-6 py-8 space-y-6">
+          <Skeleton className="h-8 w-40" />
+          <Skeleton className="h-28 w-full" />
+          <Skeleton className="h-10 w-96" />
+          <Skeleton className="h-64 w-full" />
+        </div>
       </div>
     );
   }

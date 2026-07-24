@@ -199,7 +199,7 @@ const AdminDashboard: React.FC = () => {
               </div>
               <CardDescription>A list of all users currently registered on the platform.</CardDescription>
             </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto">
+            <CardContent className="flex-1 overflow-y-auto [scrollbar-gutter:stable]">
               {isLoading ? (
                 <div className="flex justify-center p-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -275,7 +275,7 @@ const AdminDashboard: React.FC = () => {
               </div>
               <CardDescription>Oversight of all platform classrooms.</CardDescription>
             </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto">
+            <CardContent className="flex-1 overflow-y-auto [scrollbar-gutter:stable]">
               {isLoading ? (
                 <div className="flex justify-center p-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -354,7 +354,7 @@ const AdminDashboard: React.FC = () => {
               </div>
               <CardDescription>High-level system statistics.</CardDescription>
             </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto">
+            <CardContent className="flex-1 overflow-y-auto [scrollbar-gutter:stable]">
               {isLoading || !analytics ? (
                 <div className="flex justify-center p-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -392,7 +392,7 @@ const AdminDashboard: React.FC = () => {
               </div>
               <CardDescription>Enable maintenance mode to prevent non-admins from logging in.</CardDescription>
             </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto">
+            <CardContent className="flex-1 overflow-y-auto [scrollbar-gutter:stable]">
               <div className="flex items-center justify-between p-6 border rounded-xl">
                 <div>
                   <h3 className="font-medium text-lg mb-1">System Maintenance</h3>

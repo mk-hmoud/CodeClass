@@ -853,8 +853,8 @@ const CodeEditorPage = () => {
               <img
                 src={lightboxImage}
                 alt="Produced output, full size"
-                className="max-w-full rounded shadow-sm"
-                style={{ imageRendering: "pixelated" }}
+                className="rounded shadow-sm"
+                style={{ width: "min(640px, 85vw)", height: "auto", imageRendering: "pixelated" }}
               />
             </div>
           )}

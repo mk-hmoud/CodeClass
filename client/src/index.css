@@ -90,6 +90,13 @@
     @apply border-border;
   }
 
+  html {
+    /* Reserve the vertical scrollbar's width permanently, so pages whose
+       content height varies (e.g. switching tabs) don't shift horizontally
+       when the scrollbar appears or disappears. */
+    scrollbar-gutter: stable;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;

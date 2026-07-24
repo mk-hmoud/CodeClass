@@ -183,7 +183,7 @@ const AdminDashboard: React.FC = () => {
         }
       />
 
-      <Tabs defaultValue="users" className="space-y-6 min-h-[560px]">
+      <Tabs defaultValue="users" className="space-y-6">
         <TabsList>
           <TabsTrigger value="users" className="gap-2"><UsersIcon size={16}/> Users</TabsTrigger>
           <TabsTrigger value="classrooms" className="gap-2"><BookOpen size={16}/> Classrooms</TabsTrigger>
@@ -191,15 +191,15 @@ const AdminDashboard: React.FC = () => {
           <TabsTrigger value="maintenance" className="gap-2"><Settings size={16}/> Maintenance</TabsTrigger>
         </TabsList>
         <TabsContent value="users">
-          <Card>
-            <CardHeader>
+          <Card className="h-[600px] flex flex-col">
+            <CardHeader className="shrink-0">
               <div className="flex items-center gap-2">
                 <UserCog className="text-primary" />
                 <CardTitle>All Users</CardTitle>
               </div>
               <CardDescription>A list of all users currently registered on the platform.</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-1 overflow-y-auto">
               {isLoading ? (
                 <div className="flex justify-center p-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -267,15 +267,15 @@ const AdminDashboard: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="classrooms">
-          <Card>
-            <CardHeader>
+          <Card className="h-[600px] flex flex-col">
+            <CardHeader className="shrink-0">
               <div className="flex items-center gap-2">
                 <BookOpen className="text-primary" />
                 <CardTitle>All Classrooms</CardTitle>
               </div>
               <CardDescription>Oversight of all platform classrooms.</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-1 overflow-y-auto">
               {isLoading ? (
                 <div className="flex justify-center p-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -346,15 +346,15 @@ const AdminDashboard: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="analytics">
-          <Card>
-            <CardHeader>
+          <Card className="h-[600px] flex flex-col">
+            <CardHeader className="shrink-0">
               <div className="flex items-center gap-2">
                 <BarChart className="text-primary" />
                 <CardTitle>Platform Analytics</CardTitle>
               </div>
               <CardDescription>High-level system statistics.</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-1 overflow-y-auto">
               {isLoading || !analytics ? (
                 <div className="flex justify-center p-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -384,21 +384,21 @@ const AdminDashboard: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="maintenance">
-          <Card>
-            <CardHeader>
+          <Card className="h-[600px] flex flex-col">
+            <CardHeader className="shrink-0">
               <div className="flex items-center gap-2">
                 <Settings className="text-primary" />
                 <CardTitle>Maintenance Mode</CardTitle>
               </div>
               <CardDescription>Enable maintenance mode to prevent non-admins from logging in.</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-1 overflow-y-auto">
               <div className="flex items-center justify-between p-6 border rounded-xl">
                 <div>
                   <h3 className="font-medium text-lg mb-1">System Maintenance</h3>
                   <p className="text-muted-foreground text-sm">When enabled, students and instructors will see a maintenance page.</p>
                 </div>
-                <Button 
+                <Button
                   variant={maintenance ? "destructive" : "default"}
                   onClick={() => setMaintenance(!maintenance)}
                 >

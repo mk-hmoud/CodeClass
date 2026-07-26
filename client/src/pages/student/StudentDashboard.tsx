@@ -138,7 +138,7 @@ const ClassroomCard = ({ classroom, index, onClick }: { classroom: Classroom; in
 const StudentDashboard = () => {
   const navigate = useNavigate();
   const { user } = getCurrentUser();
-  const displayName = user?.firstName || user?.name?.split(' ')[0] || "there";
+  const displayName = user?.first_name || user?.name?.split(' ')[0] || "there";
 
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [deadlines, setDeadlines] = useState<any[]>([]);
@@ -195,7 +195,7 @@ const StudentDashboard = () => {
               <h1 className="text-3xl font-bold tracking-tight mb-2">{displayName}</h1>
               <p className="text-muted-foreground text-sm">
                 {totalPending > 0
-                  ? <>You have <span className="font-semibold text-foreground">{totalPending}</span> pending assignments across <span className="font-semibold text-foreground">{classrooms.length}</span> classroom{classrooms.length !== 1 ? "s" : ""}.</>
+                  ? <>You have <span className="font-semibold text-foreground">{totalPending}</span> pending assignment{totalPending !== 1 ? "s" : ""} across <span className="font-semibold text-foreground">{classrooms.length}</span> classroom{classrooms.length !== 1 ? "s" : ""}.</>
                   : <>All caught up! Enrolled in <span className="font-semibold text-foreground">{classrooms.length}</span> classroom{classrooms.length !== 1 ? "s" : ""}.</>
                 }
               </p>

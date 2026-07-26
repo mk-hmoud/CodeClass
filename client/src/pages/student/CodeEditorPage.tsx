@@ -19,9 +19,9 @@ import "@/lib/monacoConfig";
 import { TestCase, JudgeVerdict } from "@/types/TestCase";
 import { Assignment } from "@/types/Assignment";
 import { runCode, getRunStatus, submit, getSubmitStatus } from "@/services/JudgeService";
-import { getRemainingAttempts } from "@/services/AssignmentService";
+import { getRemainingAttempts, getAssignmentById } from "@/services/AssignmentService";
 import { getCodeDraft, removeCodeDraft, saveCodeDraft } from "@/utils/CodeDraftManager";
-import { LANGUAGE_LABELS } from "@/lib/assignmentUtils";
+import { LANGUAGE_LABELS, normalizeAssignment } from "@/lib/assignmentUtils";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useIsCompactLayout } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
@@ -43,7 +43,13 @@ const CodeEditorPage = () => {
   const { state = {} } = useLocation();
   const { theme } = useTheme();
   const isCompact = useIsCompactLayout();
-  const [assignment] = useState<Assignment | null>(state as Assignment | null);
+  // "Start Coding" passes the full assignment via router state (fast path, no
+  // request needed). Anything that lands here without it -- a "Continue
+  // Working" draft link, a page refresh, a direct/shared URL -- needs to fetch
+  // it by id instead, or the editor renders with no language/description/tests.
+  const stateAssignment = (state as Assignment | null)?.assignmentId ? (state as Assignment) : null;
+  const [assignment, setAssignment] = useState<Assignment | null>(stateAssignment);
+  const [assignmentLoading, setAssignmentLoading] = useState(!stateAssignment);
 
   const editorRef = useRef<HTMLDivElement>(null);
   const monacoInstance = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -72,12 +78,37 @@ const CodeEditorPage = () => {
   const publicTestCases: TestCase[] = assignment?.problem?.testCases ?? [];
   const isImageAssignment = assignment?.problem?.outputType === "image";
 
+  // Fetch the assignment when it wasn't handed to us via navigation state.
+  useEffect(() => {
+    if (stateAssignment || !assignmentId) return;
+    (async () => {
+      try {
+        const raw = await getAssignmentById(Number(assignmentId));
+        if (!raw?.assignment) throw new Error("Assignment not found");
+        setAssignment(normalizeAssignment(raw.assignment));
+      } catch {
+        toast.error("Failed to load assignment");
+        navigate(`/student/classrooms/${classroomId}/view`);
+      } finally {
+        setAssignmentLoading(false);
+      }
+    })();
+    // Intentionally only depends on assignmentId -- this decides once, at
+    // mount, whether a fetch is needed based on whatever state was present
+    // then; it shouldn't re-run just because setAssignment below updates state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assignmentId]);
+
   // ── Monaco setup ──────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!editorRef.current || monacoInstance.current) return;
+    if (assignmentLoading || !editorRef.current || monacoInstance.current) return;
 
     const savedDraft = assignmentId ? getCodeDraft(assignmentId) : null;
-    const initialLang = savedDraft?.language ?? selectedLanguage;
+    // selectedLanguage was seeded from navigation state at mount, which is
+    // empty on the fetch-by-id path -- fall back to the (by-now-loaded)
+    // assignment's first supported language instead of trusting it directly.
+    const defaultLang = supportedLanguages[0] ?? selectedLanguage;
+    const initialLang = savedDraft?.language ?? defaultLang;
     const initialCode = savedDraft?.code ?? initialCodes[0] ?? "";
 
     if (savedDraft) {
@@ -86,6 +117,8 @@ const CodeEditorPage = () => {
         setSelectedLanguage(savedDraft.language);
         toast.info("Loaded your previously saved draft");
       }
+    } else if (defaultLang && defaultLang !== selectedLanguage) {
+      setSelectedLanguage(defaultLang);
     }
 
     monacoInstance.current = monaco.editor.create(editorRef.current, {
@@ -127,7 +160,8 @@ const CodeEditorPage = () => {
     if (publicTestCases.length > 0) setActiveTestCaseId(publicTestCases[0].testCaseId);
 
     return () => { monacoInstance.current?.dispose(); monacoInstance.current = null; };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assignmentLoading]);
 
   // Theme sync
   useEffect(() => {
@@ -614,6 +648,15 @@ const CodeEditorPage = () => {
       </div>
     );
   };
+
+  if (assignmentLoading) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center gap-3 bg-background text-muted-foreground">
+        <div className="w-10 h-10 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+        <p className="text-sm">Loading assignment…</p>
+      </div>
+    );
+  }
 
   return (
     <TooltipProvider>

@@ -1,4 +1,16 @@
 import { z } from "zod";
+import { Assignment } from "@/types/Assignment";
+
+// getAssignmentById's raw response uses snake_case due_date/publish_date;
+// the rest of the app's Assignment type uses dueDate/publishDate. Centralized
+// here so every caller that fetches by ID maps the fields the same way.
+export const normalizeAssignment = (raw: any): Assignment => ({
+  ...raw,
+  dueDate: raw.due_date,
+  publishDate: raw.publish_date,
+  due_date: undefined,
+  publish_date: undefined,
+});
 
 export const LANGUAGE_LABELS: Record<string, string> = {
   cpp: "C++",

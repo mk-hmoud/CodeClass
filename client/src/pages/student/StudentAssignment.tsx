@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { getAssignmentById, getRemainingAttempts } from "@/services/AssignmentService";
 import { toast } from "sonner";
 import { Assignment } from "@/types/Assignment";
-import { LANGUAGE_LABELS } from "@/lib/assignmentUtils";
+import { LANGUAGE_LABELS, normalizeAssignment } from "@/lib/assignmentUtils";
 import { DIFFICULTY_META } from "@/lib/difficultyMeta";
 
 const ACCENTS = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ef4444", "#06b6d4", "#6366f1", "#f97316"];
@@ -45,13 +45,7 @@ const StudentAssignment = () => {
       setLoading(true);
       try {
         const raw = await getAssignmentById(parseInt(assignmentId, 10));
-        setAssignment({
-          ...raw.assignment,
-          dueDate: raw.assignment.due_date,
-          publishDate: raw.assignment.publish_date,
-          due_date: undefined,
-          publish_date: undefined,
-        });
+        setAssignment(normalizeAssignment(raw.assignment));
         const att = await getRemainingAttempts(parseInt(assignmentId, 10));
         setRemainingAttempts(att);
       } catch {

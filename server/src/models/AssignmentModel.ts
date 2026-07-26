@@ -189,12 +189,14 @@ export const getAssignmentById = async (
     const testCaseQuery = `
       SELECT
         tc.test_case_id                            AS "testCaseId",
-        COALESCE(gto.input, tc.input, '')            AS "input",
+        COALESCE(gto.input, sl.setup_sql, tc.input, '') AS "input",
         COALESCE(gto.expected_output, tc.expected_output, '') AS "expectedOutput",
         tc.is_public                                AS "isPublic"
       FROM problem_test_cases tc
       LEFT JOIN group_test_case_overrides gto
         ON gto.test_case_id = tc.test_case_id AND gto.group_id = $2
+      LEFT JOIN schema_libraries sl
+        ON sl.schema_library_id = tc.schema_library_id
       WHERE tc.problem_id = $1
       ORDER BY tc.test_case_id
     `;
@@ -322,12 +324,14 @@ export async function getAssignmentsForClassroom(classroomId: number): Promise<A
            SELECT COALESCE(json_agg(
              json_build_object(
                'testCaseId', ptc.test_case_id,
-               'input', ptc.input,
+               'input', COALESCE(psl.setup_sql, ptc.input),
                'expectedOutput', ptc.expected_output,
                'isPublic', ptc.is_public
              )
            ), '[]'::json)
            FROM problem_test_cases ptc
+           LEFT JOIN schema_libraries psl
+             ON psl.schema_library_id = ptc.schema_library_id
            WHERE ptc.problem_id = p.problem_id
         )
       ) AS problem,

@@ -6,11 +6,12 @@ export const getQuizProblemTestCases = async (quizProblemId: number): Promise<Te
   const fn = "getQuizProblemTestCases";
   const sql = `
     SELECT tc.test_case_id    AS "testCaseId",
-           tc.input,
+           COALESCE(sl.setup_sql, tc.input) AS input,
            tc.expected_output  AS "expectedOutput",
            tc.is_public        AS "isPublic"
     FROM quiz_problems qp
     JOIN problem_test_cases tc ON tc.problem_id = qp.problem_id
+    LEFT JOIN schema_libraries sl ON sl.schema_library_id = tc.schema_library_id
     WHERE qp.quiz_problem_id = $1
     ORDER BY tc.test_case_id
   `;

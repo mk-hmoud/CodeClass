@@ -178,6 +178,8 @@ export interface Assignment {
   completed?: boolean;
   submitted?: boolean;
   finalScore?: number;
+  grade_release_mode?: "immediate" | "on_deadline" | "manual";
+  grades_released_at?: Date;
 }
 
 export interface AssignmentCreationData{
@@ -192,6 +194,7 @@ export interface AssignmentCreationData{
   plagiarism_detection: boolean;
   publish_date?: Date;
   due_date?: Date;
+  grade_release_mode?: "immediate" | "on_deadline" | "manual";
   libraryId?: number;
   groupId?: number;
   testCaseOverrides?: Array<{
@@ -299,6 +302,7 @@ export interface FullSubmission {
   autoScore?: number | null;
   manualScore?: number | null;
   finalScore?: number | null;
+  gradesReleased?: boolean;
   verdict: JudgeVerdict;
   plagiarismReports: PlagiarismReport[];
   studentName?: string;

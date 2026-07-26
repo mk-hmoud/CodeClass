@@ -59,6 +59,7 @@ const CreateAssignmentPage: React.FC = () => {
       difficulty_level: "Medium",
       points: 10,
       grading_method: "Automatic",
+      grade_release_mode: "immediate",
       enable_max_submissions: false,
       max_submissions: 3,
       plagiarism_detection: true,
@@ -172,6 +173,7 @@ const CreateAssignmentPage: React.FC = () => {
       difficulty_level: formData.difficulty_level,
       points: formData.points,
       grading_method: formData.grading_method,
+      grade_release_mode: formData.grading_method === "Manual" ? "immediate" : formData.grade_release_mode,
       max_submissions: formData.enable_max_submissions
         ? formData.max_submissions
         : undefined,

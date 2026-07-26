@@ -1,8 +1,9 @@
 import logger from '../config/logger';
 import { Request, Response } from 'express';
-import { createAssignment, getAssignments, getAssignmentById, deleteAssignment, getRemainingAttempts, getAssignmentForStudent, getUpcomingDeadlines } from '../models/AssignmentModel';
+import { createAssignment, getAssignments, getAssignmentById, deleteAssignment, getRemainingAttempts, getAssignmentForStudent, getUpcomingDeadlines, getAssignmentReleaseInfo, getAssignmentOwnerInstructorId, releaseGrades } from '../models/AssignmentModel';
 import { getInstructorByUserId } from '../models/InstructorModel';
 import { getSubmissionsByAssignment } from '../models/SubmissionModel';
+import { isGradeVisible } from '../utils/gradeVisibility';
 
 
 export const createAssignmentController = async (req: Request, res: Response): Promise<void> => {
@@ -218,12 +219,73 @@ export const getMySubmissionController = async (
     );
 
     const submissions = await getSubmissionsByAssignment(assignmentId, studentId);
-    const submission = submissions[0] ?? null;
+    let submission = submissions[0] ?? null;
+
+    if (submission) {
+      const releaseInfo = await getAssignmentReleaseInfo(assignmentId);
+      const gradesReleased = releaseInfo ? isGradeVisible(releaseInfo) : true;
+      submission = {
+        ...submission,
+        gradesReleased,
+        autoScore: gradesReleased ? submission.autoScore : null,
+        manualScore: gradesReleased ? submission.manualScore : null,
+        finalScore: gradesReleased ? submission.finalScore : null,
+      };
+    }
 
     res.status(200).json({ success: true, submission });
   } catch (err) {
     logger.error({ fn, error: err }, `Error fetching my submission: ${err}`);
     res.status(500).json({ success: false, message: "Could not fetch submission" });
+  }
+};
+
+export const releaseGradesController = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const fn = "releaseGradesController";
+  try {
+    if (!req.user || req.user.role !== "instructor") {
+      res.status(403).json({ success: false, message: "Forbidden: instructor role required" });
+      return;
+    }
+
+    const assignmentId = Number(req.params.assignmentId);
+    if (isNaN(assignmentId) || assignmentId <= 0) {
+      res.status(400).json({ success: false, message: "Invalid assignment ID" });
+      return;
+    }
+
+    const ownerInstructorId = await getAssignmentOwnerInstructorId(assignmentId);
+    if (ownerInstructorId === null) {
+      res.status(404).json({ success: false, message: "Assignment not found" });
+      return;
+    }
+    if (ownerInstructorId !== req.user.role_id) {
+      logger.warn(
+        { fn, assignmentId, userId: req.user.id, roleId: req.user.role_id },
+        `Forbidden: instructor ${req.user.role_id} does not own assignment ${assignmentId}`
+      );
+      res.status(403).json({ success: false, message: "Forbidden: not the owner of this assignment" });
+      return;
+    }
+
+    const releaseInfo = await getAssignmentReleaseInfo(assignmentId);
+    if (!releaseInfo || releaseInfo.grade_release_mode !== "manual") {
+      res.status(400).json({
+        success: false,
+        message: "Grade release is only applicable for assignments set to manual release",
+      });
+      return;
+    }
+
+    const result = await releaseGrades(assignmentId);
+    logger.info({ fn, assignmentId }, `Grades released for assignment ${assignmentId}`);
+    res.status(200).json({ success: true, data: result });
+  } catch (err) {
+    logger.error({ fn, error: err }, `Error releasing grades: ${err}`);
+    res.status(500).json({ success: false, message: "Failed to release grades" });
   }
 };
 

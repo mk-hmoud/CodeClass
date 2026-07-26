@@ -22,6 +22,8 @@ export interface Assignment {
   status?: "active" | "expired";
   submitted?: boolean;
   finalScore?: number;
+  grade_release_mode?: "immediate" | "on_deadline" | "manual";
+  grades_released_at?: Date;
 }
 
 
@@ -37,6 +39,7 @@ export interface AssignmentCreationData {
   plagiarism_detection: boolean;
   publish_date?: Date | string;
   due_date?: Date | string;
+  grade_release_mode?: "immediate" | "on_deadline" | "manual";
   libraryId?: number;
   groupId?: number;
   testCaseOverrides?: Array<{

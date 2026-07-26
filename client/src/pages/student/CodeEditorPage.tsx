@@ -361,6 +361,7 @@ const CodeEditorPage = () => {
           autoScore: null,
           manualScore: null,
           finalScore: null,
+          gradesReleased: true,
           feedback: undefined,
           verdict: statusData,
           plagiarismReports: [],
@@ -776,7 +777,14 @@ const CodeEditorPage = () => {
             <span className="text-muted-foreground">
               Submitted {new Date(mySubmission.submittedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
             </span>
-            {mySubmission.gradingStatus === "graded" ? (
+            {(mySubmission.gradingStatus === "graded" || mySubmission.gradingStatus === "system graded") &&
+            mySubmission.gradesReleased === false ? (
+              <Badge variant="outline" className="text-[10px] h-4 px-1.5">
+                {assignment?.grade_release_mode === "on_deadline"
+                  ? "Grade releases after the deadline"
+                  : "Grade pending release"}
+              </Badge>
+            ) : mySubmission.gradingStatus === "graded" ? (
               <Badge variant="success" className="text-[10px] h-4 px-1.5">
                 {mySubmission.finalScore}/{assignment?.points ?? "—"}
               </Badge>
@@ -1019,9 +1027,13 @@ const CodeEditorPage = () => {
               {mySubmission && (() => {
                 const submittedDate = new Date(mySubmission.submittedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
                 const existingScore = mySubmission.finalScore ?? mySubmission.autoScore ?? mySubmission.manualScore;
-                return mySubmission.gradingStatus !== "pending"
-                  ? `You already submitted this assignment on ${submittedDate} and it's been graded (${existingScore ?? 0}/${assignment?.points ?? "—"}). Submitting again will permanently delete that grade and feedback, and replace it with a new submission.`
-                  : `You already submitted this assignment on ${submittedDate}. Submitting again will replace it.`;
+                if (mySubmission.gradingStatus === "pending") {
+                  return `You already submitted this assignment on ${submittedDate}. Submitting again will replace it.`;
+                }
+                if (mySubmission.gradesReleased === false) {
+                  return `You already submitted this assignment on ${submittedDate} and it's been graded, but the grade isn't released to you yet. Submitting again will permanently delete that grade and feedback, and replace it with a new submission.`;
+                }
+                return `You already submitted this assignment on ${submittedDate} and it's been graded (${existingScore ?? 0}/${assignment?.points ?? "—"}). Submitting again will permanently delete that grade and feedback, and replace it with a new submission.`;
               })()}
             </AlertDialogDescription>
           </AlertDialogHeader>

@@ -39,6 +39,7 @@ export const formSchema = z.object({
   difficulty_level: z.enum(['Easy', 'Medium', 'Hard']),
   points: z.coerce.number().min(1, "Points must be at least 1"),
   grading_method: z.enum(['Manual', 'Automatic', 'Hybrid']),
+  grade_release_mode: z.enum(['immediate', 'on_deadline', 'manual']).default('immediate'),
   enable_max_submissions: z.boolean().default(false),
   max_submissions: z.coerce.number().min(1).optional(),
   plagiarism_detection: z.boolean().default(false),

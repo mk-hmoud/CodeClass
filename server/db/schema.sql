@@ -24,6 +24,12 @@ CREATE TYPE grading_status_enum AS ENUM (
   'graded'
 );
 
+CREATE TYPE grade_release_mode_enum AS ENUM (
+  'immediate',
+  'on_deadline',
+  'manual'
+);
+
 CREATE TYPE attendance_status_enum AS ENUM (
   'present',
   'absent',
@@ -136,6 +142,8 @@ CREATE TABLE assignments (
   assigned_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
   publish_date TIMESTAMPTZ,
   due_date TIMESTAMPTZ,
+  grade_release_mode grade_release_mode_enum NOT NULL DEFAULT 'immediate',
+  grades_released_at TIMESTAMPTZ,
   FOREIGN KEY (classroom_id) REFERENCES classrooms(classroom_id) ON DELETE CASCADE,
   FOREIGN KEY (problem_id) REFERENCES problems(problem_id) ON DELETE CASCADE,
   UNIQUE (classroom_id, problem_id)

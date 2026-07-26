@@ -78,6 +78,13 @@ export async function getMySubmission(assignmentId: number): Promise<FullSubmiss
   }
 }
 
+export async function releaseGrades(assignmentId: number): Promise<{ grades_released_at: string }> {
+  const { data } = await apiClient.post<{ success: boolean; data: { grades_released_at: string } }>(
+    `/assignments/${assignmentId}/release-grades`
+  );
+  return data.data;
+}
+
 export const getAssignmentAnalytics = async (
   assignmentId: string | number
 ): Promise<AssignmentAnalyticsPayload> => {

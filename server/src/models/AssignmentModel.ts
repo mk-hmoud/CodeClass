@@ -1,6 +1,7 @@
 import pool from "../config/db";
 import logger from "../config/logger";
 import { Assignment, AssignmentCreationData, Problem, TestCase, Language, AssignmentLanguage } from "../types"
+import { isGradeVisible } from "../utils/gradeVisibility";
 
 export const createAssignment = async (
   assignment: AssignmentCreationData
@@ -25,8 +26,9 @@ export const createAssignment = async (
         publish_date,
         due_date,
         library_id,
-        group_id
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+        group_id,
+        grade_release_mode
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
       RETURNING assignment_id, title, description
     `;
     const {
@@ -45,6 +47,7 @@ export const createAssignment = async (
       assignment.due_date || null,
       assignment.libraryId ?? null,
       assignment.groupId ?? null,
+      assignment.grade_release_mode || "immediate",
     ]);
 
     const assignmentId: number = inserted.assignment_id;
@@ -293,6 +296,68 @@ export const deleteAssignment = async (assignmentId: number): Promise<void> => {
   }
 };
 
+export const getAssignmentReleaseInfo = async (
+  assignmentId: number
+): Promise<{
+  grading_method: string;
+  grade_release_mode: string;
+  due_date: Date | null;
+  grades_released_at: Date | null;
+} | null> => {
+  const fn = "getAssignmentReleaseInfo";
+  try {
+    const { rows } = await pool.query(
+      `SELECT grading_method, grade_release_mode, due_date, grades_released_at
+       FROM assignments WHERE assignment_id = $1`,
+      [assignmentId]
+    );
+    return rows[0] ?? null;
+  } catch (error) {
+    logger.error({ fn, assignmentId, error }, `Error fetching assignment release info: ${error}`);
+    throw error;
+  }
+};
+
+export const getAssignmentOwnerInstructorId = async (
+  assignmentId: number
+): Promise<number | null> => {
+  const fn = "getAssignmentOwnerInstructorId";
+  try {
+    const { rows } = await pool.query(
+      `SELECT c.instructor_id
+       FROM assignments a
+       JOIN classrooms c ON a.classroom_id = c.classroom_id
+       WHERE a.assignment_id = $1`,
+      [assignmentId]
+    );
+    return rows[0]?.instructor_id ?? null;
+  } catch (error) {
+    logger.error({ fn, assignmentId, error }, `Error fetching assignment owner: ${error}`);
+    throw error;
+  }
+};
+
+export const releaseGrades = async (
+  assignmentId: number
+): Promise<{ assignmentId: number; grades_released_at: Date } | null> => {
+  const fn = "releaseGrades";
+  try {
+    const { rows } = await pool.query(
+      `UPDATE assignments
+       SET grades_released_at = NOW()
+       WHERE assignment_id = $1 AND grade_release_mode = 'manual'
+       RETURNING assignment_id, grades_released_at`,
+      [assignmentId]
+    );
+    if (rows.length === 0) return null;
+    logger.info({ fn, assignmentId }, `Released grades for assignment ${assignmentId}`);
+    return { assignmentId: rows[0].assignment_id, grades_released_at: rows[0].grades_released_at };
+  } catch (error) {
+    logger.error({ fn, assignmentId, error }, `Error releasing grades: ${error}`);
+    throw error;
+  }
+};
+
 export async function getAssignmentsForClassroom(classroomId: number): Promise<Assignment[]> {
   const query = `
     SELECT 
@@ -387,6 +452,8 @@ export async function getAssignmentsForStudentClassroom(
         to_char(a.publish_date,   'YYYY-MM-DD"T"HH24:MI:SSZ') AS "publishDate",
         to_char(a.due_date,       'YYYY-MM-DD"T"HH24:MI:SSZ') AS "dueDate",
         a.status                  AS "status",
+        a.grade_release_mode      AS "gradeReleaseMode",
+        a.grades_released_at      AS "gradesReleasedAt",
 
         EXISTS (
           SELECT 1 
@@ -463,7 +530,18 @@ export async function getAssignmentsForStudentClassroom(
       `Found ${result.rowCount} assignments for student ${studentId}`
     );
 
-    return result.rows as Assignment[];
+    return result.rows.map((row: any) => {
+      const visible = isGradeVisible({
+        grading_method: row.gradingMethod,
+        grade_release_mode: row.gradeReleaseMode,
+        due_date: row.dueDate,
+        grades_released_at: row.gradesReleasedAt,
+      });
+      return {
+        ...row,
+        finalScore: visible ? row.finalScore : null,
+      };
+    }) as Assignment[];
   } catch (error) {
     console.error("Error fetching assignments:", error);
     throw error;

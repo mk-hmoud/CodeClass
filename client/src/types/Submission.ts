@@ -34,6 +34,7 @@ export interface SubmissionResult {
     autoScore?: number | null;
     manualScore?: number | null;
     finalScore?: number | null;
+    gradesReleased?: boolean;
     verdict: JudgeVerdict;
     plagiarismReports: PlagiarismReport[];
     studentName: string;

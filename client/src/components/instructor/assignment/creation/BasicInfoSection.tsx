@@ -99,6 +99,9 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
 
   const watchProblemId = form.watch("problemId");
   const watchGroupId = form.watch("groupId");
+  const watchGradingMethod = form.watch("grading_method");
+  const watchDueDate = form.watch("due_date");
+  const watchGradeReleaseMode = form.watch("grade_release_mode");
 
   useEffect(() => {
     if (watchProblemId) {
@@ -122,6 +125,15 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
   useEffect(() => {
     setOverrides({});
   }, [watchGroupId]);
+
+  // Grade release timing only applies to auto-graded assignments -- Manual
+  // grading already withholds a score until the instructor grades it by hand,
+  // so a lingering non-default value here would be meaningless/confusing.
+  useEffect(() => {
+    if (watchGradingMethod === "Manual") {
+      form.setValue("grade_release_mode", "immediate");
+    }
+  }, [watchGradingMethod]);
 
   useEffect(() => {
     if (!onTestCaseOverridesChange) return;
@@ -485,6 +497,55 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
             </FormItem>
           )}
         />
+
+        {watchGradingMethod !== "Manual" && (
+          <FormField
+            control={form.control}
+            name="grade_release_mode"
+            render={({ field }) => (
+              <FormItem>
+                <div className="flex items-center gap-2">
+                  <FormLabel>Grade Release</FormLabel>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info size={16} className="text-info" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>
+                          When students can see their auto-computed score. Test
+                          pass/fail results are always shown immediately either way.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select when grades are released" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="immediate">Immediately after grading</SelectItem>
+                    <SelectItem value="on_deadline">After the due date</SelectItem>
+                    <SelectItem value="manual">Manually (I'll release them myself)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormDescription>
+                  {watchGradeReleaseMode === "on_deadline" && !watchDueDate
+                    ? "No due date is set yet — without one, grades will be visible immediately."
+                    : watchGradeReleaseMode === "manual"
+                    ? "Scores stay hidden until you click \"Release Grades\" on the assignment page."
+                    : watchGradeReleaseMode === "on_deadline"
+                    ? "Scores become visible automatically once the due date passes."
+                    : "Scores are visible to students as soon as grading finishes."}
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
       </CardContent>
     </Card>
   );

@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   MoreVertical, Trash2, Clock, Calendar, BookOpen,
-  BarChart2, ArrowLeft, Zap, ClipboardCheck,
+  BarChart2, ArrowLeft, Zap, ClipboardCheck, Megaphone,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -21,10 +21,11 @@ import ProblemTab from "@/components/instructor/assignment/view/ProblemTab";
 import SubmissionsTab from "@/components/instructor/assignment/view/SubmissionsTab";
 import ExportTab from "@/components/instructor/assignment/view/ExportTab";
 import PlagiarismTab from "@/components/instructor/assignment/view/PlagiarismTab";
-import { getAssignmentById } from "@/services/AssignmentService";
+import { getAssignmentById, releaseGrades } from "@/services/AssignmentService";
 import { Assignment } from "@/types/Assignment";
 import { FullSubmission } from "@/types/Submission";
 import { DIFFICULTY_META } from "@/lib/difficultyMeta";
+import { toast } from "sonner";
 
 const fmtDate = (d?: Date | string | number | null) => {
   if (!d) return "—";
@@ -55,6 +56,7 @@ const InstructorAssignment: React.FC = () => {
   const [submissions, setSubmissions] = useState<FullSubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [releasingGrades, setReleasingGrades] = useState(false);
 
   useEffect(() => {
     if (!assignmentId) { setError("Invalid assignment ID"); setLoading(false); return; }
@@ -78,6 +80,20 @@ const InstructorAssignment: React.FC = () => {
   const handleBack = () => {
     if (assignment) navigate(`/instructor/classrooms/${assignment.classroomId}/view`);
     else navigate("/instructor/dashboard");
+  };
+
+  const handleReleaseGrades = async () => {
+    if (!assignmentId) return;
+    setReleasingGrades(true);
+    try {
+      const result = await releaseGrades(+assignmentId);
+      setAssignment(prev => prev ? { ...prev, grades_released_at: new Date(result.grades_released_at) } : prev);
+      toast.success("Grades released to students");
+    } catch (err) {
+      toast.error("Failed to release grades");
+    } finally {
+      setReleasingGrades(false);
+    }
   };
 
   if (loading) {
@@ -157,6 +173,20 @@ const InstructorAssignment: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
+                {assignment.grading_method !== "Manual" &&
+                  assignment.grade_release_mode === "manual" &&
+                  !assignment.grades_released_at && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5"
+                      disabled={releasingGrades}
+                      onClick={handleReleaseGrades}
+                    >
+                      <Megaphone size={14} />
+                      {releasingGrades ? "Releasing…" : "Release Grades"}
+                    </Button>
+                  )}
                 <Button
                   variant="outline"
                   size="sm"

@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { ArrowLeft, Check, X, Clock, Code, FileText, FileX, Image as ImageIcon } from "lucide-react";
+import { ArrowLeft, Check, X, Clock, Code, FileText, FileX, Image as ImageIcon, ZoomIn, Download } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { Textarea } from "@/components/ui/textarea";
@@ -37,6 +38,7 @@ const SubmissionDetailsView: React.FC<SubmissionDetailsViewProps> = ({
   assignmentScore, submission, gradingType, onBack, onSubmitGrade,
 }) => {
   const [activeTab, setActiveTab] = useState("code");
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [calculatedFinalScore, setCalculatedFinalScore] = useState(
     submission.finalScore ?? Math.round(((submission.autoScore ?? 0) + (submission.manualScore ?? 0)) / 2)
   );
@@ -97,12 +99,21 @@ const SubmissionDetailsView: React.FC<SubmissionDetailsViewProps> = ({
             <div className="p-3">
               <p className="text-xs text-muted-foreground mb-1.5">Output</p>
               {result.status === "produced" ? (
-                <img
-                  src={result.actual}
-                  alt="Program output"
-                  className="rounded-md border border-border"
-                  style={{ minWidth: 120, minHeight: 120, maxWidth: "100%", imageRendering: "pixelated" }}
-                />
+                <button
+                  type="button"
+                  onClick={() => setLightboxImage(result.actual!)}
+                  className="group relative w-full flex justify-center border border-border rounded-md bg-checkerboard p-4 hover:border-primary/50 transition-colors"
+                >
+                  <img
+                    src={result.actual}
+                    alt="Program output"
+                    className="rounded"
+                    style={{ minWidth: 120, minHeight: 120, maxWidth: "100%", imageRendering: "pixelated" }}
+                  />
+                  <span className="absolute inset-0 flex items-center justify-center bg-background/0 group-hover:bg-background/40 transition-colors rounded-md">
+                    <ZoomIn size={20} className="text-foreground opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
+                  </span>
+                </button>
               ) : (
                 <p className="text-xs text-muted-foreground italic">No image produced</p>
               )}
@@ -353,11 +364,7 @@ const SubmissionDetailsView: React.FC<SubmissionDetailsViewProps> = ({
                   <div className="space-y-3">
                     {submission.verdict.testResults.map((result, idx) => renderTestCase(result, idx))}
                   </div>
-                  {submission.verdict.testResults.every((r) => r.actual?.startsWith("data:image/")) ? (
-                    <div className="bg-card border border-border rounded-xl p-4 text-sm text-muted-foreground">
-                      Image output — no automated pass/fail. Review the produced images above and grade manually.
-                    </div>
-                  ) : (
+                  {submission.verdict.testResults.every((r) => r.actual?.startsWith("data:image/")) ? null : (
                     <div className="bg-card border border-border rounded-xl p-4">
                       <div className="flex justify-between items-center mb-2 text-sm">
                         <span>Passed {submission.verdict.metrics.passedTests} of {submission.verdict.metrics.totalTests} tests</span>
@@ -412,6 +419,29 @@ const SubmissionDetailsView: React.FC<SubmissionDetailsViewProps> = ({
         {/* Right column — grading */}
         <div className="w-full md:w-80 lg:w-96">{renderGrading()}</div>
       </div>
+
+      <Dialog open={!!lightboxImage} onOpenChange={(open) => !open && setLightboxImage(null)}>
+        <DialogContent className="max-w-3xl p-2">
+          {lightboxImage && (
+            <div className="bg-checkerboard rounded-md flex items-center justify-center p-4 max-h-[80vh] overflow-auto">
+              <img
+                src={lightboxImage}
+                alt="Produced output, full size"
+                className="rounded shadow-sm"
+                style={{ width: "min(640px, 85vw)", height: "auto", imageRendering: "pixelated" }}
+              />
+            </div>
+          )}
+          <a
+            href={lightboxImage ?? undefined}
+            download="output.png"
+            className="absolute left-4 top-4 inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md bg-background/90 border border-border hover:bg-muted transition-colors"
+          >
+            <Download size={13} />
+            Download
+          </a>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

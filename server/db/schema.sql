@@ -616,5 +616,6 @@ INSERT INTO languages (name, version) VALUES
   ('c',          'GCC 12'),
   ('cpp',        'GCC 12'),
   ('javascript', 'Node 20'),
-  ('typescript', 'Node 20 / ts-node')
+  ('typescript', 'Node 20 / ts-node'),
+  ('sql',        'SQLite 3')
 ON CONFLICT DO NOTHING;

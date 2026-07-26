@@ -68,10 +68,13 @@ const ProblemCreation = () => {
   const [testCases, setTestCases] = useState<TestCase[]>([
     { input: "", expectedOutput: "", isPublic: false },
   ]);
-  // SQL-specific creation helper — local UI-only state, never sent to the backend.
-  // Toggling it just relabels the fields above and unlocks a "generate expected
-  // output" shortcut; the saved problem data is identical either way.
-  const [isSqlMode, setIsSqlMode] = useState(false);
+  // "sql" is a form-only output type — it relabels fields below and unlocks the
+  // reference-query helper, but is never sent to the backend as-is: the
+  // problem's real (persisted) outputType is still "text", since SQL results
+  // are graded via the same canonical string comparison as any other text
+  // problem, just serialized differently by the SQL runner.
+  const [uiOutputType, setUiOutputType] = useState<"text" | "image" | "sql">("text");
+  const isSqlMode = uiOutputType === "sql";
   const [refQueries, setRefQueries] = useState<string[]>([""]);
   const [generatingIdx, setGeneratingIdx] = useState<number | null>(null);
 
@@ -273,50 +276,36 @@ const ProblemCreation = () => {
                 name="outputType"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Output Type</FormLabel>
+                    <FormLabel>Problem Type</FormLabel>
                     <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
+                      onValueChange={(value: "text" | "image" | "sql") => {
+                        setUiOutputType(value);
+                        field.onChange(value === "sql" ? "text" : value);
+                      }}
+                      value={uiOutputType}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select an output type" />
+                          <SelectValue placeholder="Select a problem type" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="text">Text (stdout comparison)</SelectItem>
                         <SelectItem value="image">Image (PNG, manually graded)</SelectItem>
+                        <SelectItem value="sql">SQL (query result, canonical text comparison)</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormDescription>
-                      Image problems skip automatic grading — the judge captures the
-                      PNG the program produces and an instructor reviews it by hand.
+                      {uiOutputType === "image"
+                        ? 'Image problems skip automatic grading — the judge captures the PNG the program produces and an instructor reviews it by hand.'
+                        : uiOutputType === "sql"
+                        ? 'Relabels the test case fields below for the SQL convention (setup SQL / canonical result) and lets you generate expected output from a reference query instead of hand-formatting it. Select "SQL" as a language when creating the assignment.'
+                        : 'The program\'s stdout is compared against the expected output for each test case.'}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-
-              <div className="flex items-start gap-2 rounded-md border border-border p-3">
-                <Checkbox
-                  id="sql-mode"
-                  checked={isSqlMode}
-                  onCheckedChange={(checked) => setIsSqlMode(checked === true)}
-                  className="mt-0.5"
-                />
-                <div>
-                  <Label htmlFor="sql-mode" className="font-normal">
-                    This is a SQL problem
-                  </Label>
-                  <p className="text-muted-foreground text-xs mt-0.5">
-                    Relabels the fields below for the SQL convention (setup SQL /
-                    canonical result) and lets you generate expected output from a
-                    reference query instead of hand-formatting it. Only affects
-                    this form — select "SQL" as a language when creating the
-                    assignment.
-                  </p>
-                </div>
-              </div>
 
               <FormField
                 control={form.control}

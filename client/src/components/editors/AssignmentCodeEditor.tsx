@@ -14,6 +14,7 @@ const LANGUAGE_DISPLAY: Record<string, string> = {
   java: "Java",
   typescript: "TypeScript",
   c: "C",
+  sql: "SQL",
 };
 
 const LANGUAGE_ICONS: Record<string, string> = {

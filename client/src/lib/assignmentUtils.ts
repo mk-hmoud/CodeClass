@@ -18,6 +18,7 @@ export const LANGUAGE_LABELS: Record<string, string> = {
   python: "Python",
   javascript: "Javascript",
   typescript: "Typescript",
+  sql: "SQL",
 };
 
 export const languageDefaultCode: Record<string, string> = {
@@ -26,6 +27,7 @@ export const languageDefaultCode: Record<string, string> = {
   typescript: `// Your code here\n\nfunction solution(): any {\n    // Implement your solution here\n    return null;\n}\n\n// Test your solution\nconsole.log(solution());`,
   cpp: `#include <iostream>\n\nusing namespace std;\n\n// Implement your solution here\nint solution() { \n    return 0; \n}\n\nint main() { \n    cout << solution() << endl; \n    return 0; \n}`,
   c: `#include <stdio.h>\n\nint solution() {     \n    return 0; \n}\n\nint main() { \n    printf("%d\\n", solution()); \n    return 0; \n}`,
+  sql: `-- Write your query here\nSELECT *\nFROM your_table;\n`,
 };
 
 export const formSchema = z.object({

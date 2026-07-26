@@ -49,7 +49,8 @@ INSERT INTO system_settings (id, maintenance_mode) VALUES (1, FALSE);
 CREATE TABLE languages (
   language_id SERIAL PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
-  version VARCHAR(50)
+  version VARCHAR(50),
+  UNIQUE (name)
 );
 
 CREATE TABLE users (

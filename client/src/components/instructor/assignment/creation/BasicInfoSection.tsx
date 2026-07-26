@@ -106,6 +106,12 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
         problems.find((p) => String(p.problemId) === watchProblemId) || null;
       setSelectedProblem(found);
       onSelectedProblemChange?.(found);
+      // Image-output problems have nothing an automated grader can diff against
+      // (the judge reports "produced"/"no_output", never "passed"/"failed") --
+      // Automatic/Hybrid grading can't function for them, so force Manual.
+      if (found?.outputType === "image") {
+        form.setValue("grading_method", "Manual");
+      }
     } else {
       setSelectedProblem(null);
       onSelectedProblemChange?.(null);
@@ -454,7 +460,11 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
                   </Tooltip>
                 </TooltipProvider>
               </div>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select
+                onValueChange={field.onChange}
+                value={field.value}
+                disabled={selectedProblem?.outputType === "image"}
+              >
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select grading method" />
@@ -467,7 +477,9 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
                 </SelectContent>
               </Select>
               <FormDescription>
-                Choose how student submissions will be evaluated.
+                {selectedProblem?.outputType === "image"
+                  ? "This problem produces an image, so there's nothing to auto-diff against — grading is locked to Manual."
+                  : "Choose how student submissions will be evaluated."}
               </FormDescription>
               <FormMessage />
             </FormItem>

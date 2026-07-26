@@ -309,16 +309,17 @@ const CreateAssignmentPage: React.FC = () => {
             </Card>
           </div>
 
-          {/* Code templates — full width with dark editor feel */}
+          {/* Code templates — editor cards are self-contained dark chrome (like a
+              code snippet embed); this wrapper just follows the page theme. */}
           {selectedLanguages.length > 0 && (
-            <div className="border-t border-border bg-[#111111]">
+            <div className="border-t border-border bg-muted/30">
               <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-semibold text-white/70">Starter Code Templates</h3>
+                  <h3 className="text-sm font-semibold text-foreground">Starter Code Templates</h3>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <Info size={13} className="text-white/30" />
+                        <Info size={13} className="text-muted-foreground" />
                       </TooltipTrigger>
                       <TooltipContent>
                         <p>Starting code provided to students when they open the editor</p>

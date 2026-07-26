@@ -7,7 +7,14 @@ export const getLanguages = async (): Promise<Language[]> => {
   const functionName = "getLanguages";
   try {
     logger.info({ functionName }, "Fetching all languages.");
-    const query = "SELECT * FROM languages";
+    // The languages table has no uniqueness constraint on name, and duplicate
+    // rows have crept in (same name, different language_id) -- dedupe here so
+    // callers never see the same language listed multiple times.
+    const query = `
+      SELECT DISTINCT ON (name) *
+      FROM languages
+      ORDER BY name, language_id
+    `;
     const result = await pool.query(query);
     logger.info(
       { functionName, count: result.rowCount },

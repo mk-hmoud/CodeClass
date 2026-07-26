@@ -74,6 +74,8 @@ void JudgeWorker::processSubmission(const std::string &jobId,
                 image = "judge-js:latest";
             else if (submission.language == "c")
                 image = "judge-cpp:latest";
+            else if (submission.language == "sql")
+                image = "judge-sql:latest";
 
             // exec() docker WITHOUT a shell
             execlp("docker", "docker", "run",

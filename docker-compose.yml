@@ -97,6 +97,12 @@ services:
     image: judge-js
     profiles: ["runners"]
 
+  runner-sql:
+    build:
+      context: ./judge/docker_images/sql
+    image: judge-sql
+    profiles: ["runners"]
+
 volumes:
   db_data:
   redis_data:

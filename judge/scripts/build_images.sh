@@ -20,11 +20,18 @@ docker build \
   -t judge-js:latest \
   .
 
-# Python 
+# Python
 echo "Building Python runner"
 cd "${DOCKER_BASE}/python"
 docker build \
   -t judge-py:latest \
+  .
+
+# SQL
+echo "Building SQL runner"
+cd "${DOCKER_BASE}/sql"
+docker build \
+  -t judge-sql:latest \
   .
 
 echo "Success! All Docker images built."

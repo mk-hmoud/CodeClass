@@ -3,6 +3,7 @@ import express from 'express';
 import ClassroomRoutes from './routes/ClassroomRoutes';
 import ProblemRoutes from './routes/ProblemRoutes';
 import LibraryRoutes from './routes/LibraryRoutes';
+import SchemaLibraryRoutes from './routes/SchemaLibraryRoutes';
 import GroupRoutes from './routes/GroupRoutes';
 import AttendanceRoutes from './routes/AttendanceRoutes';
 import AssignmentRoutes from './routes/AssignmentRoutes';
@@ -38,6 +39,8 @@ app.use('/api/quizzes', QuizRoutes);
 app.use('/api/problems', ProblemRoutes);
 
 app.use('/api/libraries', LibraryRoutes);
+
+app.use('/api/schema-libraries', SchemaLibraryRoutes);
 
 app.use('/api/groups', GroupRoutes);
 

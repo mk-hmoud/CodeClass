@@ -33,8 +33,8 @@ export const createProblem = async (
 
     if (data.testCases && data.testCases.length > 0) {
       const insertTestCaseQuery = `
-        INSERT INTO problem_test_cases (problem_id, input, expected_output, is_public)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO problem_test_cases (problem_id, input, expected_output, is_public, schema_library_id)
+        VALUES ($1, $2, $3, $4, $5)
       `;
       for (const tc of data.testCases) {
         await client.query(insertTestCaseQuery, [
@@ -42,6 +42,7 @@ export const createProblem = async (
           tc.input || null,
           tc.expectedOutput ?? null,
           tc.isPublic !== undefined ? tc.isPublic : false,
+          tc.schemaLibraryId ?? null,
         ]);
       }
       logger.info(
@@ -98,6 +99,7 @@ export const getProblemById = async (
       input: tc.input,
       expectedOutput: tc.expected_output,
       isPublic: tc.is_public,
+      schemaLibraryId: tc.schema_library_id,
     }));
 
     logger.info({ functionName, problemId }, `Fetched problem with ID: ${problemId}`);
@@ -122,7 +124,8 @@ export const getProblemsByInstructor = async (
               'testCaseId', tc.test_case_id,
               'input', tc.input,
               'expectedOutput', tc.expected_output,
-              'isPublic', tc.is_public
+              'isPublic', tc.is_public,
+              'schemaLibraryId', tc.schema_library_id
             )
           ) FILTER (WHERE tc.test_case_id IS NOT NULL),
           '[]'
@@ -208,9 +211,12 @@ export const deleteProblem = async (problemId: number): Promise<void> => {
 export const getAssignmentTestCases = async (
   assignmentId: number
 ): Promise<TestCase[]> => {
+  // A test case's setup SQL can come from a reusable schema_libraries row
+  // (live reference, like assignments.library_id) instead of its own inline
+  // `input` -- a group override still wins over either, same as before.
   const sql = `
     SELECT tc.test_case_id   AS "testCaseId",
-           COALESCE(gto.input, tc.input, '') AS input,
+           COALESCE(gto.input, sl.setup_sql, tc.input, '') AS input,
            COALESCE(gto.expected_output, tc.expected_output, '') AS "expectedOutput",
            tc.is_public      AS "isPublic"
     FROM assignments a
@@ -218,6 +224,8 @@ export const getAssignmentTestCases = async (
       ON a.problem_id = tc.problem_id
     LEFT JOIN group_test_case_overrides gto
       ON gto.test_case_id = tc.test_case_id AND gto.group_id = a.group_id
+    LEFT JOIN schema_libraries sl
+      ON sl.schema_library_id = tc.schema_library_id
     WHERE a.assignment_id = $1
     ORDER BY tc.test_case_id
   `;

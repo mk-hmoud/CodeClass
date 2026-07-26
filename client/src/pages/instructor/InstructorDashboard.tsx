@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { GraduationCap, Users, BookOpen, LayoutGrid, FolderOpen, Library as LibraryIcon } from "lucide-react";
+import { GraduationCap, Users, BookOpen, LayoutGrid, FolderOpen, Library as LibraryIcon, Database } from "lucide-react";
 import ClassroomsSection from "@/components/instructor/dashboard/ClassroomSection";
 import ProblemsSection from "@/components/instructor/dashboard/ProblemsSection";
 import LibrariesSection from "@/components/instructor/dashboard/LibrariesSection";
+import SchemaLibrariesSection from "@/components/instructor/dashboard/SchemaLibrariesSection";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getClassrooms } from "@/services/ClassroomService";
 import { getCurrentUser } from "@/services/AuthService";
@@ -114,6 +115,10 @@ const InstructorDashboard = () => {
               <LibraryIcon size={16} />
               Code Libraries
             </TabsTrigger>
+            <TabsTrigger value="schema-libraries" className="gap-2">
+              <Database size={16} />
+              Schema Libraries
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="classrooms" className="m-0">
@@ -130,6 +135,10 @@ const InstructorDashboard = () => {
 
           <TabsContent value="libraries" className="m-0">
             <LibrariesSection />
+          </TabsContent>
+
+          <TabsContent value="schema-libraries" className="m-0">
+            <SchemaLibrariesSection />
           </TabsContent>
         </Tabs>
       </div>

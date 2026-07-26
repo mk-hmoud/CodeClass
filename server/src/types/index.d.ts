@@ -85,6 +85,22 @@ export interface LibraryCreationData {
   files: LibraryFile[];
 }
 
+export interface SchemaLibrary {
+  schemaLibraryId: number;
+  instructorId: number;
+  name: string;
+  description?: string;
+  setupSql: string;
+  created_at?: Date;
+}
+
+export interface SchemaLibraryCreationData {
+  instructorId: number;
+  name: string;
+  description?: string;
+  setupSql: string;
+}
+
 export interface LabGroup {
   groupId: number;
   classroomId: number;
@@ -194,6 +210,7 @@ export interface TestCase{
   input?: string;
   expectedOutput?: string;
   isPublic: boolean;
+  schemaLibraryId?: number | null;
 }
 
 export interface Language {

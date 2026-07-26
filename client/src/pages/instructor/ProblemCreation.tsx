@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -27,10 +27,13 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { TestCase } from "../../types/TestCase";
 import { createProblem } from "@/services/ProblemService";
 import { runCode, getRunStatus } from "@/services/JudgeService";
 import { JudgeVerdict } from "@/types/TestCase";
+import { getSchemaLibraries } from "@/services/SchemaLibraryService";
+import { SchemaLibrary } from "@/types/SchemaLibrary";
 
 const POLL_INTERVAL = 1000;
 
@@ -56,6 +59,7 @@ const formSchema = z.object({
         input: z.string(),
         expectedOutput: z.string(),
         isPublic: z.boolean().default(false),
+        schemaLibraryId: z.number().nullable().optional(),
       })
     )
     .min(1, "At least one test case is required"),
@@ -78,14 +82,51 @@ const ProblemCreation = () => {
   const [refQueries, setRefQueries] = useState<string[]>([""]);
   const [generatingIdx, setGeneratingIdx] = useState<number | null>(null);
 
+  // Setup SQL either points at a reusable, instructor-managed schema library
+  // (like code Libraries — a live reference, edits to the library apply to
+  // every test case using it) or is written one-off, inline, like before.
+  const [schemaLibraries, setSchemaLibraries] = useState<SchemaLibrary[]>([]);
+  const [setupSource, setSetupSource] = useState<("library" | "oneoff")[]>(["oneoff"]);
+
+  useEffect(() => {
+    if (isSqlMode) {
+      getSchemaLibraries().then(setSchemaLibraries);
+    }
+  }, [isSqlMode]);
+
   const updateRefQuery = (index: number, value: string) => {
     const updated = [...refQueries];
     updated[index] = value;
     setRefQueries(updated);
   };
 
+  const updateSetupSource = (index: number, source: "library" | "oneoff") => {
+    const updated = [...setupSource];
+    updated[index] = source;
+    setSetupSource(updated);
+    if (source === "oneoff") {
+      updateTestCase(index, "schemaLibraryId", null);
+    } else {
+      updateTestCase(index, "input", "");
+    }
+  };
+
+  const selectSchemaLibrary = (index: number, schemaLibraryId: string) => {
+    updateTestCase(index, "schemaLibraryId", Number(schemaLibraryId));
+  };
+
+  const effectiveSetupSql = (index: number): string => {
+    if (setupSource[index] === "library") {
+      const library = schemaLibraries.find(
+        (s) => s.schemaLibraryId === testCases[index]?.schemaLibraryId
+      );
+      return library?.setupSql ?? "";
+    }
+    return testCases[index]?.input ?? "";
+  };
+
   const generateExpectedOutput = async (index: number) => {
-    const setupSql = testCases[index]?.input ?? "";
+    const setupSql = effectiveSetupSql(index);
     const refQuery = refQueries[index] ?? "";
     if (!refQuery.trim()) {
       toast.error("Enter a reference query first");
@@ -164,6 +205,7 @@ const ProblemCreation = () => {
     setTestCases([...testCases, newTestCase]);
     form.setValue("testCases", [...form.getValues().testCases, newTestCase]);
     setRefQueries([...refQueries, ""]);
+    setSetupSource([...setupSource, "oneoff"]);
   };
 
   const removeTestCase = (index: number) => {
@@ -182,12 +224,16 @@ const ProblemCreation = () => {
     const newRefQueries = [...refQueries];
     newRefQueries.splice(index, 1);
     setRefQueries(newRefQueries);
+
+    const newSetupSource = [...setupSource];
+    newSetupSource.splice(index, 1);
+    setSetupSource(newSetupSource);
   };
 
   const updateTestCase = (
     index: number,
     field: keyof TestCase,
-    value: string | boolean
+    value: string | boolean | number | null
   ) => {
     const updatedTestCases = [...testCases];
     updatedTestCases[index] = { ...updatedTestCases[index], [field]: value };
@@ -429,19 +475,78 @@ const ProblemCreation = () => {
                       <Label htmlFor={`input-${index}`}>
                         {isSqlMode ? "Setup SQL (schema + seed data)" : "Input"}
                       </Label>
-                      <Textarea
-                        id={`input-${index}`}
-                        value={testCase.input}
-                        onChange={(e) =>
-                          updateTestCase(index, "input", e.target.value)
-                        }
-                        placeholder={
-                          isSqlMode
-                            ? "CREATE TABLE students(name TEXT, age INT);\nINSERT INTO students VALUES ('Ana', 22), ('Bo', 19);"
-                            : "Input for this test case"
-                        }
-                        className="mt-1 min-h-[80px] font-mono text-sm"
-                      />
+
+                      {isSqlMode && (
+                        <RadioGroup
+                          value={setupSource[index] ?? "oneoff"}
+                          onValueChange={(value) =>
+                            updateSetupSource(index, value as "library" | "oneoff")
+                          }
+                          className="mt-1 mb-2 flex items-center gap-4"
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <RadioGroupItem value="library" id={`source-library-${index}`} />
+                            <Label htmlFor={`source-library-${index}`} className="text-xs font-normal cursor-pointer">
+                              Use a schema library
+                            </Label>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <RadioGroupItem value="oneoff" id={`source-oneoff-${index}`} />
+                            <Label htmlFor={`source-oneoff-${index}`} className="text-xs font-normal cursor-pointer">
+                              Write one-off SQL
+                            </Label>
+                          </div>
+                        </RadioGroup>
+                      )}
+
+                      {isSqlMode && setupSource[index] === "library" ? (
+                        <>
+                          <Select
+                            value={testCase.schemaLibraryId ? String(testCase.schemaLibraryId) : undefined}
+                            onValueChange={(value) => selectSchemaLibrary(index, value)}
+                          >
+                            <SelectTrigger className="mt-1">
+                              <SelectValue placeholder="Select a schema library" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {schemaLibraries.map((library) => (
+                                <SelectItem
+                                  key={library.schemaLibraryId}
+                                  value={String(library.schemaLibraryId)}
+                                >
+                                  {library.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {schemaLibraries.length === 0 && (
+                            <p className="text-muted-foreground text-xs mt-1">
+                              No schema libraries yet — create one from the
+                              instructor dashboard's "Schema Libraries" tab, or
+                              switch to "Write one-off SQL".
+                            </p>
+                          )}
+                          {testCase.schemaLibraryId && (
+                            <pre className="mt-2 text-xs bg-background p-2 rounded-md max-h-32 overflow-auto whitespace-pre-wrap">
+                              {schemaLibraries.find((s) => s.schemaLibraryId === testCase.schemaLibraryId)?.setupSql}
+                            </pre>
+                          )}
+                        </>
+                      ) : (
+                        <Textarea
+                          id={`input-${index}`}
+                          value={testCase.input}
+                          onChange={(e) =>
+                            updateTestCase(index, "input", e.target.value)
+                          }
+                          placeholder={
+                            isSqlMode
+                              ? "CREATE TABLE students(name TEXT, age INT);\nINSERT INTO students VALUES ('Ana', 22), ('Bo', 19);"
+                              : "Input for this test case"
+                          }
+                          className="mt-1 min-h-[80px] font-mono text-sm"
+                        />
+                      )}
                     </div>
                     <div>
                       <Label htmlFor={`expected-${index}`}>

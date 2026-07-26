@@ -182,6 +182,25 @@ CREATE TABLE library_files (
 ALTER TABLE assignments
   ADD COLUMN library_id INT REFERENCES libraries(library_id) ON DELETE SET NULL;
 
+CREATE TABLE schema_libraries (
+  schema_library_id SERIAL PRIMARY KEY,
+  instructor_id INT NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  setup_sql TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (instructor_id) REFERENCES instructors(instructor_id) ON DELETE CASCADE,
+  UNIQUE (instructor_id, name)
+);
+
+-- A SQL problem's test case either writes its own setup SQL inline (input)
+-- or points at a reusable schema_libraries row -- same "attach a reusable
+-- resource" pattern as assignments.library_id above, just resolved per test
+-- case instead of per assignment, since setup data (unlike library code)
+-- naturally varies test case to test case within the same problem.
+ALTER TABLE problem_test_cases
+  ADD COLUMN schema_library_id INT REFERENCES schema_libraries(schema_library_id) ON DELETE SET NULL;
+
 CREATE TABLE lab_groups (
   group_id SERIAL PRIMARY KEY,
   classroom_id INT NOT NULL,

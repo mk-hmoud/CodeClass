@@ -3,6 +3,7 @@ export interface TestCase {
   input?: string;
   expectedOutput?: string;
   isPublic: boolean;
+  schemaLibraryId?: number | null;
 }
 
 export interface TestResult {

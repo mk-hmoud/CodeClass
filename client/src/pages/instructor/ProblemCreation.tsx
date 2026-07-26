@@ -29,6 +29,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Checkbox } from "@/components/ui/checkbox";
 import { TestCase } from "../../types/TestCase";
 import { createProblem } from "@/services/ProblemService";
+import { runCode, getRunStatus } from "@/services/JudgeService";
+import { JudgeVerdict } from "@/types/TestCase";
+
+const POLL_INTERVAL = 1000;
 
 const categories = [
   "Fundamentals",
@@ -64,6 +68,56 @@ const ProblemCreation = () => {
   const [testCases, setTestCases] = useState<TestCase[]>([
     { input: "", expectedOutput: "", isPublic: false },
   ]);
+  // SQL-specific creation helper — local UI-only state, never sent to the backend.
+  // Toggling it just relabels the fields above and unlocks a "generate expected
+  // output" shortcut; the saved problem data is identical either way.
+  const [isSqlMode, setIsSqlMode] = useState(false);
+  const [refQueries, setRefQueries] = useState<string[]>([""]);
+  const [generatingIdx, setGeneratingIdx] = useState<number | null>(null);
+
+  const updateRefQuery = (index: number, value: string) => {
+    const updated = [...refQueries];
+    updated[index] = value;
+    setRefQueries(updated);
+  };
+
+  const generateExpectedOutput = async (index: number) => {
+    const setupSql = testCases[index]?.input ?? "";
+    const refQuery = refQueries[index] ?? "";
+    if (!refQuery.trim()) {
+      toast.error("Enter a reference query first");
+      return;
+    }
+
+    setGeneratingIdx(index);
+    try {
+      const { job_id } = await runCode(refQuery, "sql", [
+        { testCaseId: 1, input: setupSql, expectedOutput: "", isPublic: true },
+      ]);
+
+      let statusData: JudgeVerdict;
+      do {
+        await new Promise((r) => setTimeout(r, POLL_INTERVAL));
+        statusData = await getRunStatus(job_id);
+      } while (statusData.status === "pending");
+
+      if (statusData.status === "completed") {
+        const result = statusData.testResults?.[0];
+        if (result && (result.status === "passed" || result.status === "failed")) {
+          updateTestCase(index, "expectedOutput", result.actual ?? "");
+          toast.success("Expected output generated from your reference query");
+        } else {
+          toast.error(result?.error || result?.errorMessage || "Reference query failed to run");
+        }
+      } else {
+        toast.error(statusData.error?.errorMessage || "Reference query failed to run");
+      }
+    } catch {
+      toast.error("Failed to generate expected output");
+    } finally {
+      setGeneratingIdx(null);
+    }
+  };
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -106,6 +160,7 @@ const ProblemCreation = () => {
     const newTestCase = { input: "", expectedOutput: "", isPublic: false };
     setTestCases([...testCases, newTestCase]);
     form.setValue("testCases", [...form.getValues().testCases, newTestCase]);
+    setRefQueries([...refQueries, ""]);
   };
 
   const removeTestCase = (index: number) => {
@@ -120,6 +175,10 @@ const ProblemCreation = () => {
     const formTestCases = [...form.getValues().testCases];
     formTestCases.splice(index, 1);
     form.setValue("testCases", formTestCases);
+
+    const newRefQueries = [...refQueries];
+    newRefQueries.splice(index, 1);
+    setRefQueries(newRefQueries);
   };
 
   const updateTestCase = (
@@ -237,6 +296,27 @@ const ProblemCreation = () => {
                   </FormItem>
                 )}
               />
+
+              <div className="flex items-start gap-2 rounded-md border border-border p-3">
+                <Checkbox
+                  id="sql-mode"
+                  checked={isSqlMode}
+                  onCheckedChange={(checked) => setIsSqlMode(checked === true)}
+                  className="mt-0.5"
+                />
+                <div>
+                  <Label htmlFor="sql-mode" className="font-normal">
+                    This is a SQL problem
+                  </Label>
+                  <p className="text-muted-foreground text-xs mt-0.5">
+                    Relabels the fields below for the SQL convention (setup SQL /
+                    canonical result) and lets you generate expected output from a
+                    reference query instead of hand-formatting it. Only affects
+                    this form — select "SQL" as a language when creating the
+                    assignment.
+                  </p>
+                </div>
+              </div>
 
               <FormField
                 control={form.control}
@@ -357,20 +437,26 @@ const ProblemCreation = () => {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor={`input-${index}`}>Input</Label>
+                      <Label htmlFor={`input-${index}`}>
+                        {isSqlMode ? "Setup SQL (schema + seed data)" : "Input"}
+                      </Label>
                       <Textarea
                         id={`input-${index}`}
                         value={testCase.input}
                         onChange={(e) =>
                           updateTestCase(index, "input", e.target.value)
                         }
-                        placeholder="Input for this test case"
-                        className="mt-1 min-h-[80px]"
+                        placeholder={
+                          isSqlMode
+                            ? "CREATE TABLE students(name TEXT, age INT);\nINSERT INTO students VALUES ('Ana', 22), ('Bo', 19);"
+                            : "Input for this test case"
+                        }
+                        className="mt-1 min-h-[80px] font-mono text-sm"
                       />
                     </div>
                     <div>
                       <Label htmlFor={`expected-${index}`}>
-                        Expected Output{" "}
+                        {isSqlMode ? "Expected Result (canonical)" : "Expected Output"}{" "}
                         {outputType !== "image" && (
                           <span className="text-destructive">*</span>
                         )}
@@ -388,10 +474,12 @@ const ProblemCreation = () => {
                         placeholder={
                           outputType === "image"
                             ? "Not used for image problems — graded manually"
+                            : isSqlMode
+                            ? "Generate this from a reference query below, rather than typing it by hand"
                             : "Expected output for this test case"
                         }
                         disabled={outputType === "image"}
-                        className="mt-1 min-h-[80px]"
+                        className="mt-1 min-h-[80px] font-mono text-sm"
                       />
                       {outputType !== "image" && !testCase.expectedOutput && (
                         <p className="text-destructive text-sm mt-1">
@@ -400,6 +488,41 @@ const ProblemCreation = () => {
                       )}
                     </div>
                   </div>
+
+                  {isSqlMode && outputType !== "image" && (
+                    <div className="mt-4 rounded-md border border-dashed border-border p-3">
+                      <Label htmlFor={`refquery-${index}`} className="text-sm">
+                        Reference query{" "}
+                        <span className="text-muted-foreground font-normal">
+                          (used only to generate expected output — not saved)
+                        </span>
+                      </Label>
+                      <Textarea
+                        id={`refquery-${index}`}
+                        value={refQueries[index] ?? ""}
+                        onChange={(e) => updateRefQuery(index, e.target.value)}
+                        placeholder="SELECT name FROM students WHERE age > 20;"
+                        className="mt-1 min-h-[60px] font-mono text-sm"
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="mt-2"
+                        disabled={generatingIdx === index}
+                        onClick={() => generateExpectedOutput(index)}
+                      >
+                        {generatingIdx === index
+                          ? "Running…"
+                          : "Generate Expected Output"}
+                      </Button>
+                      <p className="text-muted-foreground text-xs mt-1">
+                        Runs your query against the setup SQL in the real SQL
+                        sandbox and fills in the canonical result above — the
+                        exact same comparison students' submissions go through.
+                      </p>
+                    </div>
+                  )}
                   <div className="mt-4 flex items-center gap-2">
                     <Checkbox
                       id={`public-${index}`}

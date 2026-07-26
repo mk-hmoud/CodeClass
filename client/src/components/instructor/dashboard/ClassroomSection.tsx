@@ -83,7 +83,8 @@ const ClassroomCard = ({
   return (
     <motion.div
       variants={fadeUp}
-      className="group relative bg-card border border-border rounded-xl overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+      whileHover={{ y: -2, boxShadow: "0 4px 12px hsl(var(--foreground) / 0.08)", transition: { type: "tween", duration: 0.15 } }}
+      className="group relative bg-card border border-border rounded-xl overflow-hidden"
       style={{ borderLeftWidth: 4, borderLeftColor: accent }}
     >
       {/* Clickable top area */}

@@ -79,7 +79,8 @@ const ClassroomCard = ({ classroom, index, onClick }: { classroom: Classroom; in
   return (
     <motion.div variants={fadeUp} custom={index}
       onClick={onClick}
-      className="group relative bg-card border border-border rounded-xl overflow-hidden cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+      whileHover={{ y: -2, boxShadow: "0 4px 12px hsl(var(--foreground) / 0.08)", transition: { type: "tween", duration: 0.15 } }}
+      className="group relative bg-card border border-border rounded-xl overflow-hidden cursor-pointer"
       style={{ borderLeftWidth: 4, borderLeftColor: accent.color }}
     >
       <div className="p-5">

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Plus, Eye, BarChart2, Trash2, MoreHorizontal,
-  Clock, CheckCircle, AlertCircle, BookOpen, ChevronRight,
+  Clock, CheckCircle, AlertCircle, BookOpen,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -53,11 +53,14 @@ const AssignmentRow = ({
   const meta = STATUS_META[status as keyof typeof STATUS_META];
   const StatusIcon = meta.icon;
 
+  const goToAssignment = () => navigate(`/instructor/classrooms/${classroomId}/assignments/${assignment.assignmentId}/view`);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex items-center justify-between px-4 py-3.5 border-b border-border last:border-0 hover:bg-muted/30 transition-colors group"
+      onClick={goToAssignment}
+      className="flex items-center justify-between px-4 py-3.5 border-b border-border last:border-0 hover:bg-muted/30 transition-colors group cursor-pointer"
     >
       <div className="flex items-center gap-3 min-w-0">
         <div className="rounded-lg p-1.5 shrink-0" style={{ backgroundColor: meta.bg }}>
@@ -72,14 +75,14 @@ const AssignmentRow = ({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 shrink-0 ml-3">
+      <div className="flex items-center gap-2 shrink-0 ml-3" onClick={(e) => e.stopPropagation()}>
         <Badge className={cn("text-[11px] border hidden sm:flex", meta.badge)}>{meta.label}</Badge>
 
         <Button
           variant="ghost"
           size="icon"
           className="h-7 w-7 opacity-60 hover:opacity-100"
-          onClick={() => navigate(`/instructor/classrooms/${classroomId}/assignments/${assignment.assignmentId}/view`)}
+          onClick={goToAssignment}
         >
           <Eye size={14} />
         </Button>

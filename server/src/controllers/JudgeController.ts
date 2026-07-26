@@ -456,11 +456,6 @@ export const getSubmitStatusHandler = async (
       Array.isArray(parsedData.testResults)
     ) {
       testResults = parsedData.testResults;
-
-      if (parsedData.status && parsedData.metrics) {
-        res.status(200).json(parsedData);
-        return;
-      }
     } else {
       logger.warn(
         {

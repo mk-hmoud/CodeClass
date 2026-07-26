@@ -1,5 +1,6 @@
 import apiClient from './APIclient';
 import { Assignment, AssignmentAnalyticsPayload } from '../types/Assignment';
+import { FullSubmission } from '../types/Submission';
 
 export const createAssignment = async (assignmentData: any): Promise<Assignment> => {
   try {
@@ -63,6 +64,18 @@ export async function getRemainingAttempts(assignmentId: number): Promise<number
     `/assignments/${assignmentId}/remaining-attempts`
   );
   return data.data.remainingAttempts;
+}
+
+export async function getMySubmission(assignmentId: number): Promise<FullSubmission | null> {
+  try {
+    const { data } = await apiClient.get<{ success: boolean; submission: FullSubmission | null }>(
+      `/assignments/${assignmentId}/my-submission`
+    );
+    return data.submission;
+  } catch (error) {
+    console.error("Error fetching my submission:", error);
+    return null;
+  }
 }
 
 export const getAssignmentAnalytics = async (

@@ -14,12 +14,17 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import * as monaco from "monaco-editor";
 import "@/lib/monacoConfig";
 import { TestCase, JudgeVerdict } from "@/types/TestCase";
 import { Assignment } from "@/types/Assignment";
+import { FullSubmission } from "@/types/Submission";
 import { runCode, getRunStatus, submit, getSubmitStatus } from "@/services/JudgeService";
-import { getRemainingAttempts, getAssignmentById } from "@/services/AssignmentService";
+import { getRemainingAttempts, getAssignmentById, getMySubmission } from "@/services/AssignmentService";
 import { getCodeDraft, removeCodeDraft, saveCodeDraft } from "@/utils/CodeDraftManager";
 import { LANGUAGE_LABELS, normalizeAssignment } from "@/lib/assignmentUtils";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -50,6 +55,9 @@ const CodeEditorPage = () => {
   const stateAssignment = (state as Assignment | null)?.assignmentId ? (state as Assignment) : null;
   const [assignment, setAssignment] = useState<Assignment | null>(stateAssignment);
   const [assignmentLoading, setAssignmentLoading] = useState(!stateAssignment);
+  const [mySubmission, setMySubmission] = useState<FullSubmission | null>(null);
+  const [mySubmissionLoading, setMySubmissionLoading] = useState(true);
+  const [resubmitConfirmOpen, setResubmitConfirmOpen] = useState(false);
 
   const editorRef = useRef<HTMLDivElement>(null);
   const monacoInstance = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -99,17 +107,45 @@ const CodeEditorPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assignmentId]);
 
+  // Fetch the student's own existing submission (if any) for this assignment --
+  // independent of the assignment fetch above, so it runs in parallel rather
+  // than waiting on it (both only need assignmentId, which is already known).
+  useEffect(() => {
+    if (!assignmentId) { setMySubmissionLoading(false); return; }
+    getMySubmission(Number(assignmentId))
+      .then(setMySubmission)
+      .finally(() => setMySubmissionLoading(false));
+  }, [assignmentId]);
+
+  // Once the previous submission (if any) is loaded, surface it immediately in
+  // the Submit tab so the student doesn't have to press Submit again just to
+  // see what they already got.
+  useEffect(() => {
+    if (mySubmissionLoading || !mySubmission) return;
+    setSubmitVerdict(mySubmission.verdict);
+    setResultTab("submit");
+    // Only meant to run once, when the fetch resolves -- not on every
+    // mySubmission update (e.g. after a resubmit, which sets it directly).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mySubmissionLoading]);
+
   // ── Monaco setup ──────────────────────────────────────────────────────────
   useEffect(() => {
-    if (assignmentLoading || !editorRef.current || monacoInstance.current) return;
+    if (assignmentLoading || mySubmissionLoading || !editorRef.current || monacoInstance.current) return;
 
     const savedDraft = assignmentId ? getCodeDraft(assignmentId) : null;
+    // Priority: an in-progress local draft > the student's last submission (so
+    // returning to an already-submitted assignment shows what they actually
+    // submitted, not blank starter code) > the assignment's starter code.
+    const submissionLang = mySubmission
+      ? assignment?.languages?.find((l) => l.language.language_id === mySubmission.languageId)?.language.name
+      : undefined;
     // selectedLanguage was seeded from navigation state at mount, which is
     // empty on the fetch-by-id path -- fall back to the (by-now-loaded)
     // assignment's first supported language instead of trusting it directly.
-    const defaultLang = supportedLanguages[0] ?? selectedLanguage;
+    const defaultLang = submissionLang ?? supportedLanguages[0] ?? selectedLanguage;
     const initialLang = savedDraft?.language ?? defaultLang;
-    const initialCode = savedDraft?.code ?? initialCodes[0] ?? "";
+    const initialCode = savedDraft?.code ?? mySubmission?.code ?? initialCodes[0] ?? "";
 
     if (savedDraft) {
       const idx = supportedLanguages.findIndex((l) => l === savedDraft.language);
@@ -161,7 +197,7 @@ const CodeEditorPage = () => {
 
     return () => { monacoInstance.current?.dispose(); monacoInstance.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assignmentLoading]);
+  }, [assignmentLoading, mySubmissionLoading]);
 
   // Theme sync
   useEffect(() => {
@@ -305,6 +341,30 @@ const CodeEditorPage = () => {
           }
         }
         if (remainingAttempts !== null) setRemainingAttempts((p) => (p ?? 1) - 1);
+
+        // createSubmission deletes-and-replaces server-side, so the previous
+        // submission (and any grade/feedback on it) is now gone -- reflect
+        // that here so a subsequent resubmit's confirmation dialog (and the
+        // "Submitted ..." status line) stay accurate without another fetch.
+        const submittedLanguageId = assignment?.languages?.find((l) => l.language.name === selectedLanguage)?.language.language_id;
+        setMySubmission((prev) => ({
+          submissionId: prev?.submissionId ?? 0,
+          studentId: prev?.studentId ?? 0,
+          studentName: prev?.studentName ?? "",
+          assignmentId: Number(assignmentId),
+          languageId: submittedLanguageId ?? prev?.languageId ?? 0,
+          code: getCode(),
+          submittedAt: new Date().toISOString(),
+          passedTests: statusData.metrics.passedTests ?? null,
+          totalTests: statusData.metrics.totalTests ?? null,
+          gradingStatus: "pending",
+          autoScore: null,
+          manualScore: null,
+          finalScore: null,
+          feedback: undefined,
+          verdict: statusData,
+          plagiarismReports: [],
+        }));
       }
     } catch {
       toast.error("Failed to submit code");
@@ -313,9 +373,25 @@ const CodeEditorPage = () => {
     }
   };
 
+  // Gate resubmission behind an explicit confirmation whenever a previous
+  // submission exists -- createSubmission silently deletes it (and any grade)
+  // on resubmit, so the student should know that's about to happen.
+  const requestSubmit = () => {
+    if (mySubmission) {
+      setResubmitConfirmOpen(true);
+      return;
+    }
+    handleSubmitCode();
+  };
+
+  const confirmResubmit = () => {
+    setResubmitConfirmOpen(false);
+    handleSubmitCode();
+  };
+
   useEffect(() => {
     handleRunCodeRef.current = handleRunCode;
-    handleSubmitCodeRef.current = handleSubmitCode;
+    handleSubmitCodeRef.current = requestSubmit;
   });
 
   // ── Derived ───────────────────────────────────────────────────────────────
@@ -649,7 +725,7 @@ const CodeEditorPage = () => {
     );
   };
 
-  if (assignmentLoading) {
+  if (assignmentLoading || mySubmissionLoading) {
     return (
       <div className="h-screen flex flex-col items-center justify-center gap-3 bg-background text-muted-foreground">
         <div className="w-10 h-10 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
@@ -692,6 +768,27 @@ const CodeEditorPage = () => {
             </Tooltip>
           </div>
         </header>
+
+        {/* ── Existing submission status ─────────────────────────────────── */}
+        {mySubmission && (
+          <div className="shrink-0 flex items-center gap-2 px-3 py-1.5 border-b border-border bg-muted/30 text-xs">
+            <Send size={11} className="text-muted-foreground" />
+            <span className="text-muted-foreground">
+              Submitted {new Date(mySubmission.submittedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+            </span>
+            {mySubmission.gradingStatus === "graded" ? (
+              <Badge variant="success" className="text-[10px] h-4 px-1.5">
+                {mySubmission.finalScore}/{assignment?.points ?? "—"}
+              </Badge>
+            ) : mySubmission.gradingStatus === "system graded" ? (
+              <Badge className="text-[10px] h-4 px-1.5 bg-primary/15 text-primary border-primary/30 border">
+                {mySubmission.autoScore}/{assignment?.points ?? "—"}
+              </Badge>
+            ) : (
+              <Badge variant="warning" className="text-[10px] h-4 px-1.5">Pending review</Badge>
+            )}
+          </div>
+        )}
 
         {/* ── Main layout ──────────────────────────────────────────────── */}
         <div className="flex-1 overflow-hidden">
@@ -863,7 +960,7 @@ const CodeEditorPage = () => {
                       <Button
                         size="sm"
                         className="h-7 px-3 text-xs gap-1.5"
-                        onClick={handleSubmitCode}
+                        onClick={requestSubmit}
                         disabled={isWorking || (remainingAttempts !== null && remainingAttempts !== Infinity && remainingAttempts <= 0)}
                       >
                         {isSubmitting
@@ -913,6 +1010,27 @@ const CodeEditorPage = () => {
           </a>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={resubmitConfirmOpen} onOpenChange={setResubmitConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Submit again?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {mySubmission && (() => {
+                const submittedDate = new Date(mySubmission.submittedAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+                const existingScore = mySubmission.finalScore ?? mySubmission.autoScore ?? mySubmission.manualScore;
+                return mySubmission.gradingStatus !== "pending"
+                  ? `You already submitted this assignment on ${submittedDate} and it's been graded (${existingScore ?? 0}/${assignment?.points ?? "—"}). Submitting again will permanently delete that grade and feedback, and replace it with a new submission.`
+                  : `You already submitted this assignment on ${submittedDate}. Submitting again will replace it.`;
+              })()}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmResubmit}>Submit Again</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </TooltipProvider>
   );
 };

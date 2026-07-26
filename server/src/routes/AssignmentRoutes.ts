@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createAssignmentController, getAssignmentsController, getAssignmentByIdController, deleteAssignmentController, getRemainingAttemptsController, getUpcomingDeadlinesController } from '../controllers/AssignmentController';
+import { createAssignmentController, getAssignmentsController, getAssignmentByIdController, deleteAssignmentController, getRemainingAttemptsController, getUpcomingDeadlinesController, getMySubmissionController } from '../controllers/AssignmentController';
 import { authMiddleware, requireRole } from '../middleware/AuthMiddleware';
 import { getAssignmentAnalyticsController } from '../controllers/AnalyticsController';
 import { getAssignmentPlagiarismReportsController } from '../controllers/PlagiarismController';
@@ -12,6 +12,7 @@ router.get('/upcoming-deadlines', authMiddleware, getUpcomingDeadlinesController
 router.get('/assignments', authMiddleware, getAssignmentsController);
 router.get('/:assignmentId', authMiddleware, getAssignmentByIdController);
 router.get('/:assignmentId/remaining-attempts', authMiddleware, getRemainingAttemptsController);
+router.get('/:assignmentId/my-submission', authMiddleware, getMySubmissionController);
 router.get('/:assignmentId/analytics', authMiddleware, getAssignmentAnalyticsController);
 router.delete('/:assignmentId', deleteAssignmentController);
 router.get('/:assignmentId/plagiarism', authMiddleware, getAssignmentPlagiarismReportsController);

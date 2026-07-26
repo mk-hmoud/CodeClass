@@ -181,6 +181,52 @@ export const getRemainingAttemptsController = async (
   }
 };
 
+export const getMySubmissionController = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const fn = "getMySubmissionController";
+  logger.info({ fn }, 'Received request to get my submission.');
+
+  try {
+    if (!req.user) {
+      logger.warn({ fn }, 'Unauthorized: No user information found in request.');
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    if (req.user.role !== "student") {
+      logger.warn(
+        { fn, userId: req.user.id, role: req.user.role },
+        `Forbidden: User ${req.user.id} is not a student.`
+      );
+      res.status(403).json({ success: false, message: "Forbidden: Student role required" });
+      return;
+    }
+
+    const assignmentId = Number(req.params.assignmentId);
+    const studentId = req.user.role_id as number;
+
+    if (isNaN(assignmentId) || assignmentId <= 0) {
+      res.status(400).json({ success: false, message: 'Invalid assignment ID' });
+      return;
+    }
+
+    logger.info(
+      { fn, assignmentId, studentId },
+      `Getting submission for assignment ${assignmentId} and student ${studentId}.`
+    );
+
+    const submissions = await getSubmissionsByAssignment(assignmentId, studentId);
+    const submission = submissions[0] ?? null;
+
+    res.status(200).json({ success: true, submission });
+  } catch (err) {
+    logger.error({ fn, error: err }, `Error fetching my submission: ${err}`);
+    res.status(500).json({ success: false, message: "Could not fetch submission" });
+  }
+};
+
 export const getUpcomingDeadlinesController = async (req: Request, res: Response): Promise<void> => {
   const functionName = 'getUpcomingDeadlinesController';
   try {

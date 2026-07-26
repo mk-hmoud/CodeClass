@@ -262,11 +262,12 @@ export function updateSubmissionStatus(
 
 
 export async function getSubmissionsByAssignment(
-  assignmentId: number
+  assignmentId: number,
+  studentId?: number
 ): Promise<FullSubmission[]> {
   const fn = "getSubmissionsByAssignment";
   logger.info(
-    { fn, assignmentId },
+    { fn, assignmentId, studentId },
     `Fetching submissions for assignment ${assignmentId}`
   );
   
@@ -327,9 +328,10 @@ export async function getSubmissionsByAssignment(
       JOIN students st ON s.student_id = st.student_id
       JOIN users    u  ON st.user_id    = u.user_id
       WHERE s.assignment_id = $1
+      ${studentId !== undefined ? "AND s.student_id = $2" : ""}
       ORDER BY s.submitted_at DESC
       `,
-      [assignmentId]
+      studentId !== undefined ? [assignmentId, studentId] : [assignmentId]
     );
 
     const submissionIds = subs.map(r => r.submission_id);

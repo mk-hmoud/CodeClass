@@ -98,20 +98,23 @@ export const getStudentClassroomById = async (
     
     logger.debug({ fn, classroomId, studentId }, `Executing main classroom query`);
     const classroomRes = await pool.query(
-      `SELECT 
+      `SELECT
         c.classroom_id AS id,
         c.classroom_name AS name,
         c.classroom_code AS code,
         c.created_at,
+        (u.first_name || ' ' || COALESCE(u.last_name, '')) AS instructor,
         COUNT(a.assignment_id) AS "totalAssignments",
         COUNT(s.submission_id) AS "completedAssignments"
        FROM classrooms c
+       JOIN instructors i ON c.instructor_id = i.instructor_id
+       JOIN users u ON i.user_id = u.user_id
        LEFT JOIN assignments a ON c.classroom_id = a.classroom_id
-       LEFT JOIN submissions s 
-         ON a.assignment_id = s.assignment_id 
+       LEFT JOIN submissions s
+         ON a.assignment_id = s.assignment_id
          AND s.student_id = $2
        WHERE c.classroom_id = $1
-       GROUP BY c.classroom_id, c.classroom_name, c.classroom_code, c.created_at`, 
+       GROUP BY c.classroom_id, c.classroom_name, c.classroom_code, c.created_at, u.first_name, u.last_name`,
       [classroomId, studentId]
     );
 

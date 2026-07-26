@@ -4,15 +4,15 @@ import bcrypt from 'bcrypt';
 import logger from '../config/logger';
 
 // Credentials for the two accounts your supervisor will use.
-const SUPERVISOR_INSTRUCTOR = { email: 'supervisor.instructor@codeclass.demo', password: 'Demo1234!', first_name: 'Guest', last_name: 'Instructor' };
-const SUPERVISOR_STUDENT = { email: 'supervisor.student@codeclass.demo', password: 'Demo1234!', first_name: 'Guest', last_name: 'Student' };
+const SUPERVISOR_INSTRUCTOR = { email: 'ckalyoncu@eul.edu.tr', password: 'eul12345!', first_name: 'Cem', last_name: 'Kalyoncu' };
+const SUPERVISOR_STUDENT = { email: '20001000@eul.edu.tr', password: 'eul12345!', first_name: 'Student', last_name: 'Test' };
 
 // A couple of extra students so the classroom/analytics screens don't look empty.
 const EXTRA_STUDENTS = [
-  { email: 'alex.johnson@codeclass.demo', first_name: 'Alex', last_name: 'Johnson' },
-  { email: 'sam.lee@codeclass.demo', first_name: 'Sam', last_name: 'Lee' },
+  { email: '20001001@eul.edu.tr', first_name: 'Alex', last_name: 'Johnson' },
+  { email: '20001002@eul.edu.tr', first_name: 'Sam', last_name: 'Lee' },
 ];
-const EXTRA_STUDENT_PASSWORD = 'Demo1234!';
+const EXTRA_STUDENT_PASSWORD = 'eul12345!';
 
 // Known-working C++ image library (verified end-to-end earlier: compiles,
 // links against libpng, produces a valid PNG) -- reused here so the demo

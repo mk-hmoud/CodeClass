@@ -273,15 +273,19 @@ export async function getSubmissionsByAssignment(
   const client = await pool.connect();
   try {
     const { rows: assignmentRows } = await client.query(
-      `SELECT problem_id FROM assignments WHERE assignment_id = $1`,
+      `SELECT a.problem_id, p.output_type
+       FROM assignments a
+       JOIN problems p ON a.problem_id = p.problem_id
+       WHERE a.assignment_id = $1`,
       [assignmentId]
     );
-    
+
     if (assignmentRows.length === 0) {
       throw new Error(`Assignment with ID ${assignmentId} not found`);
     }
-    
+
     const problemId = assignmentRows[0].problem_id;
+    const isImageProblem = assignmentRows[0].output_type === 'image';
     
     const { rows: testCaseRows } = await client.query(
       `SELECT test_case_id, input, expected_output, is_public 
@@ -366,7 +370,16 @@ export async function getSubmissionsByAssignment(
           actual: r.actual_output || undefined,
           expectedOutput: testCase?.expectedOutput,
           executionTime: r.execution_time_ms || undefined,
-          status: r.passed ? 'passed' : (r.error_message ? 'error' : 'failed'),
+          // submission_results only stores a `passed` boolean -- there's no
+          // column for the judge's original 'produced'/'no_output' status, so
+          // it has to be reconstructed here. `passed` is always false for image
+          // results (their status is never literally "passed"), so without this
+          // branch every image result reconstructs as 'failed' and the
+          // instructor's view never renders the produced image, no matter how
+          // the run actually went.
+          status: isImageProblem
+            ? (r.actual_output ? 'produced' : 'no_output')
+            : (r.passed ? 'passed' : (r.error_message ? 'error' : 'failed')),
           errorMessage: r.error_message || undefined,
           isPublic: testCase?.isPublic
         };

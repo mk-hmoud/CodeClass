@@ -348,7 +348,7 @@ const SubmissionDetailsView: React.FC<SubmissionDetailsViewProps> = ({
             </TabsContent>
 
             <TabsContent value="test-results" className="mt-3">
-              {submission.verdict.testResults ? (
+              {submission.verdict.testResults && submission.verdict.testResults.length > 0 ? (
                 <div className="space-y-5">
                   <div className="space-y-3">
                     {submission.verdict.testResults.map((result, idx) => renderTestCase(result, idx))}

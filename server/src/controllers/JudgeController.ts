@@ -516,8 +516,17 @@ export const getSubmitStatusHandler = async (
     }
 
     updateSubmissionStatus(submissionId, "completed");
-    console.log(verdict);
-    saveSubmissionResults(submissionId, testResults);
+    saveSubmissionResults(submissionId, testResults).catch((error) => {
+      // This was previously fire-and-forget with no .catch() at all -- any
+      // failure here (bad data, a constraint violation, whatever) was totally
+      // silent: the response below still reports success, grading still runs
+      // off the in-memory verdict, and submission_results just quietly ends up
+      // empty for that submission with no trace anywhere.
+      logger.error(
+        { fn, submissionId, error },
+        `Failed to persist submission results for submission ${submissionId}: ${error}`
+      );
+    });
     res.status(200).json(verdict);
 
     runPlagiarismCheck(submissionId);

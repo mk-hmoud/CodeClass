@@ -432,8 +432,6 @@ export async function getSubmissionsByAssignment(
       verdictMap.set(sub.submission_id, verdict);
     }
 
-    console.log(verdictMap);
-    
     const plagMap = new Map<number, PlagiarismReport[]>();
     for (const p of plagRows) {
       const arr = plagMap.get(p.submission_id) ?? [];

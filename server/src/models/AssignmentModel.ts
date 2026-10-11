@@ -3,6 +3,57 @@ import logger from "../config/logger";
 import { Assignment, AssignmentCreationData, Problem, TestCase, Language, AssignmentLanguage } from "../types"
 import { isGradeVisible } from "../utils/gradeVisibility";
 
+/**
+ * What a student is allowed to see of an assignment aliased `a`: it has
+ * published, and it is either ungrouped or scoped to that student's own lab
+ * group. `studentParam` is the placeholder holding the student id ("$1", "$2").
+ *
+ * One fragment rather than four copies: the list, the classroom totals, the
+ * deadline feed and every by-id path all need the same rule, and the group half
+ * previously lived only in the list -- so the list hid other groups' variants
+ * while fetching one by id, submitting to it, or reading the deadline feed
+ * returned it anyway. That is the leak per-group assignments exist to prevent.
+ */
+export const studentVisibleAssignmentSql = (studentParam: string): string => `
+  (a.publish_date IS NULL OR a.publish_date <= NOW())
+  AND (
+    a.group_id IS NULL
+    OR a.group_id = (
+      SELECT lge.group_id
+        FROM lab_group_enrollments lge
+       WHERE lge.classroom_id = a.classroom_id
+         AND lge.student_id = ${studentParam}
+    )
+  )
+`;
+
+/**
+ * Whether this student may read or submit to this assignment: enrolled in its
+ * classroom, and the assignment passes studentVisibleAssignmentSql.
+ */
+export const canStudentAccessAssignment = async (
+  assignmentId: number,
+  studentId: number
+): Promise<boolean> => {
+  const fn = "canStudentAccessAssignment";
+  try {
+    const { rowCount } = await pool.query(
+      `SELECT 1
+         FROM assignments a
+         JOIN classroom_enrollments ce
+           ON ce.classroom_id = a.classroom_id
+          AND ce.student_id = $2
+        WHERE a.assignment_id = $1
+          AND ${studentVisibleAssignmentSql("$2")}`,
+      [assignmentId, studentId]
+    );
+    return (rowCount ?? 0) > 0;
+  } catch (error) {
+    logger.error({ fn, assignmentId, studentId, error }, `Error checking assignment access: ${error}`);
+    throw error;
+  }
+};
+
 export const createAssignment = async (
   assignment: AssignmentCreationData
 ): Promise<{ assignmentId: number }> => {
@@ -254,12 +305,23 @@ export const getAssignmentById = async (
   }
 };
 
+export const ASSIGNMENT_NOT_ACCESSIBLE = "Assignment not found";
+
 export const getAssignmentForStudent = async (
-  assignmentId: number
+  assignmentId: number,
+  studentId: number
 ): Promise<Assignment> => {
   const fn = "getAssignmentForStudent";
   try {
-    logger.info({ fn, assignmentId }, `Loading assignment ${assignmentId} for student view`);
+    logger.info({ fn, assignmentId, studentId }, `Loading assignment ${assignmentId} for student view`);
+
+    // Enforced here rather than only in the controller so a future caller
+    // cannot reach an assignment belonging to another group or classroom.
+    if (!(await canStudentAccessAssignment(assignmentId, studentId))) {
+      logger.warn({ fn, assignmentId, studentId }, `Student ${studentId} denied access to assignment ${assignmentId}`);
+      throw new Error(ASSIGNMENT_NOT_ACCESSIBLE);
+    }
+
     const a = await getAssignmentById(assignmentId);
 
     const beforeCount = a.problem.testCases.length;
@@ -514,13 +576,7 @@ export async function getAssignmentsForStudentClassroom(
       FROM assignments_with_status a
       JOIN problems p ON p.problem_id = a.problem_id
      WHERE a.classroom_id = $1
-       AND (
-         a.group_id IS NULL
-         OR a.group_id = (
-           SELECT lge.group_id FROM lab_group_enrollments lge
-           WHERE lge.classroom_id = $1 AND lge.student_id = $2
-         )
-       );
+       AND ${studentVisibleAssignmentSql("$2")};
     `;
 
     logger.debug({ fn, classroomId, studentId }, `Executing assignments query for classroom ${classroomId}`);
@@ -758,6 +814,7 @@ export const getUpcomingDeadlines = async (
         ON c.classroom_id = ce.classroom_id
       WHERE
         ce.student_id = $1
+        AND ${studentVisibleAssignmentSql("$1")}
         AND a.due_date > $2
         AND a.due_date <= $3
         AND NOT EXISTS (

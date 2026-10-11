@@ -11,7 +11,7 @@ import { createSubmission, getSubmissionById, getSubmissionStatus, saveSubmissio
 import { runPlagiarismCheck } from './PlagiarismController';
 import { systemEventEmitter } from '../services/statistics/emitter'; 
 import { SubmissionCompletedEvent, SubmissionCreatedEvent } from '../services/statistics/events';
-import { getRemainingAttempts, getSubmissionAttemptCount } from '../models/AssignmentModel';
+import { getRemainingAttempts, getSubmissionAttemptCount, canStudentAccessAssignment } from '../models/AssignmentModel';
 import { calculateGrade } from '../services/grading/Grader';
 
 
@@ -250,6 +250,21 @@ export const submitHandler = async (req: Request, res: Response): Promise<void> 
 
   if (!code || !language || !assignmentId) {
     res.status(400).json({ error: "Missing required parameters" });
+    return;
+  }
+
+  try {
+    if (!(await canStudentAccessAssignment(assignmentId, studentId))) {
+      logger.warn(
+        { fn: functionName, studentId, assignmentId },
+        `Student ${studentId} may not submit to assignment ${assignmentId}`
+      );
+      res.status(404).json({ success: false, message: 'Assignment not found' });
+      return;
+    }
+  } catch (err) {
+    logger.error({ fn: functionName, error: err }, `Error checking assignment access: ${err}`);
+    res.status(500).json({ success: false, message: 'Failed to verify assignment access' });
     return;
   }
 

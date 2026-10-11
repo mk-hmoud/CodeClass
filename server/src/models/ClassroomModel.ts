@@ -3,7 +3,7 @@ import logger from "../config/logger";
 import { systemEventEmitter } from "../services/statistics/emitter";
 import { StudentEnrolledEvent } from "../services/statistics/events";
 import { Classroom, ClassroomStudent, Assignment } from "../types";
-import { getAssignmentsForClassroom, getAssignmentsForStudentClassroom } from "./AssignmentModel";
+import { getAssignmentsForClassroom, getAssignmentsForStudentClassroom, studentVisibleAssignmentSql } from "./AssignmentModel";
 
 
 export interface ClassroomCreationData {
@@ -109,7 +109,9 @@ export const getStudentClassroomById = async (
        FROM classrooms c
        JOIN instructors i ON c.instructor_id = i.instructor_id
        JOIN users u ON i.user_id = u.user_id
-       LEFT JOIN assignments a ON c.classroom_id = a.classroom_id
+       LEFT JOIN assignments a
+         ON c.classroom_id = a.classroom_id
+         AND ${studentVisibleAssignmentSql("$2")}
        LEFT JOIN submissions s
          ON a.assignment_id = s.assignment_id
          AND s.student_id = $2

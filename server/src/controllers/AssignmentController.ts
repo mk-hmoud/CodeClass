@@ -1,6 +1,6 @@
 import logger from '../config/logger';
 import { Request, Response } from 'express';
-import { createAssignment, getAssignments, getAssignmentById, deleteAssignment, getRemainingAttempts, getAssignmentForStudent, getUpcomingDeadlines, getAssignmentReleaseInfo, getAssignmentOwnerInstructorId, releaseGrades } from '../models/AssignmentModel';
+import { createAssignment, getAssignments, getAssignmentById, deleteAssignment, getRemainingAttempts, getAssignmentForStudent, getUpcomingDeadlines, getAssignmentReleaseInfo, getAssignmentOwnerInstructorId, releaseGrades, ASSIGNMENT_NOT_ACCESSIBLE } from '../models/AssignmentModel';
 import { getInstructorByUserId } from '../models/InstructorModel';
 import { getSubmissionsByAssignment } from '../models/SubmissionModel';
 import { isGradeVisible } from '../utils/gradeVisibility';
@@ -41,7 +41,7 @@ export const getAssignmentByIdController = async (req: Request, res: Response): 
     let submissions = null;
     
     if (req.user?.role === "student") {
-      assignment = await getAssignmentForStudent(assignmentId);
+      assignment = await getAssignmentForStudent(assignmentId, req.user.role_id as number);
     } else {
       assignment = await getAssignmentById(assignmentId);
       
@@ -60,6 +60,11 @@ export const getAssignmentByIdController = async (req: Request, res: Response): 
       }
     });
   } catch (error) {
+    if (error instanceof Error && error.message === ASSIGNMENT_NOT_ACCESSIBLE) {
+      logger.warn({ fn: functionName, userId: req.user?.id }, 'Assignment not accessible for this student');
+      res.status(404).json({ success: false, message: 'Assignment not found' });
+      return;
+    }
     logger.error({ fn: functionName, error }, `Error fetching assignment: ${error}`);
     res.status(500).json({
       success: false,

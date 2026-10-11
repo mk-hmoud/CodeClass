@@ -11,6 +11,36 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import PageHeader from "@/components/PageHeader";
 
+// Bulk import derives each student's address this way (server
+// AdminController.bulkCreateUsers), so the same rule turns a roster row back
+// into the account it created.
+const STUDENT_EMAIL_DOMAIN = "eul.edu.tr";
+
+type RosterRow = { first_name: string; last_name: string; student_number: string };
+
+// Shared by the account import and the roster-based enrollment below so the two
+// accept exactly the same file. Returns null when the header is unusable, which
+// the callers report differently.
+const parseRosterCsv = (text: string): RosterRow[] | null => {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  if (lines.length === 0) return null;
+
+  const headers = lines[0].toLowerCase().split(',').map(h => h.trim());
+  if (!['first_name', 'last_name', 'student_number'].every(h => headers.includes(h))) {
+    return null;
+  }
+
+  return lines
+    .slice(1)
+    .map(line => {
+      const values = line.split(',');
+      const row: Record<string, string> = {};
+      headers.forEach((h, i) => { row[h] = values[i]?.trim() ?? ''; });
+      return row as RosterRow;
+    })
+    .filter(r => r.first_name && r.last_name && r.student_number);
+};
+
 const AdminDashboard: React.FC = () => {
   const [users, setUsers] = useState<UserSummary[]>([]);
   const [classrooms, setClassrooms] = useState<any[]>([]);
@@ -19,6 +49,7 @@ const AdminDashboard: React.FC = () => {
   const [maintenanceUpdating, setMaintenanceUpdating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const rosterInputRef = useRef<HTMLInputElement>(null);
   
   const [enrollModalOpen, setEnrollModalOpen] = useState(false);
   const [selectedClassroomForEnroll, setSelectedClassroomForEnroll] = useState<number | null>(null);
@@ -134,21 +165,12 @@ const AdminDashboard: React.FC = () => {
     reader.onload = async (event) => {
       try {
         const text = event.target?.result as string;
-        const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-        
-        const headers = lines[0].toLowerCase().split(',');
-        
-        if (!headers.includes('first_name') || !headers.includes('last_name') || !headers.includes('student_number')) {
-          toast.error("Invalid CSV format. Header must be exactly: first_name,last_name,student_number");
+        const students = parseRosterCsv(text);
+
+        if (students === null) {
+          toast.error("Invalid CSV format. Header must include: first_name,last_name,student_number");
           return;
         }
-
-        const students = lines.slice(1).map(line => {
-          const values = line.split(',');
-          const student: any = {};
-          headers.forEach((h, i) => { student[h.trim()] = values[i]?.trim(); });
-          return student;
-        }).filter(s => s.first_name && s.last_name && s.student_number);
 
         if (students.length === 0) {
           toast.error("No valid student data found in CSV");
@@ -168,6 +190,52 @@ const AdminDashboard: React.FC = () => {
       } finally {
         if (fileInputRef.current) fileInputRef.current.value = '';
         setIsLoading(false);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // Enrolling a course means picking its ~170 students out of every student on
+  // the platform, which no amount of searching makes tractable. The roster CSV
+  // already names exactly the right cohort, so reuse it as the selection: match
+  // each row back to the account bulk import created and tick those boxes. The
+  // admin still reviews and presses Enroll -- this only replaces the clicking.
+  const handleRosterSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const rows = parseRosterCsv(event.target?.result as string);
+
+        if (rows === null) {
+          toast.error("Invalid CSV format. Header must include: first_name,last_name,student_number");
+          return;
+        }
+        if (rows.length === 0) {
+          toast.error("No valid student data found in CSV");
+          return;
+        }
+
+        const wanted = new Set(rows.map(r => `${r.student_number}@${STUDENT_EMAIL_DOMAIN}`));
+        const known = new Set(users.filter(u => u.role === "student").map(u => u.email));
+        const matched = [...wanted].filter(email => known.has(email));
+        const missing = wanted.size - matched.length;
+
+        setSelectedStudents(new Set(matched));
+
+        if (matched.length === 0) {
+          toast.error(`None of the ${wanted.size} students in this roster have accounts yet. Import the CSV from the Users tab first.`);
+        } else if (missing > 0) {
+          toast.warning(`Selected ${matched.length} of ${wanted.size}. ${missing} have no account yet -- import the CSV from the Users tab first.`);
+        } else {
+          toast.success(`Selected all ${matched.length} students from this roster.`);
+        }
+      } catch {
+        toast.error("Failed to parse CSV file");
+      } finally {
+        if (rosterInputRef.current) rosterInputRef.current.value = '';
       }
     };
     reader.readAsText(file);
@@ -465,11 +533,29 @@ const AdminDashboard: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-hidden flex flex-col gap-4 py-4">
-            <Input 
-              placeholder="Search students..." 
-              value={studentSearch} 
-              onChange={e => setStudentSearch(e.target.value)}
-            />
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="Search students..."
+                value={studentSearch}
+                onChange={e => setStudentSearch(e.target.value)}
+              />
+              <input
+                type="file"
+                accept=".csv"
+                ref={rosterInputRef}
+                onChange={handleRosterSelect}
+                className="hidden"
+              />
+              <Button
+                variant="outline"
+                className="shrink-0 gap-2"
+                onClick={() => rosterInputRef.current?.click()}
+                disabled={isLoading}
+              >
+                <Upload size={15} />
+                From roster
+              </Button>
+            </div>
             <div className="flex items-center justify-between px-2">
               <div className="flex items-center space-x-2">
                 <Checkbox

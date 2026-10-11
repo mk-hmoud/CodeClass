@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,7 +19,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
-import { Users, Plus, Edit, Trash, Clock } from "lucide-react";
+import { Users, Plus, Edit, Trash, Clock, Upload } from "lucide-react";
 import { toast } from "sonner";
 import {
   createGroup,
@@ -30,6 +30,7 @@ import {
 } from "@/services/GroupService";
 import { LabGroup } from "@/types/Group";
 import { ClassroomStudent } from "@/types/Classroom";
+import { parseRosterCsv, STUDENT_EMAIL_FOR } from "@/lib/roster";
 
 interface Props {
   classroomId: number;
@@ -48,6 +49,16 @@ interface GroupFormState {
 
 const emptyForm: GroupFormState = { name: "", dayOfWeek: NO_DAY_VALUE, startTime: "", endTime: "" };
 
+// The scheduling PDFs name groups "Group-1".."Group-6" and carry a matching
+// `lab_group` number per student, so a group is matched to a CSV value by the
+// number in its name. Any naming works as long as it contains that number
+// ("Group-3", "Lab 3", "3"); a group whose name has no number is skipped and
+// reported rather than guessed at.
+const groupNumberOf = (name: string): number | null => {
+  const m = name.match(/\d+/);
+  return m ? Number(m[0]) : null;
+};
+
 const GroupsTab: React.FC<Props> = ({ classroomId, students }) => {
   const [groups, setGroups] = useState<LabGroup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,6 +68,8 @@ const GroupsTab: React.FC<Props> = ({ classroomId, students }) => {
   const [rosterGroup, setRosterGroup] = useState<LabGroup | null>(null);
   const [rosterSelection, setRosterSelection] = useState<Set<number>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<LabGroup | null>(null);
+  const rosterCsvRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
 
   const loadGroups = async () => {
     setLoading(true);
@@ -133,6 +146,99 @@ const GroupsTab: React.FC<Props> = ({ classroomId, students }) => {
     }
   };
 
+  // Assigning six groups by hand is ~170 checkbox clicks across six modals,
+  // and the scheduling CSV already holds every answer in its `lab_group`
+  // column. Applies one group per request because setGroupRoster replaces a
+  // single group's roster; a failure part-way is reported with the groups that
+  // did land, so a retry is safe (each PUT is a full replace, not an append).
+  const handleRosterCsv = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const rows = parseRosterCsv(event.target?.result as string);
+        if (rows === null) {
+          toast.error("Invalid CSV. Header must include: first_name,last_name,student_number");
+          return;
+        }
+        const withGroup = rows.filter((r) => r.lab_group && groupNumberOf(r.lab_group) !== null);
+        if (withGroup.length === 0) {
+          toast.error("No lab_group column found. Add a lab_group column with each student's group number.");
+          return;
+        }
+
+        const studentIdByEmail = new Map(students.map((s) => [s.email, s.student_id]));
+        const idsByGroupNumber = new Map<number, number[]>();
+        let unknown = 0;
+
+        for (const row of withGroup) {
+          const studentId = studentIdByEmail.get(STUDENT_EMAIL_FOR(row.student_number));
+          if (studentId === undefined) {
+            unknown++;
+            continue;
+          }
+          const groupNumber = groupNumberOf(row.lab_group as string) as number;
+          const list = idsByGroupNumber.get(groupNumber) ?? [];
+          list.push(studentId);
+          idsByGroupNumber.set(groupNumber, list);
+        }
+
+        const targets = groups
+          .map((g) => ({ group: g, number: groupNumberOf(g.name) }))
+          .filter((t): t is { group: LabGroup; number: number } => t.number !== null)
+          .filter((t) => idsByGroupNumber.has(t.number));
+
+        if (targets.length === 0) {
+          toast.error("No group name matched a lab_group value. Name groups so they contain the number, e.g. \"Group-1\".");
+          return;
+        }
+
+        setImporting(true);
+        let assigned = 0;
+        const applied: string[] = [];
+        try {
+          for (const { group, number } of targets) {
+            const ids = idsByGroupNumber.get(number) as number[];
+            await setGroupRoster(group.groupId, ids);
+            assigned += ids.length;
+            applied.push(group.name);
+          }
+        } catch (error) {
+          toast.error(
+            applied.length > 0
+              ? `Failed partway. Applied: ${applied.join(", ")}. Re-run to finish.`
+              : "Failed to apply rosters."
+          );
+          await loadGroups();
+          return;
+        } finally {
+          setImporting(false);
+        }
+
+        const unmatchedGroups = [...idsByGroupNumber.keys()].filter(
+          (n) => !targets.some((t) => t.number === n)
+        );
+        const notes = [
+          unknown > 0 ? `${unknown} not enrolled in this classroom` : null,
+          unmatchedGroups.length > 0 ? `no group named for ${unmatchedGroups.map((n) => `#${n}`).join(", ")}` : null,
+        ].filter(Boolean);
+
+        toast.success(
+          `Assigned ${assigned} students across ${applied.length} group${applied.length === 1 ? "" : "s"}` +
+            (notes.length > 0 ? ` (${notes.join("; ")})` : "")
+        );
+        await loadGroups();
+      } catch {
+        toast.error("Failed to parse CSV file");
+      } finally {
+        if (rosterCsvRef.current) rosterCsvRef.current.value = "";
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const openRoster = (group: LabGroup) => {
     setRosterGroup(group);
     setRosterSelection(new Set(group.roster ?? []));
@@ -178,10 +284,29 @@ const GroupsTab: React.FC<Props> = ({ classroomId, students }) => {
             {groups.length}
           </span>
         </div>
-        <Button className="gap-2" onClick={openCreateForm}>
-          <Plus size={16} />
-          Create Group
-        </Button>
+        <div className="flex items-center gap-2">
+          <input
+            type="file"
+            accept=".csv"
+            ref={rosterCsvRef}
+            onChange={handleRosterCsv}
+            className="hidden"
+          />
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => rosterCsvRef.current?.click()}
+            disabled={importing || groups.length === 0}
+            title={groups.length === 0 ? "Create the groups first" : "Assign rosters from a CSV with a lab_group column"}
+          >
+            <Upload size={16} />
+            {importing ? "Assigning…" : "Rosters from CSV"}
+          </Button>
+          <Button className="gap-2" onClick={openCreateForm}>
+            <Plus size={16} />
+            Create Group
+          </Button>
+        </div>
       </div>
 
       {loading && <div className="text-center py-8">Loading...</div>}

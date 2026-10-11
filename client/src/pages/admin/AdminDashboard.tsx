@@ -10,36 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import PageHeader from "@/components/PageHeader";
-
-// Bulk import derives each student's address this way (server
-// AdminController.bulkCreateUsers), so the same rule turns a roster row back
-// into the account it created.
-const STUDENT_EMAIL_DOMAIN = "eul.edu.tr";
-
-type RosterRow = { first_name: string; last_name: string; student_number: string };
-
-// Shared by the account import and the roster-based enrollment below so the two
-// accept exactly the same file. Returns null when the header is unusable, which
-// the callers report differently.
-const parseRosterCsv = (text: string): RosterRow[] | null => {
-  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-  if (lines.length === 0) return null;
-
-  const headers = lines[0].toLowerCase().split(',').map(h => h.trim());
-  if (!['first_name', 'last_name', 'student_number'].every(h => headers.includes(h))) {
-    return null;
-  }
-
-  return lines
-    .slice(1)
-    .map(line => {
-      const values = line.split(',');
-      const row: Record<string, string> = {};
-      headers.forEach((h, i) => { row[h] = values[i]?.trim() ?? ''; });
-      return row as RosterRow;
-    })
-    .filter(r => r.first_name && r.last_name && r.student_number);
-};
+import { parseRosterCsv, STUDENT_EMAIL_FOR } from "@/lib/roster";
 
 const AdminDashboard: React.FC = () => {
   const [users, setUsers] = useState<UserSummary[]>([]);
@@ -218,7 +189,7 @@ const AdminDashboard: React.FC = () => {
           return;
         }
 
-        const wanted = new Set(rows.map(r => `${r.student_number}@${STUDENT_EMAIL_DOMAIN}`));
+        const wanted = new Set(rows.map(r => STUDENT_EMAIL_FOR(r.student_number)));
         const known = new Set(users.filter(u => u.role === "student").map(u => u.email));
         const matched = [...wanted].filter(email => known.has(email));
         const missing = wanted.size - matched.length;

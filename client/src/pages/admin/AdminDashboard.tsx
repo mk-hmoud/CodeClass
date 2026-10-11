@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { fetchAllUsers, deleteUser, UserSummary, fetchAllClassroomsAdmin, deleteClassroomAdmin, fetchPlatformAnalytics, adminChangeUserPassword, adminBulkCreateUsers, adminBulkEnrollStudents, getMaintenanceStatus, setMaintenanceStatus } from "@/services/AdminService";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,36 @@ const AdminDashboard: React.FC = () => {
   const [selectedClassroomForEnroll, setSelectedClassroomForEnroll] = useState<number | null>(null);
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
   const [studentSearch, setStudentSearch] = useState("");
+
+  // Shared by the list, the empty state and the select-all control, so all three
+  // agree on what "the students you're looking at" means while a search is active.
+  const filteredStudents = useMemo(
+    () =>
+      users.filter(
+        (u) =>
+          u.role === "student" &&
+          (u.email.includes(studentSearch) ||
+            u.first_name?.toLowerCase().includes(studentSearch.toLowerCase()) ||
+            u.last_name?.toLowerCase().includes(studentSearch.toLowerCase()))
+      ),
+    [users, studentSearch]
+  );
+
+  const allFilteredSelected =
+    filteredStudents.length > 0 &&
+    filteredStudents.every((s) => selectedStudents.has(s.email));
+
+  // Select-all acts on the filtered set, not every student, so searching "2512"
+  // and selecting all adds just those -- and leaves selections made under a
+  // previous search untouched.
+  const toggleSelectAllFiltered = (checked: boolean) => {
+    const newSet = new Set(selectedStudents);
+    for (const s of filteredStudents) {
+      if (checked) newSet.add(s.email);
+      else newSet.delete(s.email);
+    }
+    setSelectedStudents(newSet);
+  };
 
   const loadData = async () => {
     setIsLoading(true);
@@ -440,8 +470,29 @@ const AdminDashboard: React.FC = () => {
               value={studentSearch} 
               onChange={e => setStudentSearch(e.target.value)}
             />
+            <div className="flex items-center justify-between px-2">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="select-all-students"
+                  checked={allFilteredSelected}
+                  disabled={filteredStudents.length === 0}
+                  onCheckedChange={(checked) => toggleSelectAllFiltered(checked === true)}
+                />
+                <label
+                  htmlFor="select-all-students"
+                  className="cursor-pointer text-sm font-medium leading-none"
+                >
+                  {studentSearch
+                    ? `Select all ${filteredStudents.length} matching`
+                    : `Select all ${filteredStudents.length}`}
+                </label>
+              </div>
+              <span className="text-muted-foreground text-xs">
+                {selectedStudents.size} selected
+              </span>
+            </div>
             <div className="flex-1 overflow-y-auto border rounded-md p-2 space-y-2 max-h-[40vh]">
-              {users.filter(u => u.role === 'student' && (u.email.includes(studentSearch) || u.first_name?.toLowerCase().includes(studentSearch.toLowerCase()) || u.last_name?.toLowerCase().includes(studentSearch.toLowerCase()))).map(student => (
+              {filteredStudents.map(student => (
                 <div key={student.user_id} className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded-md">
                   <Checkbox 
                     id={`student-${student.user_id}`}
@@ -458,7 +509,7 @@ const AdminDashboard: React.FC = () => {
                   </label>
                 </div>
               ))}
-              {users.filter(u => u.role === 'student').length === 0 && (
+              {filteredStudents.length === 0 && (
                 <div className="text-center text-muted-foreground py-4">No students found.</div>
               )}
             </div>

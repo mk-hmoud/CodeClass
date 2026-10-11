@@ -8,7 +8,14 @@ import { ArrowLeft, Check, Eye, EyeOff, UserPlus, X, GraduationCap, Wand2 } from
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
 import { adminCreateUser } from "@/services/AdminService";
+
+// Same password the bulk CSV import assigns, so a student created by hand and a
+// student created from a roster upload sign in the same way. Kept in sync with
+// the literal in server AdminController.bulkCreateUsers by hand -- client and
+// server share no module.
+const DEFAULT_STUDENT_PASSWORD = "eul12345";
 
 const PASSWORD_REQS = [
   { id: "length",    text: "At least 8 characters",    regex: /.{8,}/ },
@@ -28,6 +35,7 @@ const AdminCreateUser: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [role, setRole] = useState<"instructor" | "student">("student");
+  const [useDefaultPassword, setUseDefaultPassword] = useState(false);
   const [strength, setStrength] = useState<Record<string, boolean>>({
     length: false, lowercase: false, uppercase: false, number: false, special: false,
   });
@@ -72,9 +80,11 @@ const AdminCreateUser: React.FC = () => {
   const validate = () => {
     if (!name.trim()) { setError("Full name is required"); return false; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError("Please enter a valid email address"); return false; }
-    if (!password) { setError("Password is required"); return false; }
-    if (!Object.values(strength).every(Boolean)) { setError("Password doesn't meet all requirements"); return false; }
-    if (password !== confirmPassword) { setError("Passwords don't match"); return false; }
+    if (!useDefaultPassword) {
+      if (!password) { setError("Password is required"); return false; }
+      if (!Object.values(strength).every(Boolean)) { setError("Password doesn't meet all requirements"); return false; }
+      if (password !== confirmPassword) { setError("Passwords don't match"); return false; }
+    }
     return true;
   };
 
@@ -85,7 +95,12 @@ const AdminCreateUser: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const result = await adminCreateUser({ name, email, password, role });
+      const result = await adminCreateUser({
+        name,
+        email,
+        password: useDefaultPassword ? DEFAULT_STUDENT_PASSWORD : password,
+        role,
+      });
       if (result.success) {
         toast.success(result.message || "User created successfully!");
         navigate("/admin/dashboard");
@@ -153,7 +168,7 @@ const AdminCreateUser: React.FC = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setRole("instructor")}
+                  onClick={() => { setRole("instructor"); setUseDefaultPassword(false); }}
                   disabled={isLoading}
                   className={cn(
                     "flex items-center justify-center gap-2 rounded-lg border py-2.5 text-sm font-medium transition-colors",
@@ -178,6 +193,30 @@ const AdminCreateUser: React.FC = () => {
               <Input id="email" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" disabled={isLoading} />
             </div>
 
+            {role === "student" && (
+              <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 p-3">
+                <Checkbox
+                  id="useDefaultPassword"
+                  checked={useDefaultPassword}
+                  onCheckedChange={(checked) => setUseDefaultPassword(checked === true)}
+                  disabled={isLoading}
+                  className="mt-0.5"
+                />
+                <div className="space-y-0.5">
+                  <Label htmlFor="useDefaultPassword" className="cursor-pointer text-sm font-medium">
+                    Use the default student password
+                  </Label>
+                  <p className="text-muted-foreground text-xs">
+                    Signs in with <span className="font-mono">{DEFAULT_STUDENT_PASSWORD}</span>, the
+                    same password the CSV roster import assigns. Students should change it after
+                    first sign-in.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {!useDefaultPassword && (
+            <>
             <div className="space-y-1.5">
               <div className="flex justify-between items-center">
                 <Label htmlFor="password">Password</Label>
@@ -257,6 +296,8 @@ const AdminCreateUser: React.FC = () => {
                 <p className="text-xs text-destructive">Passwords don't match</p>
               )}
             </div>
+            </>
+            )}
 
             <Button type="submit" className="w-full gap-2 mt-6" disabled={isLoading}>
               {isLoading

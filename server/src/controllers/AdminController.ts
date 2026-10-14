@@ -5,6 +5,14 @@ import { getAllUsers as fetchAllUsers, getAllClassroomsAdmin, deleteClassroomAdm
 import { deleteUser as deleteUserModel } from '../models/UserModel';
 import { getMaintenanceMode, setMaintenanceMode } from '../models/SystemSettingsModel';
 import bcrypt from 'bcrypt';
+import { generateStudentPassword } from '../utils/password';
+
+/**
+ * Institutional email convention for student accounts: the student number is
+ * the local part. The client derives the same address when matching a roster
+ * row back to an account.
+ */
+const STUDENT_EMAIL_DOMAIN = 'eul.edu.tr';
 
 export const createUser: RequestHandler = async (req, res) => {
   const functionName = "createUser(Admin)";
@@ -160,6 +168,20 @@ export const changeUserPassword: RequestHandler = async (req, res) => {
   }
 };
 
+/**
+ * Hashes with bounded concurrency. bcrypt runs on libuv's threadpool, so a
+ * sequential loop over a 300-student roster spends ~25s wall-clock with three
+ * of four threads idle; batching keeps one HTTP request plausible.
+ */
+const hashAll = async (passwords: string[]): Promise<string[]> => {
+  const out: string[] = [];
+  const CONCURRENCY = 8;
+  for (let i = 0; i < passwords.length; i += CONCURRENCY) {
+    out.push(...(await Promise.all(passwords.slice(i, i + CONCURRENCY).map((p) => bcrypt.hash(p, 10)))));
+  }
+  return out;
+};
+
 export const bulkCreateUsers: RequestHandler = async (req, res) => {
   try {
     const { students } = req.body;
@@ -169,32 +191,111 @@ export const bulkCreateUsers: RequestHandler = async (req, res) => {
     }
 
     const { bulkCreateStudents } = await import('../models/AdminModel');
-    const processedStudents = [];
-    
-    for (const student of students) {
-      if (!student.first_name || !student.last_name || !student.student_number) continue;
-      
-      const email = `${student.student_number}@eul.edu.tr`;
-      const passwordHash = await bcrypt.hash('eul12345', 10);
-      
-      processedStudents.push({
-        email,
-        passwordHash,
-        firstName: student.first_name,
-        lastName: student.last_name
-      });
-    }
 
-    if (processedStudents.length === 0) {
+    const candidates = students
+      .filter((s: any) => s.first_name && s.last_name && s.student_number)
+      .map((s: any) => ({
+        email: `${s.student_number}@${STUDENT_EMAIL_DOMAIN}`,
+        firstName: s.first_name,
+        lastName: s.last_name,
+        studentNumber: String(s.student_number),
+        // One password per student. Returned once, in this response, and never
+        // recoverable afterwards -- only the hash is stored.
+        password: generateStudentPassword(),
+      }));
+
+    if (candidates.length === 0) {
       res.status(400).json({ success: false, message: 'No valid students found to import.' });
       return;
     }
 
-    const result = await bulkCreateStudents(processedStudents);
-    res.status(200).json({ success: true, message: `Import complete. Imported: ${result.imported}, Skipped duplicates: ${result.skipped}` });
+    const hashes = await hashAll(candidates.map((c) => c.password));
+    const result = await bulkCreateStudents(
+      candidates.map((c, i) => ({
+        email: c.email,
+        passwordHash: hashes[i],
+        firstName: c.firstName,
+        lastName: c.lastName,
+      }))
+    );
+
+    const createdEmails = new Set(result.imported);
+    const credentials = candidates
+      .filter((c) => createdEmails.has(c.email))
+      .map((c) => ({
+        first_name: c.firstName,
+        last_name: c.lastName,
+        student_number: c.studentNumber,
+        email: c.email,
+        password: c.password,
+      }));
+
+    res.status(200).json({
+      success: true,
+      message: `Import complete. Imported: ${result.imported.length}, Skipped duplicates: ${result.skipped.length}`,
+      data: { credentials, skipped: result.skipped },
+    });
   } catch (error) {
     logger.error({ fn: 'bulkCreateUsers', error }, `Bulk create users error: ${error}`);
     res.status(500).json({ success: false, message: 'An error occurred during bulk import.' });
+  }
+};
+
+/**
+ * Issues a fresh generated password to students that already exist, and returns
+ * the list once. Needed because the accounts imported before this change all
+ * share one password.
+ */
+export const resetStudentPasswordsController: RequestHandler = async (req, res) => {
+  try {
+    const { students } = req.body;
+    if (!students || !Array.isArray(students) || students.length === 0) {
+      res.status(400).json({ success: false, message: 'Expected an array of students.' });
+      return;
+    }
+
+    const { resetStudentPasswords } = await import('../models/AdminModel');
+
+    const candidates = students
+      .filter((s: any) => s.student_number)
+      .map((s: any) => ({
+        email: `${s.student_number}@${STUDENT_EMAIL_DOMAIN}`,
+        firstName: s.first_name ?? '',
+        lastName: s.last_name ?? '',
+        studentNumber: String(s.student_number),
+        password: generateStudentPassword(),
+      }));
+
+    if (candidates.length === 0) {
+      res.status(400).json({ success: false, message: 'No student numbers found.' });
+      return;
+    }
+
+    const hashes = await hashAll(candidates.map((c) => c.password));
+    const result = await resetStudentPasswords(
+      candidates.map((c, i) => ({ email: c.email, passwordHash: hashes[i] }))
+    );
+
+    const updatedEmails = new Set(result.updated);
+    const credentials = candidates
+      .filter((c) => updatedEmails.has(c.email))
+      .map((c) => ({
+        first_name: c.firstName,
+        last_name: c.lastName,
+        student_number: c.studentNumber,
+        email: c.email,
+        password: c.password,
+      }));
+
+    res.status(200).json({
+      success: true,
+      message: `Passwords reset for ${result.updated.length} student${result.updated.length === 1 ? '' : 's'}.` +
+        (result.notFound.length > 0 ? ` ${result.notFound.length} had no account.` : ''),
+      data: { credentials, notFound: result.notFound },
+    });
+  } catch (error) {
+    logger.error({ fn: 'resetStudentPasswordsController', error }, `Reset passwords error: ${error}`);
+    res.status(500).json({ success: false, message: 'An error occurred while resetting passwords.' });
   }
 };
 

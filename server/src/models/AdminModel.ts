@@ -81,10 +81,17 @@ export async function updateUserPassword(userId: number, passwordHash: string) {
   await pool.query('UPDATE users SET password_hash = $1 WHERE user_id = $2', [passwordHash, userId]);
 }
 
-export async function bulkCreateStudents(students: { email: string, passwordHash: string, firstName: string, lastName: string }[]): Promise<{ imported: number, skipped: number }> {
+/**
+ * Returns the emails actually created and the emails skipped, rather than
+ * counts: the caller holds one generated password per student and must hand
+ * back credentials only for accounts it really created. A skipped account keeps
+ * its existing password, so listing its generated one would be a lie the
+ * instructor then reads out to a student.
+ */
+export async function bulkCreateStudents(students: { email: string, passwordHash: string, firstName: string, lastName: string }[]): Promise<{ imported: string[], skipped: string[] }> {
   const client = await pool.connect();
-  let imported = 0;
-  let skipped = 0;
+  const imported: string[] = [];
+  const skipped: string[] = [];
   
   try {
     await client.query('BEGIN');
@@ -101,7 +108,7 @@ export async function bulkCreateStudents(students: { email: string, passwordHash
     for (const student of students) {
       const existing = await client.query("SELECT user_id FROM users WHERE email = $1", [student.email]);
       if (existing.rows.length > 0) {
-        skipped++;
+        skipped.push(student.email);
         continue;
       }
       
@@ -114,13 +121,53 @@ export async function bulkCreateStudents(students: { email: string, passwordHash
       
       await client.query("INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2)", [userId, studentRoleId]);
       await client.query("INSERT INTO students (user_id) VALUES ($1)", [userId]);
-      imported++;
+      imported.push(student.email);
     }
     
     await client.query('COMMIT');
     return { imported, skipped };
   } catch (error) {
     await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Sets a fresh hash for each given student email. Returns the emails updated
+ * and those that matched no student account, so the caller can list only the
+ * credentials that are now real.
+ */
+export async function resetStudentPasswords(
+  updates: { email: string, passwordHash: string }[]
+): Promise<{ updated: string[], notFound: string[] }> {
+  const fn = "resetStudentPasswords";
+  if (updates.length === 0) return { updated: [], notFound: [] };
+
+  const client = await pool.connect();
+  const updated: string[] = [];
+  const notFound: string[] = [];
+  try {
+    await client.query('BEGIN');
+    for (const { email, passwordHash } of updates) {
+      const result = await client.query(
+        `UPDATE users u
+            SET password_hash = $2
+          WHERE u.email = $1
+            AND EXISTS (SELECT 1 FROM students s WHERE s.user_id = u.user_id)
+        RETURNING u.user_id`,
+        [email, passwordHash]
+      );
+      if (result.rows.length > 0) updated.push(email);
+      else notFound.push(email);
+    }
+    await client.query('COMMIT');
+    logger.info({ fn, updated: updated.length, notFound: notFound.length }, 'Reset student passwords');
+    return { updated, notFound };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    logger.error({ fn, error }, `Error resetting student passwords: ${error}`);
     throw error;
   } finally {
     client.release();

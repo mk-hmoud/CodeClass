@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { fetchAllUsers, deleteUser, UserSummary, fetchAllClassroomsAdmin, deleteClassroomAdmin, fetchPlatformAnalytics, adminChangeUserPassword, adminBulkCreateUsers, adminBulkEnrollStudents, getMaintenanceStatus, setMaintenanceStatus } from "@/services/AdminService";
+import { fetchAllUsers, deleteUser, UserSummary, fetchAllClassroomsAdmin, deleteClassroomAdmin, fetchPlatformAnalytics, adminChangeUserPassword, adminBulkCreateUsers, adminResetStudentPasswords, adminBulkEnrollStudents, getMaintenanceStatus, setMaintenanceStatus, StudentCredential } from "@/services/AdminService";
 import { Button } from "@/components/ui/button";
-import { Trash2, PlusCircle, UserCog, BookOpen, BarChart, Settings, Users as UsersIcon, Key, Upload, UserPlus } from "lucide-react";
+import { Trash2, PlusCircle, UserCog, BookOpen, BarChart, Settings, Users as UsersIcon, Key, Upload, UserPlus, Download } from "lucide-react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import PageHeader from "@/components/PageHeader";
-import { parseRosterCsv, STUDENT_EMAIL_FOR } from "@/lib/roster";
+import { parseRosterCsv, STUDENT_EMAIL_FOR, credentialsCsv, downloadCsv } from "@/lib/roster";
 
 const AdminDashboard: React.FC = () => {
   const [users, setUsers] = useState<UserSummary[]>([]);
@@ -21,6 +21,8 @@ const AdminDashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const rosterInputRef = useRef<HTMLInputElement>(null);
+  const resetInputRef = useRef<HTMLInputElement>(null);
+  const [lastCredentials, setLastCredentials] = useState<StudentCredential[]>([]);
   
   const [enrollModalOpen, setEnrollModalOpen] = useState(false);
   const [selectedClassroomForEnroll, setSelectedClassroomForEnroll] = useState<number | null>(null);
@@ -152,6 +154,7 @@ const AdminDashboard: React.FC = () => {
         const response = await adminBulkCreateUsers(students);
         if (response.success) {
           toast.success(response.message);
+          deliverCredentials(response.credentials ?? [], "imported");
           loadData();
         } else {
           toast.error(response.message);
@@ -160,6 +163,62 @@ const AdminDashboard: React.FC = () => {
         toast.error("Failed to parse CSV file");
       } finally {
         if (fileInputRef.current) fileInputRef.current.value = '';
+        setIsLoading(false);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  /**
+   * The server generates one password per student and returns them exactly
+   * once; nothing but the hash is kept. So the download happens here, straight
+   * away, and the list is also held in state in case the save dialog is
+   * dismissed -- losing it means re-running a reset, not looking it up.
+   */
+  const deliverCredentials = (credentials: StudentCredential[], verb: string) => {
+    if (credentials.length === 0) return;
+    const stamp = new Date().toISOString().slice(0, 10);
+    const filename = `student-passwords-${stamp}.csv`;
+    downloadCsv(filename, credentialsCsv(credentials));
+    setLastCredentials(credentials);
+    toast.success(
+      `${credentials.length} password${credentials.length === 1 ? "" : "s"} ${verb} and saved to ${filename}. This list cannot be shown again.`,
+      { duration: 12000 }
+    );
+  };
+
+  // Re-issues a password to students who already have accounts. The cohort
+  // comes from the same roster CSV, so the instructor gets one list per course
+  // rather than a platform-wide reset.
+  const handlePasswordResetCsv = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const rows = parseRosterCsv(event.target?.result as string);
+        if (rows === null) {
+          toast.error("Invalid CSV format. Header must include: first_name,last_name,student_number");
+          return;
+        }
+        if (rows.length === 0) {
+          toast.error("No valid student data found in CSV");
+          return;
+        }
+
+        setIsLoading(true);
+        const response = await adminResetStudentPasswords(rows);
+        if (response.success) {
+          toast.success(response.message);
+          deliverCredentials(response.credentials ?? [], "reset");
+        } else {
+          toast.error(response.message);
+        }
+      } catch {
+        toast.error("Failed to parse CSV file");
+      } finally {
+        if (resetInputRef.current) resetInputRef.current.value = '';
         setIsLoading(false);
       }
     };
@@ -253,10 +312,43 @@ const AdminDashboard: React.FC = () => {
               className="hidden"
               onChange={handleFileUpload}
             />
-            <Button variant="outline" className="gap-2" onClick={() => fileInputRef.current?.click()}>
+            <Button variant="outline" className="gap-2" onClick={() => fileInputRef.current?.click()} disabled={isLoading}>
               <Upload size={16} />
               Import CSV
             </Button>
+            <input
+              type="file"
+              accept=".csv"
+              ref={resetInputRef}
+              className="hidden"
+              onChange={handlePasswordResetCsv}
+            />
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => resetInputRef.current?.click()}
+              disabled={isLoading}
+              title="Issue a new generated password to every student in a roster CSV and download the list"
+            >
+              <Key size={16} />
+              Reset passwords
+            </Button>
+            {lastCredentials.length > 0 && (
+              <Button
+                variant="ghost"
+                className="gap-2"
+                onClick={() =>
+                  downloadCsv(
+                    `student-passwords-${new Date().toISOString().slice(0, 10)}.csv`,
+                    credentialsCsv(lastCredentials)
+                  )
+                }
+                title="Save the list from the last import or reset again (lost when this page reloads)"
+              >
+                <Download size={16} />
+                Save list again ({lastCredentials.length})
+              </Button>
+            )}
             <Link to="/admin/users/create">
               <Button className="gap-2">
                 <PlusCircle size={16} />

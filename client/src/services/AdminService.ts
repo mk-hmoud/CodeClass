@@ -102,18 +102,49 @@ export const adminChangeUserPassword = async (userId: number, newPassword: strin
   }
 };
 
-export const adminBulkCreateUsers = async (students: any[]): Promise<{ success: boolean; message: string }> => {
+/** One generated password, returned once by the server and never recoverable. */
+export interface StudentCredential {
+  first_name: string;
+  last_name: string;
+  student_number: string;
+  email: string;
+  password: string;
+}
+
+export const adminBulkCreateUsers = async (
+  students: any[]
+): Promise<{ success: boolean; message: string; credentials?: StudentCredential[] }> => {
   try {
     const response = await apiClient.post('/admin/users/bulk', { students });
     return {
       success: true,
       message: response.data.message || "Bulk import successful",
+      credentials: response.data.data?.credentials ?? [],
     };
   } catch (error: any) {
     console.error("Admin bulk create users error:", error);
     return {
       success: false,
       message: error.response?.data?.message || "Network error occurred during bulk import",
+    };
+  }
+};
+
+export const adminResetStudentPasswords = async (
+  students: any[]
+): Promise<{ success: boolean; message: string; credentials?: StudentCredential[] }> => {
+  try {
+    const response = await apiClient.post('/admin/users/reset-passwords', { students });
+    return {
+      success: true,
+      message: response.data.message || "Passwords reset",
+      credentials: response.data.data?.credentials ?? [],
+    };
+  } catch (error: any) {
+    console.error("Admin reset student passwords error:", error);
+    return {
+      success: false,
+      message: error.response?.data?.message || "Network error occurred while resetting passwords",
     };
   }
 };

@@ -38,3 +38,32 @@ export const parseRosterCsv = (text: string): RosterRow[] | null => {
     })
     .filter(r => r.first_name && r.last_name && r.student_number);
 };
+
+/**
+ * Turns the one-time credential list into a file the instructor keeps. The
+ * passwords exist nowhere else once this response is gone -- only hashes are
+ * stored -- so the download is the artefact, not a convenience.
+ */
+export const credentialsCsv = (
+  rows: { first_name: string; last_name: string; student_number: string; email: string; password: string }[]
+): string => {
+  const esc = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+  const header = "first_name,last_name,student_number,email,password";
+  const body = rows.map((r) =>
+    [r.first_name, r.last_name, r.student_number, r.email, r.password].map(esc).join(",")
+  );
+  return [header, ...body].join("\n") + "\n";
+};
+
+/** Hands the browser a file to save. */
+export const downloadCsv = (filename: string, csv: string): void => {
+  // \uFEFF so Excel opens the Turkish characters in the names as UTF-8 rather
+  // than mojibake; the instructor opens this in Excel.
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+};

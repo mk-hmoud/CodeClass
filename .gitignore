@@ -9,3 +9,15 @@
 
 /server/node_modules
 /server/package-lock.json
+# Judge third-party sources, cloned by build.sh (~250MB)
+/judge/dependencies
+
+# Client production build output
+/client/dist
+
+# Student rosters and credential lists. These carry names, student numbers and
+# generated passwords: never commit them. Rosters are produced from the
+# instructor's scheduling PDFs and picked up from the repo root by the admin
+# panel's file dialogs, so they live here but stay untracked.
+*.csv
+*.pdf

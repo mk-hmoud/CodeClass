@@ -47,35 +47,47 @@ export const calculateGrade = async (
     };
     logger.debug({ fn, weights }, "Using grading weights");
     
-    const testCaseScore = (metrics.passedTests / metrics.totalTests) * 100;
-    logger.debug(
-      { fn, passedTests: metrics.passedTests, totalTests: metrics.totalTests, testCaseScore },
-      "Computed raw test case score"
-    );
+    const privateTotal = metrics.privateTotalTests;
+    const privatePassed = metrics.privatePassedTests;
+    const publicTotal = metrics.totalTests - privateTotal;
+    const publicPassed = metrics.passedTests - privatePassed;
 
-    let publicTestScore = 0, privateTestScore = 0;
-    if (metrics.privateTotalTests > 0) {
-      const publicPassed = metrics.passedTests - metrics.privatePassedTests;
-      const publicTotal  = metrics.totalTests  - metrics.privateTotalTests;
-      publicTestScore  = publicTotal > 0
-        ? (publicPassed / publicTotal) * 100 * (1 - weights.privateTestWeight)
-        : 0;
-      privateTestScore = (metrics.privatePassedTests / metrics.privateTotalTests) * 100 * weights.privateTestWeight;
-
-      logger.debug(
-        { fn, publicPassed, publicTotal, publicTestScore },
-        "Public test score computed"
-      );
-      logger.debug(
-        { fn, privatePassed: metrics.privatePassedTests, privateTotal: metrics.privateTotalTests, privateTestScore },
-        "Private test score computed"
-      );
-    } else {
-      publicTestScore = testCaseScore;
-      logger.debug({ fn, publicTestScore }, "No private tests, using total testCaseScore as publicTestScore");
+    // Public tests are worth (1 - privateTestWeight) of the test component and
+    // private tests the rest -- but only across the categories that actually
+    // have tests. Normalising matters: the previous version dropped the public
+    // share entirely when a problem had no public tests, so an all-private
+    // problem capped a flawless submission at 66% (0.6 * 0.85 + performance).
+    // A problem with no private tests was already handled, by a separate
+    // branch; this covers both and the empty case in one place.
+    let publicWeight = publicTotal > 0 ? 1 - weights.privateTestWeight : 0;
+    let privateWeight = privateTotal > 0 ? weights.privateTestWeight : 0;
+    const weightSum = publicWeight + privateWeight;
+    if (weightSum > 0) {
+      publicWeight /= weightSum;
+      privateWeight /= weightSum;
     }
 
-    const weightedTestScore = (publicTestScore + privateTestScore) * weights.testCasePassing;
+    const publicTestScore = publicTotal > 0
+      ? (publicPassed / publicTotal) * 100 * publicWeight
+      : 0;
+    const privateTestScore = privateTotal > 0
+      ? (privatePassed / privateTotal) * 100 * privateWeight
+      : 0;
+
+    logger.debug(
+      {
+        fn,
+        publicPassed, publicTotal, publicWeight, publicTestScore,
+        privatePassed, privateTotal, privateWeight, privateTestScore,
+      },
+      "Test scores computed per visibility, weights normalised over present categories"
+    );
+
+    // A submission with no test results at all scores 0 on correctness rather
+    // than NaN, which used to poison the whole percentage via 0/0.
+    const weightedTestScore = metrics.totalTests > 0
+      ? (publicTestScore + privateTestScore) * weights.testCasePassing
+      : 0;
     logger.debug(
       { fn, publicTestScore, privateTestScore, weightedTestScore },
       "Weighted test score calculated"

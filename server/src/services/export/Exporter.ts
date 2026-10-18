@@ -55,12 +55,15 @@ const handleExport = async (req: Request, res: Response, format: string): Promis
         s.submitted_at,
         s.final_score as score,
         s.feedback,
+        -- Falls back to the email, not u.username: that column does not exist
+        -- on users (it was never in the schema), so this COALESCE made every
+        -- export of every format fail at parse time with 42703.
         COALESCE(
             NULLIF(
                 CONCAT_WS(' ', u.first_name, u.last_name),
                 ''
             ),
-            u.username
+            u.email
             ) AS name,
         u.email
       FROM submissions s
@@ -149,8 +152,17 @@ const handleExport = async (req: Request, res: Response, format: string): Promis
 
   } catch (error) {
     await client.query('ROLLBACK');
-    logger.error({ fn, error, assignmentId: req.params.assignmentId }, "Export failed");
-    res.status(500).json(error);
+    // `error` alone serialises a pg error without its message, leaving only a
+    // code and a character offset in the log -- which is not enough to find
+    // the bad column. Log the message explicitly.
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error(
+      { fn, assignmentId: req.params.assignmentId, error, errorMessage: message },
+      `Export failed: ${message}`
+    );
+    // The raw pg error leaks table and column internals to the client; the log
+    // above keeps the detail where it belongs.
+    res.status(500).json({ success: false, message: 'Failed to export assignment data' });
   } finally {
     client.release();
   }

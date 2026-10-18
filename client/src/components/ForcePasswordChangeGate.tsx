@@ -6,22 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Check, Eye, EyeOff, KeyRound, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { PASSWORD_REQS, passwordMeetsAllRules } from "@/lib/passwordRules";
 import {
   changeOwnPassword,
   isAuthenticated,
   MUST_CHANGE_PASSWORD_KEY,
   PASSWORD_CHANGE_REQUIRED_EVENT,
 } from "@/services/AuthService";
-
-// Same five rules the server enforces on /auth/change-password, shown live so a
-// student is not guessing at why their password was refused.
-const PASSWORD_REQS = [
-  { id: "length", text: "At least 8 characters", regex: /.{8,}/ },
-  { id: "lowercase", text: "Lowercase letter", regex: /[a-z]/ },
-  { id: "uppercase", text: "Uppercase letter", regex: /[A-Z]/ },
-  { id: "number", text: "Contains a number", regex: /\d/ },
-  { id: "special", text: "Special character", regex: /[!@#$%^&*(),.?":{}|<>]/ },
-];
 
 /**
  * Blocks the app until someone who was handed a password sets their own.
@@ -55,7 +46,7 @@ const ForcePasswordChangeGate: React.FC = () => {
   }, []);
 
   const met = (regex: RegExp) => regex.test(newPassword);
-  const allMet = PASSWORD_REQS.every((r) => met(r.regex));
+  const allMet = passwordMeetsAllRules(newPassword);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

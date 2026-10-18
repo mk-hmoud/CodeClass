@@ -5,10 +5,11 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import {
-  ArrowLeft, User, Mail, BadgeCheck, Calendar, KeyRound, Shield,
+  ArrowLeft, User, Mail, BadgeCheck, Calendar, KeyRound, Shield, Check, X,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
-import { getCurrentUser } from "@/services/AuthService";
+import { getCurrentUser, changeOwnPassword } from "@/services/AuthService";
+import { PASSWORD_REQS, passwordMeetsAllRules } from "@/lib/passwordRules";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -24,17 +25,21 @@ const Profile = () => {
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) { toast.error("New passwords do not match"); return; }
-    if (newPassword.length < 8) { toast.error("Password must be at least 8 characters"); return; }
+    if (!passwordMeetsAllRules(newPassword)) { toast.error("New password doesn't meet all requirements"); return; }
+    if (newPassword === currentPassword) { toast.error("New password must be different from the current one"); return; }
+
     setChangingPassword(true);
-    try {
-      await new Promise(r => setTimeout(r, 800));
-      toast.success("Password changed successfully");
-      setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");
-    } catch {
-      toast.error("Failed to change password");
-    } finally {
-      setChangingPassword(false);
+    // Reports whatever the server says, including "Current password is
+    // incorrect" -- the previous version announced success unconditionally.
+    const result = await changeOwnPassword(currentPassword, newPassword);
+    setChangingPassword(false);
+
+    if (!result.success) {
+      toast.error(result.message);
+      return;
     }
+    toast.success("Password changed successfully");
+    setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");
   };
 
   if (!user) { navigate("/"); return null; }
@@ -146,6 +151,20 @@ const Profile = () => {
                   onChange={e => setNewPassword(e.target.value)}
                   required
                 />
+                {newPassword && (
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 pt-1">
+                    {PASSWORD_REQS.map(req => (
+                      <div key={req.id} className="flex items-center gap-1.5 text-xs">
+                        {req.regex.test(newPassword)
+                          ? <Check size={11} className="text-success shrink-0" />
+                          : <X size={11} className="text-orange-400 shrink-0" />}
+                        <span className={req.regex.test(newPassword) ? "text-muted-foreground" : "text-orange-400"}>
+                          {req.text}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="confirmPassword" className="text-xs">Confirm New Password</Label>

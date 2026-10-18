@@ -21,6 +21,15 @@ export interface SubmissionResult {
     checkedAt: string;
   }
   
+  /** What the server confirmed after a manual grade, for patching a list row. */
+  export interface GradedSubmission {
+    submissionId: number;
+    finalScore: number;
+    manualScore: number;
+    gradingStatus: 'pending' | 'system graded' | 'graded';
+    feedback: string;
+  }
+
   export interface FullSubmission {
     submissionId: number;
     studentId: number;

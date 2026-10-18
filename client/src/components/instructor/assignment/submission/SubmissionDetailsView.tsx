@@ -13,13 +13,14 @@ import { toast } from "@/components/ui/use-toast";
 import { TestResult } from "@/types/TestCase";
 import { FullSubmission } from "@/types/Submission";
 import { updateManualGrade } from "@/services/GradesService";
+import type { GradedSubmission } from "@/types/Submission";
 
 interface SubmissionDetailsViewProps {
   assignmentScore: number;
   submission: FullSubmission;
   gradingType: "Automatic" | "Manual" | "Hybrid";
   onBack: () => void;
-  onSubmitGrade: (id: number, score: number, feedback: string) => void;
+  onSubmitGrade: (update: GradedSubmission) => void;
 }
 
 const GRADING_META: Record<string, { label: string; className: string }> = {
@@ -57,7 +58,13 @@ const SubmissionDetailsView: React.FC<SubmissionDetailsViewProps> = ({
   const handleSubmitGrade = async (values: { manualScore: number; feedback: string }) => {
     try {
       const result = await updateManualGrade({ submissionId: submission.submissionId, manualScore: values.manualScore, feedback: values.feedback });
-      onSubmitGrade(result.submissionId, result.finalScore, values.feedback);
+      onSubmitGrade({
+        submissionId: result.submissionId,
+        finalScore: result.finalScore,
+        gradingStatus: result.gradingStatus as GradedSubmission["gradingStatus"],
+        manualScore: values.manualScore,
+        feedback: values.feedback,
+      });
       toast({ title: "Success", description: "Grade updated successfully" });
     } catch (err: any) {
       toast({ title: "Error", description: err.response?.data?.message ?? "Could not save grade", variant: "destructive" });

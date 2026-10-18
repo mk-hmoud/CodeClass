@@ -1,11 +1,12 @@
 import React, { useState } from "react";
-import { FullSubmission } from "@/types/Submission";
+import { FullSubmission, GradedSubmission } from "@/types/Submission";
 import SubmissionsList from "../submission/SubmissionsList";
 import SubmissionDetailsView from "../submission/SubmissionDetailsView";
-import { toast } from "sonner";
 
 interface SubmissionsTabProps {
   submissions: FullSubmission[];
+  /** Hands a confirmed grade up so the owner of `submissions` can patch it. */
+  onGraded: (update: GradedSubmission) => void;
   formatDate: (dateString: string | null) => string;
   assignmentTitle?: string;
   assignmentDescription?: string;
@@ -46,35 +47,11 @@ const SubmissionsTab: React.FC<SubmissionsTabProps> = ({
     setSelectedSubmissionId(null);
   };
 
-  const handleSubmitGrade = (id: number, score: number, feedback: string) => {
-    // In a real app, this would send the grade to an API
-    console.log("Submitting grade:", {
-      submissionId: id,
-      score,
-      feedback,
-    });
-
-    // Update local submission data (in a real app, this would be done after API confirms the update)
-    const updatedSubmissions = submissions.map((sub) => {
-      if (sub.submissionId === id) {
-        return {
-          ...sub,
-          manualScore: score,
-          finalScore: score,
-          feedback: feedback,
-          gradingStatus: "graded" as const,
-        };
-      }
-      return sub;
-    });
-
-    // Show success message
-    toast.success("Grade submitted successfully");
-
-    // Navigate back to the list view after a short delay
-    setTimeout(() => {
-      handleBackToList();
-    }, 1500);
+  const handleSubmitGrade = (update: GradedSubmission) => {
+    onGraded(update);
+    // Brief pause so the toast SubmissionDetailsView raised is readable before
+    // the view changes under it.
+    setTimeout(handleBackToList, 1500);
   };
 
   if (viewMode === "details" && selectedSubmission) {

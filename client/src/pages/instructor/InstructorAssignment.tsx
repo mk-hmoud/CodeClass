@@ -23,7 +23,7 @@ import ExportTab from "@/components/instructor/assignment/view/ExportTab";
 import PlagiarismTab from "@/components/instructor/assignment/view/PlagiarismTab";
 import { getAssignmentById, releaseGrades } from "@/services/AssignmentService";
 import { Assignment } from "@/types/Assignment";
-import { FullSubmission } from "@/types/Submission";
+import { FullSubmission, GradedSubmission } from "@/types/Submission";
 import { DIFFICULTY_META } from "@/lib/difficultyMeta";
 import { toast } from "sonner";
 
@@ -54,6 +54,26 @@ const InstructorAssignment: React.FC = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const [assignment, setAssignment] = useState<Assignment | null>(null);
   const [submissions, setSubmissions] = useState<FullSubmission[]>([]);
+
+  // Patches the graded row in place from what the server confirmed, so the
+  // list shows the new score and "Graded" badge without a page reload. Patched
+  // rather than refetched: a refetch here would discard the verdict and
+  // plagiarism data already loaded for every other row.
+  const handleGraded = (update: GradedSubmission) => {
+    setSubmissions((prev) =>
+      prev.map((sub) =>
+        sub.submissionId === update.submissionId
+          ? {
+              ...sub,
+              manualScore: update.manualScore,
+              finalScore: update.finalScore,
+              gradingStatus: update.gradingStatus,
+              feedback: update.feedback,
+            }
+          : sub
+      )
+    );
+  };
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [releasingGrades, setReleasingGrades] = useState(false);
@@ -250,6 +270,7 @@ const InstructorAssignment: React.FC = () => {
             <SubmissionsTab
               assignmentScore={assignment.points}
               submissions={submissions}
+              onGraded={handleGraded}
               formatDate={fmtDate}
               assignmentTitle={assignment.title}
               assignmentDescription={assignment.description}

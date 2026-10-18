@@ -35,6 +35,7 @@ import QuizResultsPage from "./pages/student/QuizResultsPage";
 import AdminLayout from "./layouts/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminCreateUser from "./pages/admin/AdminCreateUser";
+import ForcePasswordChangeGate from "./components/ForcePasswordChangeGate";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <ForcePasswordChangeGate />
         <Routes>
           {/* Shared Routes */}
           <Route path="/" element={<Home />} />

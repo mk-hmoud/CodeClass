@@ -31,6 +31,14 @@ apiClient.interceptors.response.use(
       window.location.href = '/maintenance';
     }
 
+    // A pending forced password change blocks every other endpoint server-side.
+    // Surface it as an event so the gate opens even when the page was loaded
+    // with a token minted before the flag was set.
+    if (error.response?.status === 403 && error.response?.data?.code === 'PASSWORD_CHANGE_REQUIRED') {
+      localStorage.setItem('mustChangePassword', '1');
+      window.dispatchEvent(new Event('password-change-required'));
+    }
+
     return Promise.reject(error);
   }
 );

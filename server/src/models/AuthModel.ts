@@ -13,6 +13,26 @@ export interface User {
 
 export interface UserWithPassword extends User {
   password_hash: string;
+  must_change_password: boolean;
+}
+
+/**
+ * Replaces the holder's own password and clears the forced-change flag in one
+ * statement, so an interrupted call cannot leave an account with a new password
+ * it is still being nagged about (or, worse, the old password and no nag).
+ */
+export async function setOwnPassword(userId: number, passwordHash: string): Promise<void> {
+  const functionName = 'setOwnPassword';
+  try {
+    await pool.query(
+      `UPDATE users SET password_hash = $2, must_change_password = FALSE WHERE user_id = $1`,
+      [userId, passwordHash]
+    );
+    logger.info({ fn: functionName, userId }, `Password set by holder for user ${userId}`);
+  } catch (error: any) {
+    logger.error({ fn: functionName, userId, error }, `Error setting own password: ${error.message}`);
+    throw error;
+  }
 }
 
 export async function createUser(userData: {
@@ -35,8 +55,8 @@ export async function createUser(userData: {
 
     await client.query('BEGIN');
     const userQuery = `
-      INSERT INTO users (first_name, last_name, email, password_hash)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO users (first_name, last_name, email, password_hash, must_change_password)
+      VALUES ($1, $2, $3, $4, TRUE)
       RETURNING user_id, email, first_name, last_name
     `;
     logger.debug({ fn: functionName, email }, `Executing user insert query for: ${email}`);
@@ -110,6 +130,7 @@ export async function findUserByEmail(email: string): Promise<UserWithPassword |
         u.first_name, 
         u.last_name,
         u.password_hash,
+        u.must_change_password,
         COALESCE(
           (SELECT 'admin' FROM roles r JOIN user_roles ur ON r.role_id = ur.role_id WHERE ur.user_id = u.user_id AND r.role_name = 'admin' LIMIT 1),
           (SELECT 'instructor' FROM instructors WHERE user_id = u.user_id), 

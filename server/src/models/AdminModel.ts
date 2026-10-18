@@ -113,8 +113,8 @@ export async function bulkCreateStudents(students: { email: string, passwordHash
       }
       
       const userRes = await client.query(`
-        INSERT INTO users (email, password_hash, first_name, last_name) 
-        VALUES ($1, $2, $3, $4) RETURNING user_id
+        INSERT INTO users (email, password_hash, first_name, last_name, must_change_password)
+        VALUES ($1, $2, $3, $4, TRUE) RETURNING user_id
       `, [student.email, student.passwordHash, student.firstName, student.lastName]);
       
       const userId = userRes.rows[0].user_id;
@@ -153,7 +153,7 @@ export async function resetStudentPasswords(
     for (const { email, passwordHash } of updates) {
       const result = await client.query(
         `UPDATE users u
-            SET password_hash = $2
+            SET password_hash = $2, must_change_password = TRUE
           WHERE u.email = $1
             AND EXISTS (SELECT 1 FROM students s WHERE s.user_id = u.user_id)
         RETURNING u.user_id`,

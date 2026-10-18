@@ -16,10 +16,24 @@ declare global {
         last_name?: string;
         role: string;
         role_id: number;
+        must_change_password?: boolean;
       };
     }
   }
 }
+
+/**
+ * Still reachable while a password change is outstanding: the change endpoint
+ * itself, plus login and token validation so the client can bootstrap and show
+ * the prompt. Everything else is refused -- without this the prompt would be
+ * cosmetic, dismissable from the console by anyone who wanted to keep using
+ * the password they were handed.
+ */
+const PATHS_ALLOWED_PENDING_PASSWORD_CHANGE = [
+  '/api/auth/change-password',
+  '/api/auth/validate-token',
+  '/api/auth/login',
+];
 
 export const authMiddleware = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const fn = "authMiddleware";
@@ -48,9 +62,23 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
       last_name?: string;
       role: string;
       role_id: number;
+      must_change_password?: boolean;
     };
     
     logger.info({ fn, userId: decoded.id, role: decoded.role, role_id: decoded.role_id }, "Token verified successfully");    req.user = decoded;
+
+    if (decoded.must_change_password && !PATHS_ALLOWED_PENDING_PASSWORD_CHANGE.includes(req.baseUrl + req.path)) {
+      logger.warn(
+        { fn, userId: decoded.id, url: req.originalUrl },
+        "Request blocked: password change required"
+      );
+      res.status(403).json({
+        success: false,
+        code: 'PASSWORD_CHANGE_REQUIRED',
+        message: 'You must change your password before continuing.'
+      });
+      return;
+    }
 
     if (decoded.role !== 'admin' && await getMaintenanceMode()) {
       logger.warn({ fn, userId: decoded.id, role: decoded.role }, "Request blocked: platform in maintenance mode");

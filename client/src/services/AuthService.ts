@@ -12,6 +12,10 @@ interface SignupData {
   role: "instructor" | "student";
 }
 
+export const MUST_CHANGE_PASSWORD_KEY = "mustChangePassword";
+/** Fired when the API refuses a request because a password change is pending. */
+export const PASSWORD_CHANGE_REQUIRED_EVENT = "password-change-required";
+
 interface AuthResponse {
   success: boolean;
   message: string;
@@ -21,6 +25,7 @@ interface AuthResponse {
     email: string;
     role: "instructor" | "student";
     name?: string;
+    mustChangePassword?: boolean;
   };
 }
 
@@ -38,6 +43,13 @@ export const loginUser = async ({
 
     if (data.token) {
       localStorage.setItem("token", data.token);
+    }
+    // The gate also re-opens on a 403 from the API, so this is a convenience
+    // for the first render after login rather than the source of truth.
+    if (data.user?.mustChangePassword) {
+      localStorage.setItem(MUST_CHANGE_PASSWORD_KEY, "1");
+    } else {
+      localStorage.removeItem(MUST_CHANGE_PASSWORD_KEY);
     }
 
     return {
@@ -113,4 +125,27 @@ export const getCurrentUser = (): { user: any; isAuthenticated: boolean } => {
 
 export const isAuthenticated = (): boolean => {
   return localStorage.getItem("token") !== null;
+};
+
+/**
+ * Replaces the signed-in user's own password. On success the server returns a
+ * token minted without the forced-change claim; swapping it in is what
+ * actually lifts the API-level block, so the caller must not skip it.
+ */
+export const changeOwnPassword = async (
+  currentPassword: string,
+  newPassword: string
+): Promise<{ success: boolean; message: string }> => {
+  try {
+    const response = await apiClient.post("/auth/change-password", { currentPassword, newPassword });
+    if (response.data.token) {
+      localStorage.setItem("token", response.data.token);
+    }
+    localStorage.removeItem(MUST_CHANGE_PASSWORD_KEY);
+    return { success: true, message: response.data.message || "Password updated" };
+  } catch (error) {
+    const message = (error as { response?: { data?: { message?: string } } })
+      ?.response?.data?.message;
+    return { success: false, message: message || "Network error occurred" };
+  }
 };

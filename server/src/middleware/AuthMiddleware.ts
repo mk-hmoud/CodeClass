@@ -2,6 +2,7 @@ import logger from '../config/logger';
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { getMaintenanceMode } from '../models/SystemSettingsModel';
+import { getMustChangePassword } from '../models/AuthModel';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key';
 
@@ -67,7 +68,17 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
     
     logger.info({ fn, userId: decoded.id, role: decoded.role, role_id: decoded.role_id }, "Token verified successfully");    req.user = decoded;
 
-    if (decoded.must_change_password && !PATHS_ALLOWED_PENDING_PASSWORD_CHANGE.includes(req.baseUrl + req.path)) {
+    // Tokens issued before this claim existed carry neither true nor false.
+    // Trusting the absence would let everyone already signed in keep working
+    // with the password they were handed until their token expired, so fall
+    // back to the table for exactly those. Costs one query per request only
+    // for pre-upgrade sessions, and stops entirely once they expire.
+    const mustChangePassword =
+      decoded.must_change_password === undefined
+        ? await getMustChangePassword(decoded.id)
+        : decoded.must_change_password;
+
+    if (mustChangePassword && !PATHS_ALLOWED_PENDING_PASSWORD_CHANGE.includes(req.baseUrl + req.path)) {
       logger.warn(
         { fn, userId: decoded.id, url: req.originalUrl },
         "Request blocked: password change required"

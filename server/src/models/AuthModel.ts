@@ -17,6 +17,26 @@ export interface UserWithPassword extends User {
 }
 
 /**
+ * Reads the forced-change flag straight from the table. Only needed for tokens
+ * minted before the flag existed, which carry no claim either way -- see
+ * authMiddleware. Those expire within the token lifetime, after which this is
+ * never called again.
+ */
+export async function getMustChangePassword(userId: number): Promise<boolean> {
+  const functionName = 'getMustChangePassword';
+  try {
+    const { rows } = await pool.query(
+      `SELECT must_change_password FROM users WHERE user_id = $1`,
+      [userId]
+    );
+    return rows[0]?.must_change_password === true;
+  } catch (error: any) {
+    logger.error({ fn: functionName, userId, error }, `Error reading must_change_password: ${error.message}`);
+    throw error;
+  }
+}
+
+/**
  * Replaces the holder's own password and clears the forced-change flag in one
  * statement, so an interrupted call cannot leave an account with a new password
  * it is still being nagged about (or, worse, the old password and no nag).

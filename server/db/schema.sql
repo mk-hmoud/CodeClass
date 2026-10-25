@@ -554,6 +554,11 @@ CREATE TABLE submission_attempts (
   attempt_id SERIAL PRIMARY KEY,
   student_id INT NOT NULL REFERENCES students(student_id) ON DELETE CASCADE,
   assignment_id INT NOT NULL REFERENCES assignments(assignment_id) ON DELETE CASCADE,
+  -- The submission this attempt was recorded for. ON DELETE SET NULL because
+  -- submissions are delete-and-replaced on resubmit but attempts must persist
+  -- (they are what the per-assignment limit counts). Lets a compile error
+  -- un-count its own attempt by submission_id.
+  submission_id INT REFERENCES submissions(submission_id) ON DELETE SET NULL,
   submitted_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE (student_id, assignment_id, submitted_at)
 );

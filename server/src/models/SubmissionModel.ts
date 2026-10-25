@@ -10,6 +10,16 @@ export interface CreateSubmissionArgs {
   code: string;
 }
 
+/** Thrown by createSubmission when the student is out of attempts. The limit is
+ *  enforced here, inside the same transaction that records the attempt, so two
+ *  concurrent submits cannot both slip past a separate pre-check. */
+export class AttemptLimitReachedError extends Error {
+  constructor() {
+    super("Maximum submission attempts reached for this assignment");
+    this.name = "AttemptLimitReachedError";
+  }
+}
+
 export const createSubmission = async ({
     studentId,
     assignmentId,
@@ -21,117 +31,107 @@ export const createSubmission = async ({
       { functionName, studentId, assignmentId, language },
       `Attempting to create submission for student ${studentId}, assignment ${assignmentId}, language ${language}.`
     );
+    const client = await pool.connect();
     try {
-      logger.debug(
-        { functionName, language },
-        `Querying for language ID for language: ${language}`
+      await client.query("BEGIN");
+
+      const langQueryResult = await client.query(
+        `SELECT language_id FROM languages WHERE name = $1`,
+        [language]
       );
-        const langQueryResult = await pool.query(
-          `SELECT language_id FROM languages WHERE name = $1`,
-          [language]
-        );
+      if (langQueryResult.rowCount === 0) {
+        throw new Error("Unsupported language");
+      }
+      const languageId = langQueryResult.rows[0].language_id;
 
-        if (langQueryResult.rowCount === 0) {
-          logger.warn(
-            { functionName, language },
-            `Unsupported language: ${language}. Throwing error.`
-          );
-          throw new Error("Unsupported language");
-        }
-        const languageId = langQueryResult.rows[0].language_id;
-        logger.debug(
-          { functionName, language, languageId },
-          `Found language ID: ${languageId} for language: ${language}.`
-        );        
+      // Serialise concurrent submits by the same student for the same
+      // assignment so the attempt-limit check and the attempt insert are
+      // atomic -- a double-click or a second tab would otherwise both read
+      // "1 left" and both insert. The lock is released at COMMIT/ROLLBACK.
+      await client.query(`SELECT pg_advisory_xact_lock($1, $2)`, [studentId, assignmentId]);
 
-        logger.info(
-          { functionName, studentId, assignmentId },
-          `Deleting previous submissions for student ${studentId} and assignment ${assignmentId}`
-        );
-        const deleteResult = await pool.query(
-          `DELETE FROM submissions 
-          WHERE student_id = $1 AND assignment_id = $2
-          RETURNING submission_id`,
+      const limitRes = await client.query<{ max_submissions: number | null }>(
+        `SELECT max_submissions FROM assignments WHERE assignment_id = $1`,
+        [assignmentId]
+      );
+      const maxSubmissions = limitRes.rows[0]?.max_submissions ?? null;
+      if (maxSubmissions !== null) {
+        const used = await client.query<{ cnt: string }>(
+          `SELECT COUNT(*) AS cnt FROM submission_attempts WHERE student_id = $1 AND assignment_id = $2`,
           [studentId, assignmentId]
         );
-        const haveDeleted = deleteResult.rowCount ?? 0;
-        if (haveDeleted > 0) {
-          const deletedIds = deleteResult.rows.map(row => row.submission_id).join(', ');
-          logger.info(
-            { functionName, studentId, assignmentId, haveDeleted, deletedIds },
-            `Deleted previous submissions with IDs: ${deletedIds}`
-          );
-        } else {
-          logger.debug(
-            { functionName, studentId, assignmentId },
-            `No previous submissions found to delete`
-          );
+        if (parseInt(used.rows[0].cnt, 10) >= maxSubmissions) {
+          throw new AttemptLimitReachedError();
         }
-        /*
-        logMessage(functionName, `Setting previous submissions as non-main for student ${studentId} and assignment ${assignmentId}`);
-        const updateResult = await pool.query(
-          `UPDATE submissions 
-           SET is_main = FALSE
-           WHERE student_id = $1 AND assignment_id = $2 AND is_main = TRUE
-           RETURNING submission_id`,
-          [studentId, assignmentId]
-        );
+      }
 
-        const updatedCount = updateResult.rowCount ?? 0;
-        
-        if (updatedCount > 0) {
-          const updatedIds = updateResult.rows.map(row => row.submission_id).join(', ');
-          logMessage(functionName, `Updated previous main submissions to non-main: ${updatedIds}`);
-        } else {
-          logMessage(functionName, `No previous main submissions found to update`);
-        }
+      // Keep only the latest submission per student+assignment (grade/feedback
+      // on the prior one is intentionally discarded here). Attempt rows for the
+      // deleted submission keep counting -- their submission_id goes NULL.
+      await client.query(
+        `DELETE FROM submissions WHERE student_id = $1 AND assignment_id = $2`,
+        [studentId, assignmentId]
+      );
 
-        */
+      const insertRes = await client.query<{ submission_id: number }>(
+        `INSERT INTO submissions (student_id, assignment_id, language_id, code, status)
+         VALUES ($1,$2,$3,$4,'queued')
+         RETURNING submission_id`,
+        [studentId, assignmentId, languageId, code]
+      );
+      const submissionId = insertRes.rows[0].submission_id;
 
-        logger.info({ functionName }, `Inserting new submission record.`);
+      // The attempt is tied to this submission so a compile error can later
+      // remove exactly this row (see JudgeController getSubmitStatus).
+      await client.query(
+        `INSERT INTO submission_attempts (student_id, assignment_id, submission_id)
+         VALUES ($1, $2, $3)`,
+        [studentId, assignmentId, submissionId]
+      );
 
-        const insertRes = await pool.query<{ submission_id: number }>( 
-          `INSERT INTO submissions
-             (student_id, assignment_id, language_id, code, status)
-           VALUES ($1,$2,$3,$4, $5)
-           RETURNING submission_id`,
-          [studentId, assignmentId, languageId, code, 'queued']
-        );
-
-        const submissionId = insertRes.rows[0].submission_id;
-        logger.info(
-          { functionName, submissionId, studentId, assignmentId },
-          `New submission created with ID: ${submissionId}.`
-        );
-
-        await pool.query(
-          `INSERT INTO submission_attempts
-          (student_id, assignment_id)
-          VALUES ($1, $2)`,
-          [studentId, assignmentId]
-        );
-
-        logger.debug(
-          { functionName, studentId, assignmentId },
-          `Inserted into submission_attempts`
-        );
-        logger.debug(
-          { functionName, submissionId },
-          `Returning submission ID ${submissionId}.`
-        );
-        return submissionId;
-
+      await client.query("COMMIT");
+      logger.info(
+        { functionName, submissionId, studentId, assignmentId },
+        `New submission ${submissionId} created with attempt recorded`
+      );
+      return submissionId;
     } catch (error) {
-      logger.error(
-        { functionName, studentId, assignmentId, error },
-        `Error creating submission for student ${studentId}, assignment ${assignmentId}: ${error}`
-      );
-        throw error;
+      await client.query("ROLLBACK");
+      if (!(error instanceof AttemptLimitReachedError)) {
+        logger.error(
+          { functionName, studentId, assignmentId, error },
+          `Error creating submission for student ${studentId}, assignment ${assignmentId}: ${error}`
+        );
+      }
+      throw error;
+    } finally {
+      client.release();
     }
   };
 
 
-  export const getSubmissionById = async (
+  /**
+ * Removes the attempt recorded for a submission that turned out to be a compile
+ * error, so a typo does not burn one of the student's limited attempts.
+ * Idempotent: keyed on submission_id, so repeated status polls delete nothing
+ * after the first. Runtime errors and failed tests still count -- the code ran.
+ */
+export const uncountAttemptForSubmission = async (submissionId: number): Promise<void> => {
+  const functionName = "uncountAttemptForSubmission";
+  try {
+    const res = await pool.query(
+      `DELETE FROM submission_attempts WHERE submission_id = $1`,
+      [submissionId]
+    );
+    if ((res.rowCount ?? 0) > 0) {
+      logger.info({ functionName, submissionId }, `Un-counted attempt for compile-error submission ${submissionId}`);
+    }
+  } catch (error) {
+    logger.error({ functionName, submissionId, error }, `Error un-counting attempt for submission ${submissionId}`);
+  }
+};
+
+export const getSubmissionById = async (
     submissionId: number
   ): Promise<SubmissionRecord> => {
     const fn = "getSubmissionById";

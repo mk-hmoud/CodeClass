@@ -7,11 +7,11 @@ import redisClient from '../config/redis';
 import { JudgeVerdict, TestCase, TestResult } from '../types';
 import { getAssignmentTestCases, getProblemOutputTypeForAssignment } from '../models/ProblemModel';
 import { getLibraryCodeForAssignment } from '../models/LibraryModel';
-import { createSubmission, getSubmissionById, getSubmissionStatus, saveSubmissionResults, updateSubmissionStatus } from '../models/SubmissionModel';
+import { createSubmission, getSubmissionById, getSubmissionStatus, saveSubmissionResults, updateSubmissionStatus, uncountAttemptForSubmission, AttemptLimitReachedError } from '../models/SubmissionModel';
 import { runPlagiarismCheck } from './PlagiarismController';
 import { systemEventEmitter } from '../services/statistics/emitter'; 
 import { SubmissionCompletedEvent, SubmissionCreatedEvent } from '../services/statistics/events';
-import { getRemainingAttempts, getSubmissionAttemptCount, canStudentAccessAssignment } from '../models/AssignmentModel';
+import { canStudentAccessAssignment, getSubmissionAttemptCount } from '../models/AssignmentModel';
 import { calculateGrade } from '../services/grading/Grader';
 
 
@@ -268,33 +268,10 @@ export const submitHandler = async (req: Request, res: Response): Promise<void> 
     return;
   }
 
-  try {
-    const remainingAttempts = await getRemainingAttempts(assignmentId, studentId);
-    logger.info(
-      { fn: functionName, studentId, assignmentId, remainingAttempts },
-      `Student ${studentId} has ${remainingAttempts} attempts remaining for assignment ${assignmentId}`
-    );
-    
-    if (remainingAttempts <= 0) {
-      logger.info(
-        { fn: functionName, studentId, assignmentId },
-        `Student ${studentId} has no remaining attempts for assignment ${assignmentId}`
-      );
-      res.status(403).json({ 
-        success: false, 
-        message: 'Maximum submission attempts reached for this assignment' 
-      });
-      return;
-    }
-  } catch (err) {
-    logger.error(
-      { fn: functionName, error: err },
-      `Error checking remaining attempts: ${err}`
-    );
-  }
-
   let submissionId: number;
   try {
+    // The attempt limit is enforced inside createSubmission, atomically with
+    // recording the attempt, so concurrent submits cannot both get through.
     submissionId = await createSubmission({
       studentId,
       assignmentId,
@@ -315,6 +292,10 @@ export const submitHandler = async (req: Request, res: Response): Promise<void> 
     systemEventEmitter.emit('SUBMISSION_CREATED', createdEvent.payload);
 
   } catch (err) {
+    if (err instanceof AttemptLimitReachedError) {
+      res.status(403).json({ success: false, message: err.message });
+      return;
+    }
     logger.error(
       { fn: functionName, error: err },
       `Error creating submission: ${err}`
@@ -448,6 +429,8 @@ export const getSubmitStatusHandler = async (
 
     if (parsedData.status === "compile_error") {
       await updateSubmissionStatus(submissionId, "error");
+      // A compile error is a typo, not a real attempt -- give it back.
+      await uncountAttemptForSubmission(submissionId);
       const verdict: JudgeVerdict = {
         status: "compile_error",
         error: {

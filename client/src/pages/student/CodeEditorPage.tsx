@@ -319,11 +319,21 @@ const CodeEditorPage = () => {
     try {
       const { job_id } = await submit(assignment!.assignmentId, getCode(), selectedLanguage);
       let statusData: JudgeVerdict;
+      // Bound the wait: the judge can die or the queue can stall, and an
+      // unbounded poll would leave the student on a spinner forever.
+      const maxPolls = Math.ceil(120000 / POLL_INTERVAL);
+      let polls = 0;
       do {
         await new Promise((r) => setTimeout(r, POLL_INTERVAL));
         statusData = await getSubmitStatus(job_id);
         setSubmitVerdict(statusData);
-      } while (statusData.status === "pending");
+        polls += 1;
+      } while (statusData.status === "pending" && polls < maxPolls);
+
+      if (statusData.status === "pending") {
+        toast.error("Still judging — this is taking longer than usual. Check back in a moment; your submission was recorded.");
+        return;
+      }
 
       if (statusData.status === "compile_error") {
         toast.error(`Compile error: ${statusData.error?.errorMessage}`);
@@ -367,8 +377,15 @@ const CodeEditorPage = () => {
           plagiarismReports: [],
         }));
       }
-    } catch {
-      toast.error("Failed to submit code");
+    } catch (error) {
+      const resp = (error as { response?: { status?: number; data?: { message?: string } } })?.response;
+      const serverMsg = resp?.data?.message;
+      toast.error(serverMsg || "Failed to submit code");
+      // On "no attempts left", resync the counter from the server so the UI
+      // stops offering a submit that will keep failing.
+      if (resp?.status === 403 && assignmentId) {
+        getRemainingAttempts(Number(assignmentId)).then(setRemainingAttempts).catch(() => {});
+      }
     } finally {
       setIsSubmitting(false);
     }

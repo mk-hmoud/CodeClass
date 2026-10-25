@@ -10,6 +10,41 @@ export interface CodeDraft {
   assignmentTitle: string;
 }
 
+/**
+ * Drafts are stored in localStorage, which on a shared lab machine is shared by
+ * every student who signs in on that browser. Namespacing the key by the signed-in
+ * user's id keeps one student from loading another's in-progress code. Derived
+ * from the JWT so the signatures below stay unchanged for their callers.
+ */
+const currentUserScope = (): string => {
+  try {
+    const token = localStorage.getItem("token");
+    if (!token) return "anon-";
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload?.id != null ? `u${payload.id}-` : "anon-";
+  } catch {
+    return "anon-";
+  }
+};
+
+const draftKeyFor = (assignmentId: number | string): string =>
+  `${CODE_DRAFT_PREFIX}${currentUserScope()}${assignmentId}`;
+
+/** Removes every code draft on this browser. Called on logout so the next
+ *  student on a shared machine starts clean. */
+export const clearAllCodeDrafts = (): void => {
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(CODE_DRAFT_PREFIX)) keys.push(k);
+    }
+    keys.forEach((k) => localStorage.removeItem(k));
+  } catch (error) {
+    console.error("Error clearing code drafts:", error);
+  }
+};
+
 export const saveCodeDraft = (
   assignmentId: number | string,
   code: string,
@@ -19,7 +54,7 @@ export const saveCodeDraft = (
   classroomId: number | string
 ): boolean => {
   try {
-    const draftKey = `${CODE_DRAFT_PREFIX}${assignmentId}`;
+    const draftKey = draftKeyFor(assignmentId);
     const draftData: CodeDraft = {
       code,
       language,
@@ -39,7 +74,7 @@ export const saveCodeDraft = (
 
 export const getCodeDraft = (assignmentId: number | string): CodeDraft | null => {
   try {
-    const draftKey = `${CODE_DRAFT_PREFIX}${assignmentId}`;
+    const draftKey = draftKeyFor(assignmentId);
     const draftJson = localStorage.getItem(draftKey);
     if (!draftJson) return null;
     const draft = JSON.parse(draftJson) as CodeDraft;
@@ -59,7 +94,7 @@ export const getCodeDraft = (assignmentId: number | string): CodeDraft | null =>
 
 export const removeCodeDraft = (assignmentId: number | string): void => {
   try {
-    const draftKey = `${CODE_DRAFT_PREFIX}${assignmentId}`;
+    const draftKey = draftKeyFor(assignmentId);
     localStorage.removeItem(draftKey);
   } catch (error) {
     console.error("Error removing code draft:", error);
@@ -72,7 +107,7 @@ export const getAllCodeDrafts = (): CodeDraft[] => {
     const now = new Date();
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && key.startsWith(CODE_DRAFT_PREFIX)) {
+      if (key && key.startsWith(`${CODE_DRAFT_PREFIX}${currentUserScope()}`)) {
         try {
           const draftJson = localStorage.getItem(key);
           if (!draftJson) continue;

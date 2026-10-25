@@ -1,4 +1,5 @@
 import apiClient from './APIclient';
+import { clearAllCodeDrafts } from '@/utils/CodeDraftManager';
 
 interface LoginCredentials {
   email: string;
@@ -102,6 +103,9 @@ export const signupUser = async ({
 
 export const logout = (): void => {
   localStorage.removeItem("token");
+  localStorage.removeItem(MUST_CHANGE_PASSWORD_KEY);
+  // Shared lab machines: do not leave this student's drafts for the next one.
+  clearAllCodeDrafts();
 };
 
 export const getCurrentUser = (): { user: any; isAuthenticated: boolean } => {

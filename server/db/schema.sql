@@ -656,3 +656,38 @@ INSERT INTO languages (name, version) VALUES
   ('typescript', 'Node 20 / ts-node'),
   ('sql',        'SQLite 3')
 ON CONFLICT DO NOTHING;
+-- ============================================================================
+-- Systems-programming problems (Milestone A). See the migration
+-- 2026-10-26_systems_problems.sql for rationale. Placed at the end because
+-- submission_files references submissions, created above.
+-- ============================================================================
+CREATE TYPE problem_runtime_enum   AS ENUM ('standard','systems');
+CREATE TYPE problem_file_role_enum AS ENUM ('template','readonly','hidden');
+CREATE TYPE test_compare_enum      AS ENUM ('exact','unordered');
+
+ALTER TABLE problems
+  ADD COLUMN runtime       problem_runtime_enum NOT NULL DEFAULT 'standard',
+  ADD COLUMN build_command TEXT,
+  ADD COLUMN entrypoint    TEXT;
+
+CREATE TABLE problem_files (
+  file_id    SERIAL PRIMARY KEY,
+  problem_id INT NOT NULL REFERENCES problems(problem_id) ON DELETE CASCADE,
+  path       TEXT NOT NULL,
+  content    TEXT NOT NULL DEFAULT '',
+  role       problem_file_role_enum NOT NULL DEFAULT 'template',
+  UNIQUE (problem_id, path)
+);
+CREATE INDEX idx_problem_files_problem ON problem_files(problem_id);
+
+ALTER TABLE problem_test_cases
+  ADD COLUMN stdin   TEXT,
+  ADD COLUMN env     JSONB,
+  ADD COLUMN compare test_compare_enum NOT NULL DEFAULT 'exact';
+
+CREATE TABLE submission_files (
+  submission_id INT NOT NULL REFERENCES submissions(submission_id) ON DELETE CASCADE,
+  path          TEXT NOT NULL,
+  content       TEXT NOT NULL DEFAULT '',
+  PRIMARY KEY (submission_id, path)
+);

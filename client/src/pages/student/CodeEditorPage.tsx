@@ -30,6 +30,7 @@ import { LANGUAGE_LABELS, normalizeAssignment } from "@/lib/assignmentUtils";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useIsCompactLayout } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
+import SystemsEditor from "./SystemsEditor";
 
 const POLL_INTERVAL = 1000;
 const AUTO_SAVE_INTERVAL = 30000;
@@ -748,6 +749,34 @@ const CodeEditorPage = () => {
       <div className="h-screen flex flex-col items-center justify-center gap-3 bg-background text-muted-foreground">
         <div className="w-10 h-10 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
         <p className="text-sm">Loading assignment…</p>
+      </div>
+    );
+  }
+
+  // Systems problems use the multi-file editor rather than the single-file,
+  // per-language flow above.
+  if (!assignmentLoading && assignment && assignment.problem?.runtime === "systems") {
+    return (
+      <div className="h-screen flex flex-col bg-background overflow-hidden">
+        <header className="shrink-0 flex items-center gap-3 px-3 py-2 border-b border-border">
+          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"
+            onClick={() => navigate(`/student/classrooms/${classroomId}/assignments/${assignmentId}/view`)}>
+            <ArrowLeft size={16} />
+          </Button>
+          <h1 className="font-semibold text-sm truncate flex-1">{assignment.title}</h1>
+          {remainingAttempts !== null && (
+            <span className="text-xs text-muted-foreground">{remainingAttempts} attempt{remainingAttempts === 1 ? "" : "s"} left</span>
+          )}
+        </header>
+        <div className="flex-1 flex min-h-0">
+          <aside className="w-[34%] max-w-md border-r border-border overflow-y-auto p-4">
+            <h2 className="font-semibold mb-2">{assignment.problem.title}</h2>
+            <pre className="whitespace-pre-wrap text-sm text-muted-foreground font-sans">{assignment.problem.description}</pre>
+          </aside>
+          <main className="flex-1 min-w-0">
+            <SystemsEditor assignment={assignment} />
+          </main>
+        </div>
       </div>
     );
   }

@@ -37,7 +37,11 @@ void JudgeWorker::processSubmission(const std::string &jobId,
         tcJson["isPublic"] = tc.is_public;
         inputJson["testCases"].push_back(tcJson);
     }
-    std::string inputStr = inputJson.dump();
+    // Systems jobs forward the server-assembled payload verbatim; everything
+    // else uses the field-by-field reconstruction above.
+    std::string inputStr = submission.runtime == "systems" && !submission.runnerInput.empty()
+                               ? submission.runnerInput
+                               : inputJson.dump();
 
     try
     {
@@ -68,7 +72,9 @@ void JudgeWorker::processSubmission(const std::string &jobId,
             close(outFd);
 
             const char *image = "judge-cpp:latest";
-            if (submission.language == "python")
+            if (submission.runtime == "systems")
+                image = "judge-systems:latest";
+            else if (submission.language == "python")
                 image = "judge-py:latest";
             else if (submission.language == "javascript" || submission.language == "typescript")
                 image = "judge-js:latest";
@@ -161,12 +167,24 @@ Submission JudgeWorker::parseSubmission(const std::string &jsonSubmissionData)
     }
 
     std::string outputType = j.value("outputType", std::string("text"));
+    std::string runtime = j.value("runtime", std::string("standard"));
+    std::string runnerInput;
+    if (j.contains("runnerInput") && !j["runnerInput"].is_null())
+        runnerInput = j["runnerInput"].get<std::string>();
+
+    // A systems job carries its whole runner payload in runnerInput; testCases
+    // may be absent from the outer blob, so default it to empty.
+    std::vector<TestCase> testCases;
+    if (j.contains("testCases") && !j["testCases"].is_null())
+        testCases = j["testCases"].get<std::vector<TestCase>>();
 
     return {
-        j["code"].get<std::string>(),
-        j["language"].get<std::string>(),
-        j["testCases"].get<std::vector<TestCase>>(),
+        j.value("code", std::string("")),
+        j.value("language", std::string("")),
+        testCases,
         j["mode"].get<std::string>(),
         libraryCode,
-        outputType};
+        outputType,
+        runtime,
+        runnerInput};
 }

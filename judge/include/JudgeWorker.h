@@ -19,6 +19,12 @@ struct Submission
     std::string mode;
     std::string libraryCode;
     std::string outputType;
+    // Systems problems: runtime == "systems" routes to the judge-systems image,
+    // and runnerInput is the server-assembled runner job (files, buildCommand,
+    // entrypoint, per-test stdin/env) forwarded verbatim -- the worker does not
+    // reinterpret it.
+    std::string runtime;
+    std::string runnerInput;
 };
 
 namespace nlohmann

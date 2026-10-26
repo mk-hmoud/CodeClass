@@ -34,4 +34,11 @@ docker build \
   -t judge-sql:latest \
   .
 
+# Systems (processes, pipes, threads, file I/O, loopback sockets)
+echo "Building systems runner"
+cd "${DOCKER_BASE}/systems"
+docker build \
+  -t judge-systems:latest \
+  .
+
 echo "Success! All Docker images built."

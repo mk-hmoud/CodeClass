@@ -17,4 +17,15 @@ export interface Problem {
   createdAt: Date;
   testCases: TestCase[];
   outputType?: "text" | "image";
+  // Systems problems
+  runtime?: "standard" | "systems";
+  buildCommand?: string;
+  entrypoint?: string;
+  files?: ProblemFile[];
+}
+
+export interface ProblemFile {
+  path: string;
+  content: string;
+  role: "template" | "readonly" | "hidden";
 }

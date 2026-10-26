@@ -61,11 +61,12 @@ export const submit = async (
   assignmentId: number,
   code: string,
   language: string,
+  files?: { path: string; content: string }[],
 ): Promise<JudgeResponse> => {
   try {
     const { data } = await apiClient.post<JudgeResponse>(
       "/judge/submit",
-      { assignmentId, code, language}
+      { assignmentId, code, language, files }
     );
     return data;
   } catch (error) {

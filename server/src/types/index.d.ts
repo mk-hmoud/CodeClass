@@ -50,6 +50,10 @@ export interface Problem {
   created_at: Date;
   testCases: TestCase[];
   outputType?: 'text' | 'image';
+  runtime?: 'standard' | 'systems';
+  buildCommand?: string;
+  entrypoint?: string;
+  files?: { path: string; content: string; role: 'template' | 'readonly' | 'hidden' }[];
 }
 
 export interface ProblemCreationData {

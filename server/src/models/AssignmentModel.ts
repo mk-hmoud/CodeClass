@@ -204,7 +204,10 @@ export const getAssignmentById = async (
         COALESCE(p.learning_outcomes,'') AS learning_outcomes,
         COALESCE(p.tags, '')            AS tags,
         p.created_at AS problem_created_at,
-        p.output_type AS "problemOutputType"
+        p.output_type AS "problemOutputType",
+        p.runtime AS "problemRuntime",
+        p.build_command AS "buildCommand",
+        p.entrypoint AS "entrypoint"
       FROM assignments_with_status a 
       JOIN problems p
         ON a.problem_id = p.problem_id
@@ -262,6 +265,16 @@ export const getAssignmentById = async (
       isPublic: r.isPublic
     }));
 
+    // Systems problems: the editable + provided files the student sees. 'hidden'
+    // files (harness, headers used only at build time) are deliberately excluded.
+    const filesRes = await pool.query(
+      `SELECT path, content, role FROM problem_files
+         WHERE problem_id = $1 AND role IN ('template','readonly')
+         ORDER BY role, path`,
+      [row.problem_id]
+    );
+    const files = filesRes.rows.map(f => ({ path: f.path, content: f.content, role: f.role }));
+
     const assignment: Assignment = {
       assignmentId: row.assignment_id,
       classroomId: row.classroom_id,
@@ -294,6 +307,10 @@ export const getAssignmentById = async (
         created_at: new Date(row.problem_created_at),
         testCases: testCases,
         outputType: row.problemOutputType ?? 'text',
+        runtime: row.problemRuntime ?? 'standard',
+        buildCommand: row.buildCommand ?? undefined,
+        entrypoint: row.entrypoint ?? undefined,
+        files,
       }
     };
 

@@ -116,6 +116,30 @@ export const createSubmission = async ({
  * Idempotent: keyed on submission_id, so repeated status polls delete nothing
  * after the first. Runtime errors and failed tests still count -- the code ran.
  */
+export const storeSubmissionFiles = async (
+  submissionId: number,
+  files: { path: string; content: string }[]
+): Promise<void> => {
+  if (files.length === 0) return;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(`DELETE FROM submission_files WHERE submission_id = $1`, [submissionId]);
+    for (const f of files) {
+      await client.query(
+        `INSERT INTO submission_files (submission_id, path, content) VALUES ($1, $2, $3)`,
+        [submissionId, f.path, f.content]
+      );
+    }
+    await client.query("COMMIT");
+  } catch (e) {
+    await client.query("ROLLBACK");
+    throw e;
+  } finally {
+    client.release();
+  }
+};
+
 export const uncountAttemptForSubmission = async (submissionId: number): Promise<void> => {
   const functionName = "uncountAttemptForSubmission";
   try {

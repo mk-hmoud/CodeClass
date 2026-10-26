@@ -670,6 +670,18 @@ export const getAssignments = async (instructorId: number): Promise<Assignment[]
   }
 };
 
+export async function getAssignmentRuntime(
+  assignmentId: number
+): Promise<{ problemId: number; runtime: string } | null> {
+  const { rows } = await pool.query(
+    `SELECT p.problem_id AS "problemId", p.runtime
+       FROM assignments a JOIN problems p ON p.problem_id = a.problem_id
+      WHERE a.assignment_id = $1`,
+    [assignmentId]
+  );
+  return rows[0] ?? null;
+}
+
 export async function getRemainingAttempts(
   assignmentId: number,
   studentId: number

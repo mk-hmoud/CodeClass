@@ -7,11 +7,12 @@ import redisClient from '../config/redis';
 import { JudgeVerdict, TestCase, TestResult } from '../types';
 import { getAssignmentTestCases, getProblemOutputTypeForAssignment } from '../models/ProblemModel';
 import { getLibraryCodeForAssignment } from '../models/LibraryModel';
-import { createSubmission, getSubmissionById, getSubmissionStatus, saveSubmissionResults, updateSubmissionStatus, uncountAttemptForSubmission, AttemptLimitReachedError } from '../models/SubmissionModel';
+import { createSubmission, getSubmissionById, getSubmissionStatus, saveSubmissionResults, updateSubmissionStatus, uncountAttemptForSubmission, AttemptLimitReachedError, storeSubmissionFiles } from '../models/SubmissionModel';
+import { assembleSystemsJob } from '../services/systems/runnerJob';
 import { runPlagiarismCheck } from './PlagiarismController';
 import { systemEventEmitter } from '../services/statistics/emitter'; 
 import { SubmissionCompletedEvent, SubmissionCreatedEvent } from '../services/statistics/events';
-import { canStudentAccessAssignment, getSubmissionAttemptCount } from '../models/AssignmentModel';
+import { canStudentAccessAssignment, getSubmissionAttemptCount, getAssignmentRuntime } from '../models/AssignmentModel';
 import { calculateGrade } from '../services/grading/Grader';
 
 
@@ -215,10 +216,11 @@ export const getRunStatusHandler = async (req: Request, res: Response): Promise<
 
 export const submitHandler = async (req: Request, res: Response): Promise<void> => {
   const functionName = "submit";
-  const { assignmentId, code, language } = req.body as {
+  const { assignmentId, code, language, files } = req.body as {
     assignmentId: number;
     code: string;
     language: string;
+    files?: { path: string; content: string }[];  // systems problems submit files
   };
 
   if (!req.user) {
@@ -248,7 +250,8 @@ export const submitHandler = async (req: Request, res: Response): Promise<void> 
   );
   
 
-  if (!code || !language || !assignmentId) {
+  const hasFiles = Array.isArray(files) && files.length > 0;
+  if ((!code && !hasFiles) || !language || !assignmentId) {
     res.status(400).json({ error: "Missing required parameters" });
     return;
   }
@@ -272,11 +275,16 @@ export const submitHandler = async (req: Request, res: Response): Promise<void> 
   try {
     // The attempt limit is enforced inside createSubmission, atomically with
     // recording the attempt, so concurrent submits cannot both get through.
+    const effectiveCode = code
+      ? code
+      : (files as { path: string; content: string }[])
+          .map((f) => `/* ===== ${f.path} ===== */\n${f.content}`)
+          .join("\n\n");
     submissionId = await createSubmission({
       studentId,
       assignmentId,
       language,
-      code,
+      code: effectiveCode,
     });
 
     logger.info(
@@ -350,9 +358,27 @@ export const submitHandler = async (req: Request, res: Response): Promise<void> 
     );
   }
 
+  let jobData: string;
+  try {
+    const rt = await getAssignmentRuntime(assignmentId);
+    if (rt?.runtime === "systems") {
+      if (hasFiles) await storeSubmissionFiles(submissionId, files!);
+      const job = await assembleSystemsJob(rt.problemId, files ?? []);
+      // The worker routes runtime==="systems" to judge-systems and forwards
+      // runnerInput verbatim; testCases are carried inside runnerInput.
+      jobData = JSON.stringify({ runtime: "systems", runnerInput: JSON.stringify(job), language, mode: "submit" });
+    } else {
+      jobData = JSON.stringify({ code, language, testCases, mode: "submit", libraryCode, outputType });
+    }
+  } catch (err) {
+    logger.error({ fn: functionName, submissionId, error: err }, `Error assembling job: ${err}`);
+    res.status(500).json({ error: "Failed to assemble grading job" });
+    return;
+  }
+
   try {
     await redisClient.hSet(`judge:${submissionId}`, {
-      data: JSON.stringify({ code, language, testCases, mode: "submit", libraryCode, outputType }),
+      data: jobData,
       createdAt: Date.now().toString(),
     });
     await redisClient.lPush("judge:queue", submissionId.toString());

@@ -23,14 +23,14 @@ import "@/lib/monacoConfig";
 import { TestCase, JudgeVerdict } from "@/types/TestCase";
 import { Assignment } from "@/types/Assignment";
 import { FullSubmission } from "@/types/Submission";
-import { runCode, getRunStatus, submit, getSubmitStatus } from "@/services/JudgeService";
+import { runCode, getRunStatus, submit, getSubmitStatus, runSystems } from "@/services/JudgeService";
 import { getRemainingAttempts, getAssignmentById, getMySubmission } from "@/services/AssignmentService";
 import { getCodeDraft, removeCodeDraft, saveCodeDraft } from "@/utils/CodeDraftManager";
 import { LANGUAGE_LABELS, normalizeAssignment } from "@/lib/assignmentUtils";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useIsCompactLayout } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
-import SystemsEditor from "./SystemsEditor";
+import SystemsEditorPane, { SystemsEditorPaneHandle } from "./SystemsEditorPane";
 
 const POLL_INTERVAL = 1000;
 const AUTO_SAVE_INTERVAL = 30000;
@@ -62,6 +62,7 @@ const CodeEditorPage = () => {
 
   const editorRef = useRef<HTMLDivElement>(null);
   const monacoInstance = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const systemsPaneRef = useRef<SystemsEditorPaneHandle | null>(null);
   const onRunCodeRef = useRef<(src: string) => void>(() => {});
   // Monaco's keybindings are registered once, on mount, so they'd otherwise close
   // over stale state (e.g. the language selected at mount time, not whatever the
@@ -86,6 +87,7 @@ const CodeEditorPage = () => {
   const initialCodes = assignment?.languages?.map((l) => l.initial_code) ?? [];
   const publicTestCases: TestCase[] = assignment?.problem?.testCases ?? [];
   const isImageAssignment = assignment?.problem?.outputType === "image";
+  const isSystems = assignment?.problem?.runtime === "systems";
 
   // Fetch the assignment when it wasn't handed to us via navigation state.
   useEffect(() => {
@@ -132,7 +134,7 @@ const CodeEditorPage = () => {
 
   // ── Monaco setup ──────────────────────────────────────────────────────────
   useEffect(() => {
-    if (assignmentLoading || mySubmissionLoading || !editorRef.current || monacoInstance.current) return;
+    if (assignmentLoading || mySubmissionLoading || isSystems || !editorRef.current || monacoInstance.current) return;
 
     const savedDraft = assignmentId ? getCodeDraft(assignmentId) : null;
     // Priority: an in-progress local draft > the student's last submission (so
@@ -269,13 +271,14 @@ const CodeEditorPage = () => {
 
   // ── Run ───────────────────────────────────────────────────────────────────
   const handleRunCode = async () => {
-    const src = getCode();
     setIsRunning(true);
     setResultTab("run");
     setRunVerdict({ ...emptyVerdict });
 
     try {
-      const { job_id } = await runCode(src, selectedLanguage, publicTestCases, assignment?.problem?.outputType, assignment?.assignmentId);
+      const { job_id } = isSystems
+        ? await runSystems(assignment!.assignmentId, systemsPaneRef.current?.getFiles() ?? [])
+        : await runCode(getCode(), selectedLanguage, publicTestCases, assignment?.problem?.outputType, assignment?.assignmentId);
       let statusData: JudgeVerdict;
       do {
         await new Promise((r) => setTimeout(r, POLL_INTERVAL));
@@ -318,7 +321,9 @@ const CodeEditorPage = () => {
     setSubmitVerdict({ ...emptyVerdict });
 
     try {
-      const { job_id } = await submit(assignment!.assignmentId, getCode(), selectedLanguage);
+      const { job_id } = isSystems
+        ? await submit(assignment!.assignmentId, "", "c", systemsPaneRef.current?.getFiles() ?? [])
+        : await submit(assignment!.assignmentId, getCode(), selectedLanguage);
       let statusData: JudgeVerdict;
       // Bound the wait: the judge can die or the queue can stall, and an
       // unbounded poll would leave the student on a spinner forever.
@@ -634,7 +639,7 @@ const CodeEditorPage = () => {
           <div className="space-y-2.5">
             <div>
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Input</p>
-              <MonoBlock>{activeTestCase.input || <span className="opacity-40 italic">empty</span>}</MonoBlock>
+              <MonoBlock>{(activeTestCase.stdin ?? activeTestCase.input) || <span className="opacity-40 italic">empty</span>}</MonoBlock>
             </div>
 
             {activeTestResult ? (
@@ -753,34 +758,6 @@ const CodeEditorPage = () => {
     );
   }
 
-  // Systems problems use the multi-file editor rather than the single-file,
-  // per-language flow above.
-  if (!assignmentLoading && assignment && assignment.problem?.runtime === "systems") {
-    return (
-      <div className="h-screen flex flex-col bg-background overflow-hidden">
-        <header className="shrink-0 flex items-center gap-3 px-3 py-2 border-b border-border">
-          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"
-            onClick={() => navigate(`/student/classrooms/${classroomId}/assignments/${assignmentId}/view`)}>
-            <ArrowLeft size={16} />
-          </Button>
-          <h1 className="font-semibold text-sm truncate flex-1">{assignment.title}</h1>
-          {remainingAttempts !== null && (
-            <span className="text-xs text-muted-foreground">{remainingAttempts} attempt{remainingAttempts === 1 ? "" : "s"} left</span>
-          )}
-        </header>
-        <div className="flex-1 flex min-h-0">
-          <aside className="w-[34%] max-w-md border-r border-border overflow-y-auto p-4">
-            <h2 className="font-semibold mb-2">{assignment.problem.title}</h2>
-            <pre className="whitespace-pre-wrap text-sm text-muted-foreground font-sans">{assignment.problem.description}</pre>
-          </aside>
-          <main className="flex-1 min-w-0">
-            <SystemsEditor assignment={assignment} />
-          </main>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <TooltipProvider>
       <div className="h-screen flex flex-col bg-background overflow-hidden">
@@ -804,15 +781,17 @@ const CodeEditorPage = () => {
 
           <div className="flex items-center gap-2 shrink-0">
             {renderAttemptsLabel()}
-            {renderSaveStatus()}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => doSave()}>
-                  <Save size={14} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Save draft</TooltipContent>
-            </Tooltip>
+            {!isSystems && renderSaveStatus()}
+            {!isSystems && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => doSave()}>
+                    <Save size={14} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Save draft</TooltipContent>
+              </Tooltip>
+            )}
           </div>
         </header>
 
@@ -967,27 +946,33 @@ const CodeEditorPage = () => {
 
                 {/* Editor toolbar */}
                 <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-background shrink-0">
-                  <Select value={selectedLanguage} onValueChange={handleLanguageChange}>
-                    <SelectTrigger className="h-7 w-36 text-xs border-border">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {supportedLanguages.map((lang) => (
-                        <SelectItem key={lang} value={lang} className="text-xs">
-                          {LANGUAGE_LABELS[lang] ?? lang}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {isSystems ? (
+                    <span className="text-xs font-medium text-muted-foreground px-1">Systems · C</span>
+                  ) : (
+                    <>
+                      <Select value={selectedLanguage} onValueChange={handleLanguageChange}>
+                        <SelectTrigger className="h-7 w-36 text-xs border-border">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {supportedLanguages.map((lang) => (
+                            <SelectItem key={lang} value={lang} className="text-xs">
+                              {LANGUAGE_LABELS[lang] ?? lang}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
 
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={handleResetCode}>
-                        <RotateCcw size={13} />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Reset to default code</TooltipContent>
-                  </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={handleResetCode}>
+                            <RotateCcw size={13} />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Reset to default code</TooltipContent>
+                      </Tooltip>
+                    </>
+                  )}
 
                   <div className="flex-1" />
 
@@ -1028,11 +1013,15 @@ const CodeEditorPage = () => {
                 </div>
 
                 {/* Monaco editor */}
-                <div ref={editorRef} className="flex-1" />
+                {isSystems ? (
+                  <SystemsEditorPane ref={systemsPaneRef} files={assignment?.problem?.files ?? []} />
+                ) : (
+                  <div ref={editorRef} className="flex-1" />
+                )}
 
                 {/* Status bar */}
                 <div className="flex items-center gap-4 px-3 py-0.5 border-t border-border bg-muted/30 text-[10px] text-muted-foreground shrink-0">
-                  <span>{LANGUAGE_LABELS[selectedLanguage] ?? selectedLanguage}</span>
+                  <span>{isSystems ? "C (systems)" : (LANGUAGE_LABELS[selectedLanguage] ?? selectedLanguage)}</span>
                   <span className="ml-auto">⌘↵ Run · ⌘⇧↵ Submit</span>
                 </div>
               </div>

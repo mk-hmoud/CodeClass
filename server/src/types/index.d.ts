@@ -66,6 +66,10 @@ export interface ProblemCreationData {
   tags?: string;
   testCases: TestCase[];
   outputType?: 'text' | 'image';
+  runtime?: 'standard' | 'systems';
+  buildCommand?: string;
+  entrypoint?: string;
+  files?: ProblemFileInput[];
 }
 
 export interface LibraryFile {
@@ -218,6 +222,16 @@ export interface TestCase{
   expectedOutput?: string;
   isPublic: boolean;
   schemaLibraryId?: number | null;
+  // Systems problems
+  stdin?: string;
+  env?: Record<string, string>;
+  compare?: 'exact' | 'unordered';
+}
+
+export interface ProblemFileInput {
+  path: string;
+  content: string;
+  role: 'template' | 'readonly' | 'hidden';
 }
 
 export interface Language {

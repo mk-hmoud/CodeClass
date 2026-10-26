@@ -14,8 +14,8 @@ export const createProblem = async (
     await client.query("BEGIN");
 
     const insertProblemQuery = `
-      INSERT INTO problems (instructor_id, title, description, category, prerequisites, learning_outcomes, tags, output_type)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO problems (instructor_id, title, description, category, prerequisites, learning_outcomes, tags, output_type, runtime, build_command, entrypoint)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING problem_id
     `;
     const result = await client.query(insertProblemQuery, [
@@ -27,14 +27,27 @@ export const createProblem = async (
       data.learning_outcomes || null,
       data.tags || null,
       data.outputType || 'text',
+      data.runtime || 'standard',
+      data.buildCommand || null,
+      data.entrypoint || null,
     ]);
     const problemId: number = result.rows[0].problem_id;
     logger.info({ functionName, problemId }, `Inserted problem with ID: ${problemId}`);
 
+    if (data.files && data.files.length > 0) {
+      for (const f of data.files) {
+        await client.query(
+          `INSERT INTO problem_files (problem_id, path, content, role) VALUES ($1, $2, $3, $4)`,
+          [problemId, f.path, f.content ?? '', f.role || 'template']
+        );
+      }
+      logger.info({ functionName, problemId, fileCount: data.files.length }, `Inserted ${data.files.length} problem file(s)`);
+    }
+
     if (data.testCases && data.testCases.length > 0) {
       const insertTestCaseQuery = `
-        INSERT INTO problem_test_cases (problem_id, input, expected_output, is_public, schema_library_id)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO problem_test_cases (problem_id, input, expected_output, is_public, schema_library_id, stdin, env, compare)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       `;
       for (const tc of data.testCases) {
         await client.query(insertTestCaseQuery, [
@@ -43,6 +56,9 @@ export const createProblem = async (
           tc.expectedOutput ?? null,
           tc.isPublic !== undefined ? tc.isPublic : false,
           tc.schemaLibraryId ?? null,
+          tc.stdin ?? null,
+          tc.env ? JSON.stringify(tc.env) : null,
+          tc.compare || 'exact',
         ]);
       }
       logger.info(

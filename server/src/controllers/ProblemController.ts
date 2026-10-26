@@ -40,6 +40,10 @@ export const createProblemController = async (
       tags: req.body.tags,
       testCases: req.body.testCases,
       outputType: req.body.outputType,
+      runtime: req.body.runtime,
+      buildCommand: req.body.buildCommand,
+      entrypoint: req.body.entrypoint,
+      files: req.body.files,
     };
 
     const result = await createProblem(problemData);

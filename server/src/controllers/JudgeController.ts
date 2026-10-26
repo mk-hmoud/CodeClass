@@ -27,6 +27,40 @@ interface RunCodeRequest {
 export const runCodeHandler = async (req: Request, res: Response): Promise<void> => {
   const startTime = Date.now();
   const { code, language, testCases, outputType, assignmentId } = req.body as RunCodeRequest;
+  const runtime = (req.body as { runtime?: string }).runtime;
+  const files = (req.body as { files?: { path: string; content: string }[] }).files;
+
+  // Systems Run: build + run against PUBLIC tests only, no attempt recorded.
+  if (runtime === "systems") {
+    if (!assignmentId || !Array.isArray(files)) {
+      res.status(400).json({ error: "Missing files or assignmentId" });
+      return;
+    }
+    if (!redisClient.isReady) {
+      res.status(503).json({ error: "Service temporarily unavailable" });
+      return;
+    }
+    try {
+      const rt = await getAssignmentRuntime(assignmentId);
+      if (rt?.runtime !== "systems") {
+        res.status(400).json({ error: "Not a systems assignment" });
+        return;
+      }
+      const job = await assembleSystemsJob(rt.problemId, files);
+      job.testCases = job.testCases.filter((t) => t.isPublic);
+      const jobId = nanoid();
+      await redisClient.hSet(`judge:${jobId}`, {
+        data: JSON.stringify({ runtime: "systems", runnerInput: JSON.stringify(job), language: "c", mode: "run" }),
+        createdAt: Date.now().toString(),
+      });
+      await redisClient.lPush("judge:queue", jobId);
+      res.status(202).json({ job_id: jobId, status_url: `/api/judge/status/${jobId}` });
+    } catch (err) {
+      logger.error({ fn: "runCode", error: err }, `Systems run failed: ${err}`);
+      res.status(500).json({ error: "Failed to queue run" });
+    }
+    return;
+  }
 
   logger.info(
     { fn: 'runCode', language, codeLen: code?.length, testCount: testCases?.length },

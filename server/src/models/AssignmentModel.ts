@@ -248,7 +248,10 @@ export const getAssignmentById = async (
         tc.test_case_id                            AS "testCaseId",
         COALESCE(gto.input, sl.setup_sql, tc.input, '') AS "input",
         COALESCE(gto.expected_output, tc.expected_output, '') AS "expectedOutput",
-        tc.is_public                                AS "isPublic"
+        tc.is_public                                AS "isPublic",
+        tc.stdin                                    AS "stdin",
+        tc.env                                      AS "env",
+        tc.compare                                  AS "compare"
       FROM problem_test_cases tc
       LEFT JOIN group_test_case_overrides gto
         ON gto.test_case_id = tc.test_case_id AND gto.group_id = $2
@@ -262,7 +265,10 @@ export const getAssignmentById = async (
       testCaseId: r.testCaseId,
       input: r.input ?? undefined,
       expectedOutput: r.expectedOutput,
-      isPublic: r.isPublic
+      isPublic: r.isPublic,
+      stdin: r.stdin ?? undefined,
+      env: r.env ?? undefined,
+      compare: r.compare ?? undefined,
     }));
 
     // Systems problems: the editable + provided files the student sees. 'hidden'

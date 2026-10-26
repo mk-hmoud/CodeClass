@@ -75,6 +75,17 @@ export const submit = async (
   }
 };
 
+export const runSystems = async (
+  assignmentId: number,
+  files: { path: string; content: string }[],
+): Promise<JudgeResponse> => {
+  const { data } = await apiClient.post<JudgeResponse>(
+    "/judge/run",
+    { runtime: "systems", assignmentId, files, language: "c", testCases: [] }
+  );
+  return data;
+};
+
 export const getSubmitStatus = async (
   jobId: string
 ): Promise<JudgeVerdict> => {

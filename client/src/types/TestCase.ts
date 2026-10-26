@@ -4,6 +4,10 @@ export interface TestCase {
   expectedOutput?: string;
   isPublic: boolean;
   schemaLibraryId?: number | null;
+  // Systems problems
+  stdin?: string;
+  env?: Record<string, string>;
+  compare?: "exact" | "unordered";
 }
 
 export interface TestResult {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,6 +30,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { TestCase } from "../../types/TestCase";
 import { createProblem } from "@/services/ProblemService";
+import SystemsAuthoring, { SystemsAuthoringHandle } from "./SystemsAuthoring";
 import { runCode, getRunStatus } from "@/services/JudgeService";
 import { JudgeVerdict } from "@/types/TestCase";
 import { getSchemaLibraries } from "@/services/SchemaLibraryService";
@@ -163,6 +164,9 @@ const ProblemCreation = () => {
     }
   };
 
+  const [isSystems, setIsSystems] = useState(false);
+  const systemsRef = useRef<SystemsAuthoringHandle>(null);
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -180,6 +184,27 @@ const ProblemCreation = () => {
   const outputType = form.watch("outputType");
 
   const onSubmit = async (data: FormValues) => {
+    if (isSystems) {
+      const sys = systemsRef.current?.getPayload();
+      if (!sys) return;
+      try {
+        await createProblem({
+          title: data.title,
+          description: data.description,
+          category: data.category,
+          prerequisites: data.prerequisites,
+          learning_outcomes: data.learning_outcomes,
+          tags: data.tags,
+          ...sys,
+        });
+        toast.success(`Problem "${data.title}" created successfully`);
+        navigate("/instructor/dashboard");
+      } catch (error) {
+        console.error("Error creating problem:", error);
+        toast.error("Error creating problem");
+      }
+      return;
+    }
     if (data.outputType !== "image") {
       const emptyOutputs = data.testCases.filter(
         (tc) => !tc.expectedOutput.trim()
@@ -265,6 +290,11 @@ const ProblemCreation = () => {
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <div className="flex items-center gap-2">
+            <Label className="text-sm">Problem kind:</Label>
+            <Button type="button" size="sm" variant={!isSystems ? "default" : "outline"} onClick={() => setIsSystems(false)}>Standard</Button>
+            <Button type="button" size="sm" variant={isSystems ? "default" : "outline"} onClick={() => setIsSystems(true)}>Systems (C)</Button>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-6">
               <FormField
@@ -435,6 +465,7 @@ const ProblemCreation = () => {
             />
           </div>
 
+          {!isSystems && (
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <Label>
@@ -636,6 +667,13 @@ const ProblemCreation = () => {
               </Card>
             ))}
           </div>
+          )}
+
+          {isSystems && (
+            <div className="space-y-4">
+              <SystemsAuthoring ref={systemsRef} />
+            </div>
+          )}
 
           <div className="flex justify-end gap-4 pt-6">
             <Button

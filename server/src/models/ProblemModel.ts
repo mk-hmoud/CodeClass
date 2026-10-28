@@ -225,11 +225,16 @@ export const deleteProblem = async (problemId: number): Promise<void> => {
 };
 
 export const getAssignmentTestCases = async (
-  assignmentId: number
+  assignmentId: number,
+  problemId?: number
 ): Promise<TestCase[]> => {
   // A test case's setup SQL can come from a reusable schema_libraries row
   // (live reference, like assignments.library_id) instead of its own inline
   // `input` -- a group override still wins over either, same as before.
+  //
+  // The test cases belong to the problem being submitted: when problemId is
+  // given use it, else fall back to the assignment's primary problem (so
+  // single-problem assignments keep working unchanged).
   const sql = `
     SELECT tc.test_case_id   AS "testCaseId",
            COALESCE(gto.input, sl.setup_sql, tc.input, '') AS input,
@@ -237,7 +242,7 @@ export const getAssignmentTestCases = async (
            tc.is_public      AS "isPublic"
     FROM assignments a
     JOIN problem_test_cases tc
-      ON a.problem_id = tc.problem_id
+      ON tc.problem_id = COALESCE($2, a.problem_id)
     LEFT JOIN group_test_case_overrides gto
       ON gto.test_case_id = tc.test_case_id AND gto.group_id = a.group_id
     LEFT JOIN schema_libraries sl
@@ -245,19 +250,20 @@ export const getAssignmentTestCases = async (
     WHERE a.assignment_id = $1
     ORDER BY tc.test_case_id
   `;
-  const { rows } = await pool.query(sql, [assignmentId]);
+  const { rows } = await pool.query(sql, [assignmentId, problemId ?? null]);
   return rows;
 };
 
 export const getProblemOutputTypeForAssignment = async (
-  assignmentId: number
+  assignmentId: number,
+  problemId?: number
 ): Promise<'text' | 'image'> => {
   const sql = `
     SELECT p.output_type AS "outputType"
     FROM assignments a
-    JOIN problems p ON a.problem_id = p.problem_id
+    JOIN problems p ON p.problem_id = COALESCE($2, a.problem_id)
     WHERE a.assignment_id = $1
   `;
-  const { rows } = await pool.query(sql, [assignmentId]);
+  const { rows } = await pool.query(sql, [assignmentId, problemId ?? null]);
   return (rows[0]?.outputType as 'text' | 'image') ?? 'text';
 };

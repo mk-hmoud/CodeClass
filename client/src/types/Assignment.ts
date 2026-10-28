@@ -1,10 +1,21 @@
 import { Problem } from "./Problem"
 import { AssignmentLanguage } from "./Language";
 
+/** One problem's membership in a multi-problem assignment. */
+export interface AssignmentProblem {
+  problem: Problem;
+  points: number;
+  position: number;
+  languages?: AssignmentLanguage[];
+}
+
 export interface Assignment {
   assignmentId: number;
   classroomId: number;
+  /** Primary problem (problems[0].problem). Kept for single-problem callers. */
   problem: Problem;
+  /** Every problem in the assignment, ordered by position. */
+  problems?: AssignmentProblem[];
   title: string;
   description: string;
   difficulty_level: "Easy" | "Medium" | "Hard";
@@ -29,7 +40,15 @@ export interface Assignment {
 
 export interface AssignmentCreationData {
   classroomId: number;
+  /** Primary problem; for multi-problem it must equal problems[0].problemId. */
   problemId: number;
+  /** Full ordered problem set. Omit for a single-problem assignment. */
+  problems?: Array<{
+    problemId: number;
+    points?: number;
+    position?: number;
+    languages?: Array<{ languageId: number; initial_code?: string }>;
+  }>;
   title?: string;
   description?: string;
   difficulty_level: "Easy" | "Medium" | "Hard";

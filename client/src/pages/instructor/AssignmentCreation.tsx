@@ -20,6 +20,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import BasicInfoSection, { TestCaseOverrideDraft } from "@/components/instructor/assignment/creation/BasicInfoSection";
+import ExtraProblemsSection, { ExtraProblemDraft } from "@/components/instructor/assignment/creation/ExtraProblemsSection";
 import SubmissionSettingsSection from "@/components/instructor/assignment/creation/SubmissionSettingsSection";
 import ScheduleSection from "@/components/instructor/assignment/creation/ScheduleSection";
 import AssignmentCodeEditor from "@/components/editors/AssignmentCodeEditor";
@@ -47,6 +48,7 @@ const CreateAssignmentPage: React.FC = () => {
   const [formData, setFormData] = useState<FormValues | null>(null);
   const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null);
   const [testCaseOverrides, setTestCaseOverrides] = useState<TestCaseOverrideDraft[]>([]);
+  const [extraProblems, setExtraProblems] = useState<ExtraProblemDraft[]>([]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -163,11 +165,30 @@ const CreateAssignmentPage: React.FC = () => {
       dueDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
     }
 
+    const primaryProblemId = selectedProblem
+      ? selectedProblem.problemId
+      : Number(formData.problemId);
+
+    const primaryLanguages = selectedLanguages.map((lang) => ({
+      languageId: languages?.find((l) => l.name === lang)?.language_id || 0,
+      initial_code: codeByLanguage[lang] || "",
+    }));
+
     const payload: AssignmentCreationData = {
       classroomId: Number(classroomId),
-      problemId: selectedProblem
-        ? selectedProblem.problemId
-        : Number(formData.problemId),
+      problemId: primaryProblemId,
+      // Only send the full problem set when there's more than one; a single
+      // problem stays the legacy single-problem payload.
+      problems: extraProblems.length > 0
+        ? [
+            { problemId: primaryProblemId, points: formData.points, position: 0, languages: primaryLanguages },
+            ...extraProblems.map((e, i) => ({
+              problemId: e.problem.problemId,
+              points: e.points,
+              position: i + 1,
+            })),
+          ]
+        : undefined,
       title: formData.title || selectedProblem?.title || "",
       description: formData.description || selectedProblem?.description || "",
       difficulty_level: formData.difficulty_level,
@@ -183,10 +204,7 @@ const CreateAssignmentPage: React.FC = () => {
       libraryId: formData.libraryId ? Number(formData.libraryId) : undefined,
       groupId: formData.groupId ? Number(formData.groupId) : undefined,
       testCaseOverrides: formData.groupId && testCaseOverrides.length > 0 ? testCaseOverrides : undefined,
-      languages: selectedLanguages.map((lang) => ({
-        languageId: languages?.find((l) => l.name === lang)?.language_id || 0,
-        initial_code: codeByLanguage[lang] || "",
-      })),
+      languages: primaryLanguages,
     };
 
     try {
@@ -229,6 +247,12 @@ const CreateAssignmentPage: React.FC = () => {
               classroomId={Number(classroomId)}
               onSelectedProblemChange={setSelectedProblem}
               onTestCaseOverridesChange={setTestCaseOverrides}
+            />
+
+            <ExtraProblemsSection
+              primaryProblem={selectedProblem}
+              primaryPoints={form.watch("points")}
+              onChange={setExtraProblems}
             />
 
             <SubmissionSettingsSection

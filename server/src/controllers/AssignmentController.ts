@@ -179,8 +179,14 @@ export const getRemainingAttemptsController = async (
         return;
     }
 
+    // Optional ?problemId scopes the count to one problem in a multi-problem
+    // assignment; omitted falls back to the assignment's primary problem.
+    const problemIdRaw = req.query.problemId;
+    const problemId = problemIdRaw != null && problemIdRaw !== ''
+      ? Number(problemIdRaw) : undefined;
+
     logger.debug({ fn }, 'Calling getRemainingAttempts model function.');
-    const remaining = await getRemainingAttempts(assignmentId, studentId);
+    const remaining = await getRemainingAttempts(assignmentId, studentId, problemId);
     logger.info(
       { fn, assignmentId, studentId, remaining },
       `Remaining attempts fetched: ${remaining} for assignment ${assignmentId}, student ${studentId}.`

@@ -1,6 +1,6 @@
 import pool from "../config/db";
 import logger from "../config/logger";
-import { Assignment, AssignmentCreationData, Problem, TestCase, Language, AssignmentLanguage } from "../types"
+import { Assignment, AssignmentCreationData, AssignmentProblem, Problem, TestCase, Language, AssignmentLanguage } from "../types"
 import { isGradeVisible } from "../utils/gradeVisibility";
 
 /**
@@ -63,6 +63,24 @@ export const createAssignment = async (
     logger.debug({ fn }, 'Beginning transaction');
     await client.query("BEGIN");
 
+    // Normalise to a problem set. A legacy single-problem payload (just
+    // problemId + top-level languages) becomes the one-element case; the
+    // assignment row's problem_id stays the primary (first) problem.
+    const problemSet = (assignment.problems && assignment.problems.length)
+      ? assignment.problems.map((p, i) => ({
+          problemId: p.problemId,
+          points: p.points ?? assignment.points ?? 100,
+          position: p.position ?? i,
+          languages: p.languages,
+        }))
+      : [{
+          problemId: assignment.problemId,
+          points: assignment.points ?? 100,
+          position: 0,
+          languages: assignment.languages,
+        }];
+    const primaryProblemId = problemSet[0].problemId;
+
     const insertSql = `
       INSERT INTO assignments (
         classroom_id,
@@ -86,7 +104,7 @@ export const createAssignment = async (
       rows: [inserted],
     } = await client.query(insertSql, [
       assignment.classroomId,
-      assignment.problemId,
+      primaryProblemId,
       assignment.title || null,
       assignment.description || null,
       assignment.difficulty_level || null,
@@ -107,7 +125,7 @@ export const createAssignment = async (
     if (!inserted.title || !inserted.description) {
       const { rows: problemRows } = await client.query(
         `SELECT title, description FROM problems WHERE problem_id = $1`,
-        [assignment.problemId]
+        [primaryProblemId]
       );
       if (problemRows.length) {
         const pb = problemRows[0];
@@ -126,21 +144,27 @@ export const createAssignment = async (
       }
     }
 
-    if (assignment.languages?.length) {
-      const langSql = `
-        INSERT INTO assignment_languages_pairs
-          (assignment_id, language_id, initial_code)
-        VALUES ($1,$2,$3)
-      `;
-      for (const { languageId, initial_code } of assignment.languages) {
-        await client.query(langSql, [
-          assignmentId,
-          languageId,
-          initial_code || null,
-        ]);
+    // The ordered problem set, plus each problem's own starter code.
+    const apSql = `
+      INSERT INTO assignment_problems (assignment_id, problem_id, points, position)
+      VALUES ($1,$2,$3,$4)
+      ON CONFLICT (assignment_id, problem_id) DO UPDATE
+        SET points = EXCLUDED.points, position = EXCLUDED.position
+    `;
+    const langSql = `
+      INSERT INTO assignment_languages_pairs
+        (assignment_id, problem_id, language_id, initial_code)
+      VALUES ($1,$2,$3,$4)
+    `;
+    for (const p of problemSet) {
+      await client.query(apSql, [assignmentId, p.problemId, p.points, p.position]);
+      if (p.languages?.length) {
+        for (const { languageId, initial_code } of p.languages) {
+          await client.query(langSql, [assignmentId, p.problemId, languageId, initial_code || null]);
+        }
       }
-      logger.debug({ fn, assignmentId }, 'Inserted languages');
     }
+    logger.debug({ fn, assignmentId, problemCount: problemSet.length }, 'Inserted problem set + languages');
 
     if (assignment.groupId && assignment.testCaseOverrides?.length) {
       const overrideSql = `
@@ -173,6 +197,65 @@ export const createAssignment = async (
 };
 
 
+
+/** A problem's test cases within an assignment (group override + schema lib
+ *  resolved the same way the primary-problem query does). */
+const loadProblemTestCases = async (problemId: number, groupId: number | null): Promise<TestCase[]> => {
+  const { rows } = await pool.query(
+    `SELECT
+       tc.test_case_id                                   AS "testCaseId",
+       COALESCE(gto.input, sl.setup_sql, tc.input, '')   AS "input",
+       COALESCE(gto.expected_output, tc.expected_output, '') AS "expectedOutput",
+       tc.is_public                                      AS "isPublic",
+       tc.stdin                                          AS "stdin",
+       tc.env                                            AS "env",
+       tc.compare                                        AS "compare"
+     FROM problem_test_cases tc
+     LEFT JOIN group_test_case_overrides gto
+       ON gto.test_case_id = tc.test_case_id AND gto.group_id = $2
+     LEFT JOIN schema_libraries sl
+       ON sl.schema_library_id = tc.schema_library_id
+     WHERE tc.problem_id = $1
+     ORDER BY tc.test_case_id`,
+    [problemId, groupId]
+  );
+  return rows.map((r: any) => ({
+    testCaseId: r.testCaseId,
+    input: r.input ?? undefined,
+    expectedOutput: r.expectedOutput,
+    isPublic: r.isPublic,
+    stdin: r.stdin ?? undefined,
+    env: r.env ?? undefined,
+    compare: r.compare ?? undefined,
+  }));
+};
+
+/** A systems problem's student-visible files (hidden files excluded). */
+const loadProblemFiles = async (problemId: number) => {
+  const { rows } = await pool.query(
+    `SELECT path, content, role FROM problem_files
+       WHERE problem_id = $1 AND role IN ('template','readonly')
+       ORDER BY role, path`,
+    [problemId]
+  );
+  return rows.map((f: any) => ({ path: f.path, content: f.content, role: f.role }));
+};
+
+/** A problem's starter code within an assignment. */
+const loadProblemLanguages = async (assignmentId: number, problemId: number): Promise<AssignmentLanguage[]> => {
+  const { rows } = await pool.query(
+    `SELECT l.language_id, l.name, l.version, alp.initial_code
+       FROM assignment_languages_pairs alp
+       JOIN languages l ON alp.language_id = l.language_id
+      WHERE alp.assignment_id = $1 AND alp.problem_id = $2
+      ORDER BY l.language_id`,
+    [assignmentId, problemId]
+  );
+  return rows.map((r: any) => ({
+    language: { language_id: r.language_id, name: r.name, version: r.version ?? undefined },
+    initial_code: r.initial_code ?? undefined,
+  }));
+};
 
 export const getAssignmentById = async (
   assignmentId: number
@@ -231,9 +314,10 @@ export const getAssignmentById = async (
       JOIN languages l
         ON alp.language_id = l.language_id
       WHERE alp.assignment_id = $1
+        AND (alp.problem_id = $2 OR alp.problem_id IS NULL)
       ORDER BY l.language_id
     `;
-    const resL = await pool.query(languageQuery, [assignmentId]);
+    const resL = await pool.query(languageQuery, [assignmentId, row.problem_id]);
     const languages: AssignmentLanguage[] = resL.rows.map(r => ({
       language: {
         language_id: r.language_id,
@@ -281,6 +365,52 @@ export const getAssignmentById = async (
     );
     const files = filesRes.rows.map(f => ({ path: f.path, content: f.content, role: f.role }));
 
+    // The full ordered problem set. Each problem carries its own test cases,
+    // files, starter code and per-assignment points. problems[0] is the primary
+    // problem (same one exposed as `assignment.problem`).
+    const apRes = await pool.query(
+      `SELECT
+         ap.problem_id, ap.points, ap.position,
+         p.title, p.description, p.category,
+         COALESCE(p.prerequisites, '')    AS prerequisites,
+         COALESCE(p.learning_outcomes,'') AS learning_outcomes,
+         COALESCE(p.tags, '')             AS tags,
+         p.created_at,
+         p.output_type   AS "outputType",
+         p.runtime,
+         p.build_command AS "buildCommand",
+         p.entrypoint
+       FROM assignment_problems ap
+       JOIN problems p ON p.problem_id = ap.problem_id
+      WHERE ap.assignment_id = $1
+      ORDER BY ap.position, ap.problem_id`,
+      [assignmentId]
+    );
+    const problems: AssignmentProblem[] = [];
+    for (const pr of apRes.rows) {
+      problems.push({
+        points: pr.points,
+        position: pr.position,
+        languages: await loadProblemLanguages(assignmentId, pr.problem_id),
+        problem: {
+          problemId: pr.problem_id,
+          title: pr.title,
+          description: pr.description,
+          category: pr.category ?? undefined,
+          prerequisites: pr.prerequisites ?? undefined,
+          learning_outcomes: pr.learning_outcomes ?? undefined,
+          tags: pr.tags ?? undefined,
+          created_at: new Date(pr.created_at),
+          testCases: await loadProblemTestCases(pr.problem_id, row.group_id),
+          outputType: pr.outputType ?? 'text',
+          runtime: pr.runtime ?? 'standard',
+          buildCommand: pr.buildCommand ?? undefined,
+          entrypoint: pr.entrypoint ?? undefined,
+          files: await loadProblemFiles(pr.problem_id),
+        },
+      });
+    }
+
     const assignment: Assignment = {
       assignmentId: row.assignment_id,
       classroomId: row.classroom_id,
@@ -299,6 +429,7 @@ export const getAssignmentById = async (
       publish_date: row.publish_date ? new Date(row.publish_date) : undefined,
       due_date: row.due_date ? new Date(row.due_date) : undefined,
       languages,
+      problems,
       completed: false,
       status:       row.status as "not_published"|"active"|"expired",
 
@@ -350,6 +481,13 @@ export const getAssignmentForStudent = async (
     const beforeCount = a.problem.testCases.length;
     a.problem.testCases = a.problem.testCases.filter((tc) => tc.isPublic);
     const afterCount = a.problem.testCases.length;
+    // Same filtering for every problem in a multi-problem assignment, so private
+    // tests never reach the student for any of them.
+    if (a.problems) {
+      for (const ap of a.problems) {
+        ap.problem.testCases = ap.problem.testCases.filter((tc) => tc.isPublic);
+      }
+    }
     logger.debug({ fn, assignmentId, beforeCount, afterCount }, `Filtered test cases: ${beforeCount} → ${afterCount} public only`);
 
     delete (a as any).grading_method;
@@ -694,20 +832,49 @@ export const getAssignments = async (instructorId: number): Promise<Assignment[]
 };
 
 export async function getAssignmentRuntime(
-  assignmentId: number
+  assignmentId: number,
+  problemId?: number
 ): Promise<{ problemId: number; runtime: string } | null> {
   const { rows } = await pool.query(
     `SELECT p.problem_id AS "problemId", p.runtime
-       FROM assignments a JOIN problems p ON p.problem_id = a.problem_id
+       FROM assignments a JOIN problems p ON p.problem_id = COALESCE($2, a.problem_id)
       WHERE a.assignment_id = $1`,
-    [assignmentId]
+    [assignmentId, problemId ?? null]
   );
   return rows[0] ?? null;
 }
 
+/**
+ * Resolve the problem a student is acting on within an assignment, and verify
+ * it is actually part of that assignment. Returns the assignment's primary
+ * problem when none is given (single-problem assignments / older clients).
+ * Throws when a problemId is supplied that is not in the assignment -- which is
+ * what stops a student submitting against an arbitrary problem id.
+ */
+export async function resolveAssignmentProblemId(
+  assignmentId: number,
+  problemId?: number | null
+): Promise<number> {
+  if (problemId == null) {
+    const { rows } = await pool.query(
+      `SELECT problem_id FROM assignments WHERE assignment_id = $1`,
+      [assignmentId]
+    );
+    if (!rows[0]) throw new Error("Assignment not found");
+    return rows[0].problem_id as number;
+  }
+  const { rowCount } = await pool.query(
+    `SELECT 1 FROM assignment_problems WHERE assignment_id = $1 AND problem_id = $2`,
+    [assignmentId, problemId]
+  );
+  if (!rowCount) throw new Error("Problem is not part of this assignment");
+  return problemId;
+}
+
 export async function getRemainingAttempts(
   assignmentId: number,
-  studentId: number
+  studentId: number,
+  problemId?: number
 ): Promise<number> {
   const functionName = "getRemainingAttempts";
   logger.info(
@@ -756,8 +923,9 @@ export async function getRemainingAttempts(
       FROM submission_attempts
       WHERE assignment_id = $1
         AND student_id = $2
+        AND ($3::int IS NULL OR problem_id = $3)
       `,
-      [assignmentId, studentId]
+      [assignmentId, studentId, problemId ?? null]
     );
 
     const used = parseInt(countRes.rows[0].cnt, 10);
@@ -785,21 +953,23 @@ export async function getRemainingAttempts(
 
 export async function getSubmissionAttemptCount(
   assignmentId: number,
-  studentId: number
+  studentId: number,
+  problemId?: number
 ): Promise<number> {
   const functionName = "getSubmissionAttemptCount";
   logger.info(
-    { fn: functionName, assignmentId, studentId },
+    { fn: functionName, assignmentId, studentId, problemId },
     `Getting submission attempt count for assignment ${assignmentId} and student ${studentId}`
   );
-  
+
   try {
     const result = await pool.query<{ cnt: string }>(
       `SELECT COUNT(*) AS cnt
        FROM submission_attempts
        WHERE assignment_id = $1
-       AND student_id = $2`,
-      [assignmentId, studentId]
+       AND student_id = $2
+       AND ($3::int IS NULL OR problem_id = $3)`,
+      [assignmentId, studentId, problemId ?? null]
     );
     
     const count = parseInt(result.rows[0].cnt, 10);

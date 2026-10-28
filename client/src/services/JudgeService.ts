@@ -11,12 +11,13 @@ export const runCode = async (
   language: string,
   testCases: TestCase[],
   outputType?: "text" | "image",
-  assignmentId?: number
+  assignmentId?: number,
+  problemId?: number
 ): Promise<JudgeResponse> => {
   try {
     const { data } = await apiClient.post<JudgeResponse>(
       "/judge/run",
-      { code, language, testCases, outputType, assignmentId }
+      { code, language, testCases, outputType, assignmentId, problemId }
     );
     return data;
   } catch (error) {
@@ -62,11 +63,12 @@ export const submit = async (
   code: string,
   language: string,
   files?: { path: string; content: string }[],
+  problemId?: number,
 ): Promise<JudgeResponse> => {
   try {
     const { data } = await apiClient.post<JudgeResponse>(
       "/judge/submit",
-      { assignmentId, code, language, files }
+      { assignmentId, code, language, files, problemId }
     );
     return data;
   } catch (error) {
@@ -78,10 +80,11 @@ export const submit = async (
 export const runSystems = async (
   assignmentId: number,
   files: { path: string; content: string }[],
+  problemId?: number,
 ): Promise<JudgeResponse> => {
   const { data } = await apiClient.post<JudgeResponse>(
     "/judge/run",
-    { runtime: "systems", assignmentId, files, language: "c", testCases: [] }
+    { runtime: "systems", assignmentId, files, language: "c", testCases: [], problemId }
   );
   return data;
 };

@@ -6,6 +6,8 @@ import { FullSubmission, JudgeStatus, JudgeVerdict, PlagiarismReport, Submission
 export interface CreateSubmissionArgs {
   studentId: number;
   assignmentId: number;
+  /** The specific problem within the assignment this submission is for. */
+  problemId: number;
   language: string;
   code: string;
 }
@@ -23,6 +25,7 @@ export class AttemptLimitReachedError extends Error {
 export const createSubmission = async ({
     studentId,
     assignmentId,
+    problemId,
     language,
     code,
   }: CreateSubmissionArgs): Promise<number> => {
@@ -44,11 +47,12 @@ export const createSubmission = async ({
       }
       const languageId = langQueryResult.rows[0].language_id;
 
-      // Serialise concurrent submits by the same student for the same
-      // assignment so the attempt-limit check and the attempt insert are
-      // atomic -- a double-click or a second tab would otherwise both read
-      // "1 left" and both insert. The lock is released at COMMIT/ROLLBACK.
-      await client.query(`SELECT pg_advisory_xact_lock($1, $2)`, [studentId, assignmentId]);
+      // Serialise concurrent submits by the same student for the same PROBLEM
+      // so the attempt-limit check and the attempt insert are atomic -- a
+      // double-click or a second tab would otherwise both read "1 left" and
+      // both insert. Keyed on (studentId, problemId) so submitting a different
+      // problem in the same assignment does not block. Released at COMMIT/ROLLBACK.
+      await client.query(`SELECT pg_advisory_xact_lock($1, $2)`, [studentId, problemId]);
 
       const limitRes = await client.query<{ max_submissions: number | null }>(
         `SELECT max_submissions FROM assignments WHERE assignment_id = $1`,
@@ -56,37 +60,41 @@ export const createSubmission = async ({
       );
       const maxSubmissions = limitRes.rows[0]?.max_submissions ?? null;
       if (maxSubmissions !== null) {
+        // The attempt budget is per problem.
         const used = await client.query<{ cnt: string }>(
-          `SELECT COUNT(*) AS cnt FROM submission_attempts WHERE student_id = $1 AND assignment_id = $2`,
-          [studentId, assignmentId]
+          `SELECT COUNT(*) AS cnt FROM submission_attempts
+             WHERE student_id = $1 AND assignment_id = $2 AND problem_id = $3`,
+          [studentId, assignmentId, problemId]
         );
         if (parseInt(used.rows[0].cnt, 10) >= maxSubmissions) {
           throw new AttemptLimitReachedError();
         }
       }
 
-      // Keep only the latest submission per student+assignment (grade/feedback
-      // on the prior one is intentionally discarded here). Attempt rows for the
-      // deleted submission keep counting -- their submission_id goes NULL.
+      // Keep only the latest submission per student+assignment+PROBLEM (grade/
+      // feedback on the prior one is intentionally discarded here). Scoping to
+      // the problem is what lets a student submit problem B without wiping their
+      // problem A submission. Attempt rows for the deleted submission keep
+      // counting -- their submission_id goes NULL.
       await client.query(
-        `DELETE FROM submissions WHERE student_id = $1 AND assignment_id = $2`,
-        [studentId, assignmentId]
+        `DELETE FROM submissions WHERE student_id = $1 AND assignment_id = $2 AND problem_id = $3`,
+        [studentId, assignmentId, problemId]
       );
 
       const insertRes = await client.query<{ submission_id: number }>(
-        `INSERT INTO submissions (student_id, assignment_id, language_id, code, status)
-         VALUES ($1,$2,$3,$4,'queued')
+        `INSERT INTO submissions (student_id, assignment_id, problem_id, language_id, code, status)
+         VALUES ($1,$2,$3,$4,$5,'queued')
          RETURNING submission_id`,
-        [studentId, assignmentId, languageId, code]
+        [studentId, assignmentId, problemId, languageId, code]
       );
       const submissionId = insertRes.rows[0].submission_id;
 
       // The attempt is tied to this submission so a compile error can later
       // remove exactly this row (see JudgeController getSubmitStatus).
       await client.query(
-        `INSERT INTO submission_attempts (student_id, assignment_id, submission_id)
-         VALUES ($1, $2, $3)`,
-        [studentId, assignmentId, submissionId]
+        `INSERT INTO submission_attempts (student_id, assignment_id, problem_id, submission_id)
+         VALUES ($1, $2, $3, $4)`,
+        [studentId, assignmentId, problemId, submissionId]
       );
 
       await client.query("COMMIT");

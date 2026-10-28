@@ -166,12 +166,27 @@ CREATE TABLE problem_test_cases (
 CREATE TABLE assignment_languages_pairs (
   pair_id SERIAL PRIMARY KEY,
   assignment_id INT NOT NULL,
+  -- Starter code is per-(assignment, problem): a multi-problem assignment has
+  -- its own initial code per problem. Nullable for legacy single-problem rows.
+  problem_id INT REFERENCES problems(problem_id) ON DELETE CASCADE,
   language_id INT NOT NULL,
   initial_code TEXT,
   FOREIGN KEY (assignment_id) REFERENCES assignments(assignment_id) ON DELETE CASCADE,
   FOREIGN KEY (language_id) REFERENCES languages(language_id) ON DELETE CASCADE,
-  UNIQUE (assignment_id, language_id)
+  UNIQUE (assignment_id, problem_id, language_id)
 );
+
+-- An assignment is an ordered SET of problems (one row = one problem in it).
+-- points/position are per-problem, per-assignment. Single-problem assignments
+-- have exactly one row here.
+CREATE TABLE assignment_problems (
+  assignment_id INT NOT NULL REFERENCES assignments(assignment_id) ON DELETE CASCADE,
+  problem_id    INT NOT NULL REFERENCES problems(problem_id)       ON DELETE CASCADE,
+  points        INT NOT NULL DEFAULT 100,
+  position      INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (assignment_id, problem_id)
+);
+CREATE INDEX idx_assignment_problems_assignment ON assignment_problems(assignment_id);
 
 CREATE TABLE libraries (
   library_id SERIAL PRIMARY KEY,
@@ -320,6 +335,9 @@ CREATE TABLE submissions (
   submission_id   SERIAL PRIMARY KEY,
   student_id      INT NOT NULL REFERENCES students(student_id) ON DELETE CASCADE,
   assignment_id   INT NOT NULL REFERENCES assignments(assignment_id) ON DELETE CASCADE,
+  -- Which problem within the assignment this submission is for. Nullable only
+  -- for legacy single-problem rows written before multi-problem support.
+  problem_id      INT REFERENCES problems(problem_id) ON DELETE CASCADE,
   language_id     INT NOT NULL REFERENCES languages(language_id) ON DELETE CASCADE,
   code            TEXT NOT NULL,
   submitted_at    TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -559,11 +577,15 @@ CREATE TABLE submission_attempts (
   -- (they are what the per-assignment limit counts). Lets a compile error
   -- un-count its own attempt by submission_id.
   submission_id INT REFERENCES submissions(submission_id) ON DELETE SET NULL,
+  -- The problem the attempt was for: the attempt budget is counted per problem.
+  -- Nullable for legacy single-problem rows.
+  problem_id INT REFERENCES problems(problem_id) ON DELETE CASCADE,
   submitted_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE (student_id, assignment_id, submitted_at)
 );
 
 CREATE INDEX idx_submission_attempts ON submission_attempts(student_id, assignment_id);
+CREATE INDEX idx_submission_attempts_problem ON submission_attempts(student_id, assignment_id, problem_id);
 
 -- CREATE OR REPLACE VIEW can only append new output columns at the very end;
 -- a.* means any ALTER TABLE ADD COLUMN on assignments lands *before* the
@@ -663,7 +685,7 @@ ON CONFLICT DO NOTHING;
 -- ============================================================================
 CREATE TYPE problem_runtime_enum   AS ENUM ('standard','systems');
 CREATE TYPE problem_file_role_enum AS ENUM ('template','readonly','hidden');
-CREATE TYPE test_compare_enum      AS ENUM ('exact','unordered');
+CREATE TYPE test_compare_enum      AS ENUM ('exact','unordered','regex');
 
 ALTER TABLE problems
   ADD COLUMN runtime       problem_runtime_enum NOT NULL DEFAULT 'standard',
@@ -681,9 +703,13 @@ CREATE TABLE problem_files (
 CREATE INDEX idx_problem_files_problem ON problem_files(problem_id);
 
 ALTER TABLE problem_test_cases
-  ADD COLUMN stdin   TEXT,
-  ADD COLUMN env     JSONB,
-  ADD COLUMN compare test_compare_enum NOT NULL DEFAULT 'exact';
+  ADD COLUMN stdin           TEXT,
+  ADD COLUMN env             JSONB,
+  ADD COLUMN compare         test_compare_enum NOT NULL DEFAULT 'exact',
+  -- Optional signal to deliver mid-run (e.g. 'SIGINT') for signal-handling
+  -- problems, and how long to wait before sending it.
+  ADD COLUMN signal          TEXT,
+  ADD COLUMN signal_after_ms INT;
 
 CREATE TABLE submission_files (
   submission_id INT NOT NULL REFERENCES submissions(submission_id) ON DELETE CASCADE,

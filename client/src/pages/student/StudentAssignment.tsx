@@ -96,6 +96,16 @@ const StudentAssignment = () => {
   const diffMeta = diff ? DIFFICULTY_META[diff] ?? DIFFICULTY_META.Medium : null;
   const accent = ACCENTS[parseInt(classroomId ?? "0", 10) % ACCENTS.length];
 
+  const problems = assignment.problems ?? [];
+  const isMulti = problems.length > 1;
+  // Open the editor on a specific problem; the id rides in the URL (survives
+  // refresh / shared links) and in nav state (fast path). Omit for the primary.
+  const openProblem = (pid?: number) =>
+    navigate(
+      `/student/classrooms/${classroomId}/assignments/${assignmentId}/solve${pid != null ? `?problem=${pid}` : ""}`,
+      { state: { ...assignment, activeProblemId: pid } }
+    );
+
   return (
     <div className="flex-1 flex flex-col">
       {/* ── Header ─────────────────────────────────────────────────────── */}
@@ -140,11 +150,11 @@ const StudentAssignment = () => {
             </div>
 
             <Button
-              onClick={() => navigate(`/student/classrooms/${classroomId}/assignments/${assignmentId}/solve`, { state: assignment })}
+              onClick={() => openProblem(isMulti ? problems[0].problem.problemId : undefined)}
               className="gap-2 shrink-0"
               disabled={false}
             >
-              {assignment.completed ? "Solve Again" : "Start Coding"}
+              {isMulti ? "Start First Problem" : assignment.completed ? "Solve Again" : "Start Coding"}
               <ChevronRight size={15} />
             </Button>
           </div>
@@ -277,9 +287,9 @@ const StudentAssignment = () => {
             {/* CTA */}
             <Button
               className="w-full gap-2"
-              onClick={() => navigate(`/student/classrooms/${classroomId}/assignments/${assignmentId}/solve`, { state: assignment })}
+              onClick={() => openProblem(isMulti ? problems[0].problem.problemId : undefined)}
             >
-              {assignment.completed ? "Solve Again" : "Start Coding"}
+              {isMulti ? "Start First Problem" : assignment.completed ? "Solve Again" : "Start Coding"}
               <ChevronRight size={15} />
             </Button>
           </motion.aside>
@@ -289,8 +299,43 @@ const StudentAssignment = () => {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, delay: 0.05 }}
-            className="md:col-span-2"
+            className="md:col-span-2 space-y-6"
           >
+            {isMulti && (
+              <div className="bg-card border border-border rounded-xl p-4">
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                  Problems <span className="text-foreground">({problems.length})</span>
+                </h3>
+                <ul className="space-y-2">
+                  {problems.map((ap, i) => (
+                    <li key={ap.problem.problemId}>
+                      <button
+                        onClick={() => openProblem(ap.problem.problemId)}
+                        className="w-full flex items-center gap-3 rounded-lg border border-border bg-background/40 hover:bg-muted/60 transition-colors px-3 py-2.5 text-left"
+                      >
+                        <span
+                          className="w-6 h-6 rounded-md flex items-center justify-center text-xs font-semibold shrink-0"
+                          style={{ backgroundColor: accent + "18", color: accent }}
+                        >
+                          {i + 1}
+                        </span>
+                        <span className="flex-1 min-w-0">
+                          <span className="block text-sm font-medium truncate">{ap.problem.title}</span>
+                          {ap.problem.category && (
+                            <span className="block text-xs text-muted-foreground truncate">{ap.problem.category}</span>
+                          )}
+                        </span>
+                        <span className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
+                          <Zap size={12} /><span className="font-semibold text-foreground">{ap.points}</span> pts
+                        </span>
+                        <ChevronRight size={15} className="text-muted-foreground shrink-0" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             <div className="bg-card border border-border rounded-xl overflow-hidden h-full min-h-[480px] flex flex-col">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1">
                 <div className="border-b border-border px-4 pt-3">

@@ -43,17 +43,41 @@ const emptyVerdict: JudgeVerdict = {
 
 type ResultTab = "cases" | "run" | "submit";
 
+/**
+ * Swap the assignment's primary `problem`/`languages` for the chosen problem of
+ * a multi-problem assignment, so the rest of the editor (built around
+ * `assignment.problem`) works on the selected problem with no other changes.
+ * Returns the assignment unchanged for single-problem assignments or when the id
+ * doesn't match (falls back to the primary problem).
+ */
+const withActiveProblem = (a: Assignment | null, pid?: number): Assignment | null => {
+  if (!a || pid == null || !a.problems?.length) return a;
+  const match = a.problems.find((ap) => ap.problem?.problemId === pid);
+  if (!match) return a;
+  return { ...a, problem: match.problem, languages: match.languages ?? a.languages };
+};
+
 const CodeEditorPage = () => {
   const navigate = useNavigate();
   const { classroomId, assignmentId } = useParams();
-  const { state = {} } = useLocation();
+  const location = useLocation();
+  const { state = {} } = location;
   const { theme } = useTheme();
   const isCompact = useIsCompactLayout();
+  // Which problem of a multi-problem assignment is being solved. Carried both in
+  // the URL (?problem=<id>, survives refresh / shared links) and in nav state.
+  // Absent -> the assignment's primary problem (single-problem assignments).
+  const activeProblemId: number | undefined =
+    Number(new URLSearchParams(location.search).get("problem")) ||
+    (state as { activeProblemId?: number })?.activeProblemId ||
+    undefined;
   // "Start Coding" passes the full assignment via router state (fast path, no
   // request needed). Anything that lands here without it -- a "Continue
   // Working" draft link, a page refresh, a direct/shared URL -- needs to fetch
   // it by id instead, or the editor renders with no language/description/tests.
-  const stateAssignment = (state as Assignment | null)?.assignmentId ? (state as Assignment) : null;
+  const stateAssignment = (state as Assignment | null)?.assignmentId
+    ? withActiveProblem(state as Assignment, activeProblemId)
+    : null;
   const [assignment, setAssignment] = useState<Assignment | null>(stateAssignment);
   const [assignmentLoading, setAssignmentLoading] = useState(!stateAssignment);
   const [mySubmission, setMySubmission] = useState<FullSubmission | null>(null);
@@ -96,7 +120,7 @@ const CodeEditorPage = () => {
       try {
         const raw = await getAssignmentById(Number(assignmentId));
         if (!raw?.assignment) throw new Error("Assignment not found");
-        setAssignment(normalizeAssignment(raw.assignment));
+        setAssignment(withActiveProblem(normalizeAssignment(raw.assignment), activeProblemId));
       } catch {
         toast.error("Failed to load assignment");
         navigate(`/student/classrooms/${classroomId}/view`);
@@ -228,13 +252,13 @@ const CodeEditorPage = () => {
     return () => { document.body.style.overflow = ""; document.documentElement.style.overflow = ""; };
   }, []);
 
-  // Fetch remaining attempts
+  // Fetch remaining attempts (per problem for multi-problem assignments)
   useEffect(() => {
     if (!assignmentId) return;
-    getRemainingAttempts(Number(assignmentId))
+    getRemainingAttempts(Number(assignmentId), activeProblemId)
       .then(setRemainingAttempts)
       .catch(() => {});
-  }, [assignmentId]);
+  }, [assignmentId, activeProblemId]);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   const getCode = () => monacoInstance.current?.getValue() ?? "";
@@ -277,8 +301,8 @@ const CodeEditorPage = () => {
 
     try {
       const { job_id } = isSystems
-        ? await runSystems(assignment!.assignmentId, systemsPaneRef.current?.getFiles() ?? [])
-        : await runCode(getCode(), selectedLanguage, publicTestCases, assignment?.problem?.outputType, assignment?.assignmentId);
+        ? await runSystems(assignment!.assignmentId, systemsPaneRef.current?.getFiles() ?? [], assignment?.problem?.problemId)
+        : await runCode(getCode(), selectedLanguage, publicTestCases, assignment?.problem?.outputType, assignment?.assignmentId, assignment?.problem?.problemId);
       let statusData: JudgeVerdict;
       do {
         await new Promise((r) => setTimeout(r, POLL_INTERVAL));
@@ -322,8 +346,8 @@ const CodeEditorPage = () => {
 
     try {
       const { job_id } = isSystems
-        ? await submit(assignment!.assignmentId, "", "c", systemsPaneRef.current?.getFiles() ?? [])
-        : await submit(assignment!.assignmentId, getCode(), selectedLanguage);
+        ? await submit(assignment!.assignmentId, "", "c", systemsPaneRef.current?.getFiles() ?? [], assignment?.problem?.problemId)
+        : await submit(assignment!.assignmentId, getCode(), selectedLanguage, undefined, assignment?.problem?.problemId);
       let statusData: JudgeVerdict;
       // Bound the wait: the judge can die or the queue can stall, and an
       // unbounded poll would leave the student on a spinner forever.
@@ -390,7 +414,7 @@ const CodeEditorPage = () => {
       // On "no attempts left", resync the counter from the server so the UI
       // stops offering a submit that will keep failing.
       if (resp?.status === 403 && assignmentId) {
-        getRemainingAttempts(Number(assignmentId)).then(setRemainingAttempts).catch(() => {});
+        getRemainingAttempts(Number(assignmentId), assignment?.problem?.problemId).then(setRemainingAttempts).catch(() => {});
       }
     } finally {
       setIsSubmitting(false);

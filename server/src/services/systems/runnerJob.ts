@@ -7,8 +7,12 @@ export interface RunnerTestCase {
   stdin: string;
   env: Record<string, string>;
   expectedOutput: string;
-  compare: "exact" | "unordered";
+  compare: "exact" | "unordered" | "regex";
   isPublic: boolean;
+  /** Optional: deliver this signal (e.g. "SIGINT") to the process mid-run, used
+   *  for signal-handling problems. signalAfterMs is how long to wait first. */
+  signal?: string;
+  signalAfterMs?: number;
 }
 export interface RunnerJob {
   files: RunnerFile[];
@@ -65,7 +69,8 @@ export const assembleSystemsJob = async (
   }
 
   const tcRes = await pool.query(
-    `SELECT test_case_id, input, expected_output, is_public, stdin, env, compare
+    `SELECT test_case_id, input, expected_output, is_public, stdin, env, compare,
+            signal, signal_after_ms
        FROM problem_test_cases WHERE problem_id = $1 ORDER BY test_case_id`,
     [problemId]
   );
@@ -75,8 +80,10 @@ export const assembleSystemsJob = async (
     stdin: t.stdin ?? "",
     env: (t.env as Record<string, string>) ?? {},
     expectedOutput: t.expected_output ?? "",
-    compare: (t.compare as "exact" | "unordered") ?? "exact",
+    compare: (t.compare as "exact" | "unordered" | "regex") ?? "exact",
     isPublic: t.is_public ?? true,
+    signal: t.signal ?? undefined,
+    signalAfterMs: t.signal_after_ms ?? undefined,
   }));
 
   return { files, buildCommand: build_command ?? "", entrypoint: entrypoint ?? "./app", testCases };

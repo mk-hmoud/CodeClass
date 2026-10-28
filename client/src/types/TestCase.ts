@@ -7,7 +7,9 @@ export interface TestCase {
   // Systems problems
   stdin?: string;
   env?: Record<string, string>;
-  compare?: "exact" | "unordered";
+  compare?: "exact" | "unordered" | "regex";
+  signal?: string;
+  signalAfterMs?: number;
 }
 
 export interface TestResult {

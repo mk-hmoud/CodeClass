@@ -59,9 +59,10 @@ export const getUpcomingDeadlines = async (hours: number = 24): Promise<Assignme
   }
 };
 
-export async function getRemainingAttempts(assignmentId: number): Promise<number> {
+export async function getRemainingAttempts(assignmentId: number, problemId?: number): Promise<number> {
   const { data } = await apiClient.get<{ data: { remainingAttempts: number } }>(
-    `/assignments/${assignmentId}/remaining-attempts`
+    `/assignments/${assignmentId}/remaining-attempts`,
+    { params: problemId != null ? { problemId } : undefined }
   );
   return data.data.remainingAttempts;
 }

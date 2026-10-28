@@ -165,10 +165,23 @@ export interface AttendanceReportRow {
 
 export type AssignmentStatus = 'not_published' | 'active' | 'expired';
 
+/** One problem's membership in a multi-problem assignment: the problem plus the
+ *  per-assignment points/order and that problem's own starter code. */
+export interface AssignmentProblem {
+  problem: Problem;
+  points: number;
+  position: number;
+  languages?: AssignmentLanguage[];
+}
+
 export interface Assignment {
   assignmentId: number;
   classroomId: number;
+  /** The first/primary problem. Kept for single-problem callers; multi-problem
+   *  UIs read `problems`. Always equals problems[0].problem when both are set. */
   problem: Problem;
+  /** Every problem in the assignment, ordered by position. */
+  problems?: AssignmentProblem[];
   title: string;
   description: string;
   difficulty_level?: "Easy" | "Medium" | "Hard";
@@ -192,7 +205,17 @@ export interface Assignment {
 
 export interface AssignmentCreationData{
   classroomId: number;
+  /** Primary problem. For a single-problem assignment this is the only one.
+   *  For multi-problem, it must equal problems[0].problemId. */
   problemId: number;
+  /** The full ordered problem set. When omitted, the assignment has the single
+   *  problem given by `problemId` (with `points`/`languages` below). */
+  problems?: Array<{
+    problemId: number;
+    points?: number;
+    position?: number;
+    languages?: Array<{ languageId: number; initial_code?: string }>;
+  }>;
   title: string;
   description: string;
   points?: number;
@@ -225,7 +248,9 @@ export interface TestCase{
   // Systems problems
   stdin?: string;
   env?: Record<string, string>;
-  compare?: 'exact' | 'unordered';
+  compare?: 'exact' | 'unordered' | 'regex';
+  signal?: string;
+  signalAfterMs?: number;
 }
 
 export interface ProblemFileInput {

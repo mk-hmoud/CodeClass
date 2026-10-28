@@ -12,7 +12,7 @@ import { assembleSystemsJob } from '../services/systems/runnerJob';
 import { runPlagiarismCheck } from './PlagiarismController';
 import { systemEventEmitter } from '../services/statistics/emitter'; 
 import { SubmissionCompletedEvent, SubmissionCreatedEvent } from '../services/statistics/events';
-import { canStudentAccessAssignment, getSubmissionAttemptCount, getAssignmentRuntime } from '../models/AssignmentModel';
+import { canStudentAccessAssignment, getSubmissionAttemptCount, getAssignmentRuntime, resolveAssignmentProblemId } from '../models/AssignmentModel';
 import { calculateGrade } from '../services/grading/Grader';
 
 
@@ -29,6 +29,7 @@ export const runCodeHandler = async (req: Request, res: Response): Promise<void>
   const { code, language, testCases, outputType, assignmentId } = req.body as RunCodeRequest;
   const runtime = (req.body as { runtime?: string }).runtime;
   const files = (req.body as { files?: { path: string; content: string }[] }).files;
+  const bodyProblemId = (req.body as { problemId?: number }).problemId;
 
   // Systems Run: build + run against PUBLIC tests only, no attempt recorded.
   if (runtime === "systems") {
@@ -41,7 +42,8 @@ export const runCodeHandler = async (req: Request, res: Response): Promise<void>
       return;
     }
     try {
-      const rt = await getAssignmentRuntime(assignmentId);
+      const pid = await resolveAssignmentProblemId(assignmentId, bodyProblemId);
+      const rt = await getAssignmentRuntime(assignmentId, pid);
       if (rt?.runtime !== "systems") {
         res.status(400).json({ error: "Not a systems assignment" });
         return;
@@ -250,8 +252,9 @@ export const getRunStatusHandler = async (req: Request, res: Response): Promise<
 
 export const submitHandler = async (req: Request, res: Response): Promise<void> => {
   const functionName = "submit";
-  const { assignmentId, code, language, files } = req.body as {
+  const { assignmentId, problemId: bodyProblemId, code, language, files } = req.body as {
     assignmentId: number;
+    problemId?: number;   // which problem in the assignment; defaults to primary
     code: string;
     language: string;
     files?: { path: string; content: string }[];  // systems problems submit files
@@ -305,6 +308,17 @@ export const submitHandler = async (req: Request, res: Response): Promise<void> 
     return;
   }
 
+  // Resolve (and validate membership of) the problem being submitted. Throws
+  // if a bogus problemId that is not in this assignment is supplied.
+  let problemId: number;
+  try {
+    problemId = await resolveAssignmentProblemId(assignmentId, bodyProblemId);
+  } catch (err) {
+    logger.warn({ fn: functionName, assignmentId, bodyProblemId }, `Invalid problem for assignment: ${err}`);
+    res.status(404).json({ success: false, message: 'Problem not found in assignment' });
+    return;
+  }
+
   let submissionId: number;
   try {
     // The attempt limit is enforced inside createSubmission, atomically with
@@ -317,6 +331,7 @@ export const submitHandler = async (req: Request, res: Response): Promise<void> 
     submissionId = await createSubmission({
       studentId,
       assignmentId,
+      problemId,
       language,
       code: effectiveCode,
     });
@@ -359,7 +374,7 @@ export const submitHandler = async (req: Request, res: Response): Promise<void> 
 
   let testCases: TestCase[];
   try {
-    testCases = await getAssignmentTestCases(assignmentId);
+    testCases = await getAssignmentTestCases(assignmentId, problemId);
     if (testCases.length === 0) {
       throw new Error("No test cases found for assignment");
     }
@@ -384,7 +399,7 @@ export const submitHandler = async (req: Request, res: Response): Promise<void> 
 
   let outputType: 'text' | 'image' = 'text';
   try {
-    outputType = await getProblemOutputTypeForAssignment(assignmentId);
+    outputType = await getProblemOutputTypeForAssignment(assignmentId, problemId);
   } catch (err) {
     logger.error(
       { fn: functionName, assignmentId, error: err },
@@ -394,7 +409,7 @@ export const submitHandler = async (req: Request, res: Response): Promise<void> 
 
   let jobData: string;
   try {
-    const rt = await getAssignmentRuntime(assignmentId);
+    const rt = await getAssignmentRuntime(assignmentId, problemId);
     if (rt?.runtime === "systems") {
       if (hasFiles) await storeSubmissionFiles(submissionId, files!);
       const job = await assembleSystemsJob(rt.problemId, files ?? []);
@@ -432,7 +447,7 @@ export const submitHandler = async (req: Request, res: Response): Promise<void> 
 
   let attemptCount = 0;
   try {
-    attemptCount = await getSubmissionAttemptCount(assignmentId, studentId);
+    attemptCount = await getSubmissionAttemptCount(assignmentId, studentId, problemId);
   } catch (err) {
     logger.error(
       { fn: functionName, assignmentId, studentId, error: err },

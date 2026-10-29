@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Save, AlertCircle } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import BasicInfoSection, { TestCaseOverrideDraft } from "@/components/instructor/assignment/creation/BasicInfoSection";
+import BasicInfoSection from "@/components/instructor/assignment/creation/BasicInfoSection";
 import ProblemSetBuilder, { ProblemSetItem } from "@/components/instructor/assignment/creation/ProblemSetBuilder";
 import SubmissionSettingsSection from "@/components/instructor/assignment/creation/SubmissionSettingsSection";
 import ScheduleSection from "@/components/instructor/assignment/creation/ScheduleSection";
@@ -24,7 +24,6 @@ const CreateAssignmentPage: React.FC = () => {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [formData, setFormData] = useState<FormValues | null>(null);
   const [problemSet, setProblemSet] = useState<ProblemSetItem[]>([]);
-  const [testCaseOverrides, setTestCaseOverrides] = useState<TestCaseOverrideDraft[]>([]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -62,6 +61,8 @@ const CreateAssignmentPage: React.FC = () => {
   const primaryProblem = problemSet[0]?.problem ?? null;
   const singleProblem = problemSet.length === 1;
   const totalPoints = problemSet.reduce((s, it) => s + (Number(it.points) || 0), 0);
+  // Per-problem test-case overrides only apply when the assignment targets a group.
+  const hasGroup = !!form.watch("groupId");
 
   // Validation lives here (not in zod) because the problem set is outside the
   // form. Surfaces a specific toast rather than a silent no-op.
@@ -129,6 +130,16 @@ const CreateAssignmentPage: React.FC = () => {
       libraryId: it.problem.runtime === "systems" ? null : (it.libraryId ?? null),
     }));
 
+    // Flatten every problem's per-group test-case overrides into the one flat
+    // array the API takes (test_case_id already identifies the problem).
+    const problemOverrides = problemSet.flatMap((it) =>
+      Object.entries(it.overrides).map(([tcId, v]) => ({
+        testCaseId: Number(tcId),
+        input: v.input.trim() || undefined,
+        expectedOutput: v.expectedOutput.trim() || undefined,
+      }))
+    ).filter((o) => o.input || o.expectedOutput);
+
     const payload: AssignmentCreationData = {
       classroomId: Number(classroomId),
       problemId: problems[0].problemId,
@@ -145,7 +156,7 @@ const CreateAssignmentPage: React.FC = () => {
       due_date: dueDate ?? undefined,
       libraryId: formData.libraryId ? Number(formData.libraryId) : undefined,
       groupId: formData.groupId ? Number(formData.groupId) : undefined,
-      testCaseOverrides: formData.groupId && singleProblem && testCaseOverrides.length > 0 ? testCaseOverrides : undefined,
+      testCaseOverrides: formData.groupId ? problemOverrides : undefined,
       languages: problems[0].languages,
     };
 
@@ -181,14 +192,13 @@ const CreateAssignmentPage: React.FC = () => {
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit, onError)} className="flex-1 flex flex-col">
           <div className="max-w-5xl mx-auto w-full px-6 py-6 space-y-6">
-            <ProblemSetBuilder value={problemSet} onChange={setProblemSet} languages={languages} />
+            <ProblemSetBuilder value={problemSet} onChange={setProblemSet} languages={languages} hasGroup={hasGroup} />
 
             <BasicInfoSection
               form={form}
               classroomId={Number(classroomId)}
               primaryProblem={primaryProblem}
               singleProblem={singleProblem}
-              onTestCaseOverridesChange={setTestCaseOverrides}
             />
 
             <SubmissionSettingsSection

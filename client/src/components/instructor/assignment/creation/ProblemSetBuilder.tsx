@@ -14,8 +14,9 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import {
-  GripVertical, Plus, X, ChevronDown, Check, FileCode2, Terminal,
+  GripVertical, Plus, X, ChevronDown, Check, FileCode2, Terminal, Users,
 } from "lucide-react";
 import { getProblems } from "@/services/ProblemService";
 import { getLibraries } from "@/services/LibraryService";
@@ -34,6 +35,9 @@ export interface ProblemSetItem {
   languages: string[];                 // selected language names (standard only)
   codeByLanguage: Record<string, string>;
   libraryId?: number | null;           // helper-code library for grading (standard only)
+  // Per-(test case) overrides for the assignment's selected lab group. Keyed by
+  // testCaseId; blank fields keep the problem's original value.
+  overrides: Record<number, { input: string; expectedOutput: string }>;
 }
 
 const NO_LIBRARY = "none";
@@ -42,11 +46,14 @@ interface Props {
   value: ProblemSetItem[];
   onChange: (items: ProblemSetItem[]) => void;
   languages: Language[] | undefined;
+  /** True when the assignment targets a specific lab group; enables per-problem
+   *  test-case overrides for that group. */
+  hasGroup: boolean;
 }
 
 const isSystems = (p: Problem) => p.runtime === "systems";
 
-const ProblemSetBuilder: React.FC<Props> = ({ value, onChange, languages }) => {
+const ProblemSetBuilder: React.FC<Props> = ({ value, onChange, languages, hasGroup }) => {
   const [bank, setBank] = useState<Problem[]>([]);
   const [libraries, setLibraries] = useState<Library[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -77,7 +84,7 @@ const ProblemSetBuilder: React.FC<Props> = ({ value, onChange, languages }) => {
   const confirmAdd = () => {
     const additions = bank
       .filter((p) => picked.has(p.problemId) && !takenIds.has(p.problemId))
-      .map<ProblemSetItem>((p) => ({ problem: p, points: 100, languages: [], codeByLanguage: {}, libraryId: null }));
+      .map<ProblemSetItem>((p) => ({ problem: p, points: 100, languages: [], codeByLanguage: {}, libraryId: null, overrides: {} }));
     onChange([...value, ...additions]);
     setPicked(new Set());
     setPickerOpen(false);
@@ -122,6 +129,7 @@ const ProblemSetBuilder: React.FC<Props> = ({ value, onChange, languages }) => {
                 index={i}
                 languages={languages}
                 libraries={libraries}
+                hasGroup={hasGroup}
                 expanded={expanded.has(item.problem.problemId)}
                 onToggleExpand={() => toggleExpand(item.problem.problemId)}
                 onPoints={(pts) => patch(item.problem.problemId, { points: pts })}
@@ -133,6 +141,12 @@ const ProblemSetBuilder: React.FC<Props> = ({ value, onChange, languages }) => {
                     codeByLanguage: { ...item.codeByLanguage, [lang]: code },
                   })
                 }
+                onOverride={(tcId, field, val) => {
+                  const cur = item.overrides[tcId] ?? { input: "", expectedOutput: "" };
+                  patch(item.problem.problemId, {
+                    overrides: { ...item.overrides, [tcId]: { ...cur, [field]: val } },
+                  });
+                }}
               />
             ))}
           </Reorder.Group>
@@ -204,6 +218,7 @@ interface RowProps {
   index: number;
   languages: Language[] | undefined;
   libraries: Library[];
+  hasGroup: boolean;
   expanded: boolean;
   onToggleExpand: () => void;
   onPoints: (pts: number) => void;
@@ -211,10 +226,11 @@ interface RowProps {
   onRemove: () => void;
   onToggleLang: (lang: string) => void;
   onCode: (lang: string, code: string) => void;
+  onOverride: (testCaseId: number, field: "input" | "expectedOutput", value: string) => void;
 }
 
 const ProblemRow: React.FC<RowProps> = ({
-  item, index, languages, libraries, expanded, onToggleExpand, onPoints, onLibrary, onRemove, onToggleLang, onCode,
+  item, index, languages, libraries, hasGroup, expanded, onToggleExpand, onPoints, onLibrary, onRemove, onToggleLang, onCode, onOverride,
 }) => {
   const controls = useDragControls();
   const systems = isSystems(item.problem);
@@ -335,6 +351,39 @@ const ProblemRow: React.FC<RowProps> = ({
                   <p className="text-[11px] text-muted-foreground mt-1">Optional helper code available to this problem's submissions when grading.</p>
                 </div>
               </>
+            )}
+
+            {hasGroup && (item.problem.testCases?.length ?? 0) > 0 && (
+              <div className="pt-1">
+                <div className="flex items-center gap-1.5 text-xs font-medium mb-1">
+                  <Users size={12} /> Test-case overrides for the selected group
+                </div>
+                <p className="text-[11px] text-muted-foreground mb-2">Leave a field blank to keep the problem's original value.</p>
+                <div className="space-y-2">
+                  {item.problem.testCases!.map((tc) => (
+                    <div key={tc.testCaseId} className="rounded-md border border-border p-2 grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[11px] text-muted-foreground">Input (original: {tc.input || "(none)"})</label>
+                        <Textarea
+                          className="mt-1 min-h-[52px] text-xs"
+                          value={item.overrides[tc.testCaseId!]?.input ?? ""}
+                          onChange={(e) => onOverride(tc.testCaseId!, "input", e.target.value)}
+                          placeholder="Keep original"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-muted-foreground">Expected (original: {tc.expectedOutput ?? ""})</label>
+                        <Textarea
+                          className="mt-1 min-h-[52px] text-xs"
+                          value={item.overrides[tc.testCaseId!]?.expectedOutput ?? ""}
+                          onChange={(e) => onOverride(tc.testCaseId!, "expectedOutput", e.target.value)}
+                          placeholder="Keep original"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         </CollapsibleContent>

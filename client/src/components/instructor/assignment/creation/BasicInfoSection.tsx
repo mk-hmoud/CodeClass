@@ -31,12 +31,6 @@ import { getGroups } from "@/services/GroupService";
 import { Problem } from "@/types/Problem";
 import { LabGroup } from "@/types/Group";
 
-export interface TestCaseOverrideDraft {
-  testCaseId: number;
-  input?: string;
-  expectedOutput?: string;
-}
-
 interface BasicInfoSectionProps {
   form: UseFormReturn<FormValues>;
   classroomId: number;
@@ -44,7 +38,6 @@ interface BasicInfoSectionProps {
   primaryProblem: Problem | null;
   /** True when the assignment has exactly one problem. */
   singleProblem: boolean;
-  onTestCaseOverridesChange?: (overrides: TestCaseOverrideDraft[]) => void;
 }
 
 const NO_GROUP_VALUE = "none";
@@ -54,16 +47,13 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
   classroomId,
   primaryProblem,
   singleProblem,
-  onTestCaseOverridesChange,
 }) => {
   const [groups, setGroups] = useState<LabGroup[]>([]);
-  const [overrides, setOverrides] = useState<Record<number, { input: string; expectedOutput: string }>>({});
 
   useEffect(() => {
     if (classroomId) getGroups(classroomId).then(setGroups).catch((e) => console.error("Error fetching groups:", e));
   }, [classroomId]);
 
-  const watchGroupId = form.watch("groupId");
   const watchGradingMethod = form.watch("grading_method");
   const watchDueDate = form.watch("due_date");
   const watchGradeReleaseMode = form.watch("grade_release_mode");
@@ -80,38 +70,11 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
     if (watchGradingMethod === "Manual") form.setValue("grade_release_mode", "immediate");
   }, [watchGradingMethod]);
 
-  useEffect(() => { setOverrides({}); }, [watchGroupId, primaryProblem?.problemId]);
-
-  useEffect(() => {
-    if (!onTestCaseOverridesChange) return;
-    const drafts: TestCaseOverrideDraft[] = Object.entries(overrides)
-      .filter(([, v]) => v.input.trim() || v.expectedOutput.trim())
-      .map(([testCaseId, v]) => ({
-        testCaseId: Number(testCaseId),
-        input: v.input.trim() || undefined,
-        expectedOutput: v.expectedOutput.trim() || undefined,
-      }));
-    onTestCaseOverridesChange(drafts);
-  }, [overrides, onTestCaseOverridesChange]);
-
-  const handleOverrideChange = (testCaseId: number, field: "input" | "expectedOutput", value: string) => {
-    setOverrides((prev) => ({
-      ...prev,
-      [testCaseId]: {
-        input: prev[testCaseId]?.input ?? "",
-        expectedOutput: prev[testCaseId]?.expectedOutput ?? "",
-        [field]: value,
-      },
-    }));
-  };
-
   const autofillFromProblem = () => {
     if (!primaryProblem) return;
     form.setValue("title", primaryProblem.title);
     form.setValue("description", primaryProblem.description);
   };
-
-  const showOverrides = singleProblem && watchGroupId && (primaryProblem?.testCases?.length ?? 0) > 0;
 
   return (
     <Card>
@@ -275,43 +238,12 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
                   </SelectContent>
                 </Select>
                 <FormDescription>
-                  Optional: restrict this assignment to one lab group{singleProblem ? ", and optionally tweak its test cases below." : "."}
+                  Optional: restrict this assignment to one lab group. With a group selected, each problem above can override its test cases for that group.
                 </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
-        )}
-
-        {showOverrides && (
-          <div className="space-y-3">
-            <div>
-              <h3 className="text-sm font-semibold">Test Case Overrides</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Leave a field blank to use the problem's original value for this group.</p>
-            </div>
-            {primaryProblem!.testCases.map((tc) => (
-              <div key={tc.testCaseId} className="border border-border rounded-md p-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <FormLabel className="text-xs">Input override (original: {tc.input || "(none)"})</FormLabel>
-                  <Textarea
-                    className="mt-1 min-h-[60px]"
-                    value={overrides[tc.testCaseId!]?.input ?? ""}
-                    onChange={(e) => handleOverrideChange(tc.testCaseId!, "input", e.target.value)}
-                    placeholder="Leave blank to keep original"
-                  />
-                </div>
-                <div>
-                  <FormLabel className="text-xs">Expected output override (original: {tc.expectedOutput})</FormLabel>
-                  <Textarea
-                    className="mt-1 min-h-[60px]"
-                    value={overrides[tc.testCaseId!]?.expectedOutput ?? ""}
-                    onChange={(e) => handleOverrideChange(tc.testCaseId!, "expectedOutput", e.target.value)}
-                    placeholder="Leave blank to keep original"
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
         )}
       </CardContent>
     </Card>

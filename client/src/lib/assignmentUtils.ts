@@ -31,13 +31,16 @@ export const languageDefaultCode: Record<string, string> = {
 };
 
 export const formSchema = z.object({
-  problemId: z.string().min(1, "You must select a problem"),
+  // Problem selection, per-problem points and per-problem languages now live in
+  // the Problems builder (outside the form), so these stay in the schema for
+  // back-compat of FormValues consumers but are no longer form-validated here.
+  problemId: z.string().optional(),
   libraryId: z.string().optional(),
   groupId: z.string().optional(),
   title: z.string().optional(),
   description: z.string().optional(),
   difficulty_level: z.enum(['Easy', 'Medium', 'Hard']),
-  points: z.coerce.number().min(1, "Points must be at least 1"),
+  points: z.coerce.number().optional(),
   grading_method: z.enum(['Manual', 'Automatic', 'Hybrid']),
   grade_release_mode: z.enum(['immediate', 'on_deadline', 'manual']).default('immediate'),
   enable_max_submissions: z.boolean().default(false),
@@ -48,7 +51,7 @@ export const formSchema = z.object({
   publish_time: z.string(),
   due_date: z.date(),
   due_time: z.string(),
-  programming_languages: z.array(z.string()).min(1, "At least one programming language is required"),
+  programming_languages: z.array(z.string()).default([]),
 });
 
 export type FormValues = z.infer<typeof formSchema>;

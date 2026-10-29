@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -17,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { Info } from "lucide-react";
+import { Info, Wand2 } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -26,7 +27,6 @@ import {
 } from "@/components/ui/tooltip";
 import { UseFormReturn } from "react-hook-form";
 import { FormValues } from "@/lib/assignmentUtils";
-import { getProblems } from "@/services/ProblemService";
 import { getLibraries } from "@/services/LibraryService";
 import { getGroups } from "@/services/GroupService";
 import { Problem } from "@/types/Problem";
@@ -42,7 +42,10 @@ export interface TestCaseOverrideDraft {
 interface BasicInfoSectionProps {
   form: UseFormReturn<FormValues>;
   classroomId: number;
-  onSelectedProblemChange?: (problem: Problem | null) => void;
+  /** First problem in the set; drives single-problem conveniences below. */
+  primaryProblem: Problem | null;
+  /** True when the assignment has exactly one problem. */
+  singleProblem: boolean;
   onTestCaseOverridesChange?: (overrides: TestCaseOverrideDraft[]) => void;
 }
 
@@ -52,88 +55,40 @@ const NO_GROUP_VALUE = "none";
 const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
   form,
   classroomId,
-  onSelectedProblemChange,
+  primaryProblem,
+  singleProblem,
   onTestCaseOverridesChange,
 }) => {
-  const [problems, setProblems] = useState<Problem[]>([]);
-  const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null);
   const [libraries, setLibraries] = useState<Library[]>([]);
   const [groups, setGroups] = useState<LabGroup[]>([]);
   const [overrides, setOverrides] = useState<Record<number, { input: string; expectedOutput: string }>>({});
 
   useEffect(() => {
-    const fetchProblems = async () => {
-      try {
-        const fetchedProblems = await getProblems();
-        setProblems(fetchedProblems);
-      } catch (error) {
-        console.error("Error fetching problems:", error);
-      }
-    };
-    fetchProblems();
+    getLibraries().then(setLibraries).catch((e) => console.error("Error fetching libraries:", e));
   }, []);
 
   useEffect(() => {
-    const fetchLibraries = async () => {
-      try {
-        const fetchedLibraries = await getLibraries();
-        setLibraries(fetchedLibraries);
-      } catch (error) {
-        console.error("Error fetching libraries:", error);
-      }
-    };
-    fetchLibraries();
-  }, []);
-
-  useEffect(() => {
-    const fetchGroups = async () => {
-      try {
-        const fetchedGroups = await getGroups(classroomId);
-        setGroups(fetchedGroups);
-      } catch (error) {
-        console.error("Error fetching groups:", error);
-      }
-    };
-    if (classroomId) fetchGroups();
+    if (classroomId) getGroups(classroomId).then(setGroups).catch((e) => console.error("Error fetching groups:", e));
   }, [classroomId]);
 
-  const watchProblemId = form.watch("problemId");
   const watchGroupId = form.watch("groupId");
   const watchGradingMethod = form.watch("grading_method");
   const watchDueDate = form.watch("due_date");
   const watchGradeReleaseMode = form.watch("grade_release_mode");
 
+  // Image-output problems can't be auto-diffed; lock grading to Manual when the
+  // (single) problem produces an image. Only meaningful for single-problem.
+  const imageLocked = singleProblem && primaryProblem?.outputType === "image";
   useEffect(() => {
-    if (watchProblemId) {
-      const found =
-        problems.find((p) => String(p.problemId) === watchProblemId) || null;
-      setSelectedProblem(found);
-      onSelectedProblemChange?.(found);
-      // Image-output problems have nothing an automated grader can diff against
-      // (the judge reports "produced"/"no_output", never "passed"/"failed") --
-      // Automatic/Hybrid grading can't function for them, so force Manual.
-      if (found?.outputType === "image") {
-        form.setValue("grading_method", "Manual");
-      }
-    } else {
-      setSelectedProblem(null);
-      onSelectedProblemChange?.(null);
-    }
-    setOverrides({});
-  }, [watchProblemId, problems, onSelectedProblemChange]);
+    if (imageLocked) form.setValue("grading_method", "Manual");
+  }, [imageLocked]);
 
+  // Grade release only applies to auto-graded assignments.
   useEffect(() => {
-    setOverrides({});
-  }, [watchGroupId]);
-
-  // Grade release timing only applies to auto-graded assignments -- Manual
-  // grading already withholds a score until the instructor grades it by hand,
-  // so a lingering non-default value here would be meaningless/confusing.
-  useEffect(() => {
-    if (watchGradingMethod === "Manual") {
-      form.setValue("grade_release_mode", "immediate");
-    }
+    if (watchGradingMethod === "Manual") form.setValue("grade_release_mode", "immediate");
   }, [watchGradingMethod]);
+
+  useEffect(() => { setOverrides({}); }, [watchGroupId, primaryProblem?.problemId]);
 
   useEffect(() => {
     if (!onTestCaseOverridesChange) return;
@@ -147,11 +102,7 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
     onTestCaseOverridesChange(drafts);
   }, [overrides, onTestCaseOverridesChange]);
 
-  const handleOverrideChange = (
-    testCaseId: number,
-    field: "input" | "expectedOutput",
-    value: string
-  ) => {
+  const handleOverrideChange = (testCaseId: number, field: "input" | "expectedOutput", value: string) => {
     setOverrides((prev) => ({
       ...prev,
       [testCaseId]: {
@@ -162,190 +113,39 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
     }));
   };
 
+  const autofillFromProblem = () => {
+    if (!primaryProblem) return;
+    form.setValue("title", primaryProblem.title);
+    form.setValue("description", primaryProblem.description);
+  };
+
+  const showOverrides = singleProblem && watchGroupId && (primaryProblem?.testCases?.length ?? 0) > 0;
+
   return (
     <Card>
       <CardContent className="p-6 space-y-6">
-        <h2 className="text-xl font-semibold">Basic Information</h2>
-
-        <FormField
-          control={form.control}
-          name="problemId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>
-                Problem <span className="text-destructive">*</span>
-              </FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a problem" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {problems.map((problem) => (
-                    <SelectItem
-                      key={problem.problemId}
-                      value={String(problem.problemId)}
-                    >
-                      {problem.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormDescription>
-                Select the problem to base this assignment on.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="libraryId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Library</FormLabel>
-              <Select
-                onValueChange={(value) =>
-                  field.onChange(value === NO_LIBRARY_VALUE ? "" : value)
-                }
-                defaultValue={field.value || NO_LIBRARY_VALUE}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="No library" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value={NO_LIBRARY_VALUE}>No library</SelectItem>
-                  {libraries.map((library) => (
-                    <SelectItem
-                      key={library.libraryId}
-                      value={String(library.libraryId)}
-                    >
-                      {library.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormDescription>
-                Optional: make this instructor library's helper code available
-                to student submissions when grading this assignment.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {groups.length > 0 && (
-          <FormField
-            control={form.control}
-            name="groupId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Group</FormLabel>
-                <Select
-                  onValueChange={(value) =>
-                    field.onChange(value === NO_GROUP_VALUE ? "" : value)
-                  }
-                  defaultValue={field.value || NO_GROUP_VALUE}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Whole classroom" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value={NO_GROUP_VALUE}>Whole classroom</SelectItem>
-                    {groups.map((group) => (
-                      <SelectItem key={group.groupId} value={String(group.groupId)}>
-                        {group.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormDescription>
-                  Optional: restrict this assignment to one lab group, and
-                  optionally tweak its test cases below so groups in
-                  different time slots can't share answers.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        )}
-
-        {watchGroupId && selectedProblem && selectedProblem.testCases.length > 0 && (
-          <div className="space-y-3">
-            <div>
-              <h3 className="text-sm font-semibold">Test Case Overrides</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Leave a field blank to use the problem's original value for this group.
-              </p>
-            </div>
-            {selectedProblem.testCases.map((tc) => (
-              <div key={tc.testCaseId} className="border border-border rounded-md p-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <FormLabel className="text-xs">
-                    Input override (original: {tc.input || "(none)"})
-                  </FormLabel>
-                  <Textarea
-                    className="mt-1 min-h-[60px]"
-                    value={overrides[tc.testCaseId]?.input ?? ""}
-                    onChange={(e) => handleOverrideChange(tc.testCaseId, "input", e.target.value)}
-                    placeholder="Leave blank to keep original"
-                  />
-                </div>
-                <div>
-                  <FormLabel className="text-xs">
-                    Expected output override (original: {tc.expectedOutput})
-                  </FormLabel>
-                  <Textarea
-                    className="mt-1 min-h-[60px]"
-                    value={overrides[tc.testCaseId]?.expectedOutput ?? ""}
-                    onChange={(e) => handleOverrideChange(tc.testCaseId, "expectedOutput", e.target.value)}
-                    placeholder="Leave blank to keep original"
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {selectedProblem && (
-          <div className="bg-card p-4 rounded-md text-sm">
-            <h3 className="font-medium mb-1">Problem Description</h3>
-            <p className="text-muted-foreground">
-              <div className="prose dark:prose-invert max-w-none">
-                <pre className="whitespace-pre-wrap break-words">
-                  {selectedProblem.description}
-                </pre>
-              </div>
-            </p>
-          </div>
-        )}
+        <h2 className="text-xl font-semibold">Assignment Details</h2>
 
         <FormField
           control={form.control}
           name="title"
           render={({ field }) => (
             <FormItem>
-              <div className="flex items-center gap-2">
-                <FormLabel>Title</FormLabel>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info size={16} className="text-info" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Leave blank to use problem title</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+              <div className="flex items-center justify-between gap-2">
+                <FormLabel>
+                  Title {!singleProblem && <span className="text-destructive">*</span>}
+                </FormLabel>
+                {singleProblem && primaryProblem && (
+                  <Button type="button" variant="ghost" size="sm" className="h-7 gap-1.5 text-xs" onClick={autofillFromProblem}>
+                    <Wand2 size={13} /> Autofill from problem
+                  </Button>
+                )}
               </div>
               <FormControl>
-                <Input placeholder="Assignment title (optional)" {...field} />
+                <Input
+                  placeholder={singleProblem ? "Assignment title (optional — defaults to the problem's)" : "Assignment title"}
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -357,22 +157,10 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
           name="description"
           render={({ field }) => (
             <FormItem>
-              <div className="flex items-center gap-2">
-                <FormLabel>Description</FormLabel>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info size={16} className="text-info" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Leave blank to use problem description</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
+              <FormLabel>Description</FormLabel>
               <FormControl>
                 <Textarea
-                  placeholder="Assignment description (optional)"
+                  placeholder={singleProblem ? "Assignment description (optional — defaults to the problem's)" : "Assignment description (shown above the problem list)"}
                   className="min-h-[100px]"
                   {...field}
                 />
@@ -388,29 +176,10 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
             name="difficulty_level"
             render={({ field }) => (
               <FormItem>
-                <div className="flex items-center gap-2">
-                  <FormLabel>
-                    Difficulty Level <span className="text-destructive">*</span>
-                  </FormLabel>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Info size={16} className="text-info" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Set the difficulty level for this assignment</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                >
+                <FormLabel>Difficulty Level <span className="text-destructive">*</span></FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select difficulty" />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Select difficulty" /></SelectTrigger>
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="Easy">Easy</SelectItem>
@@ -425,78 +194,30 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
 
           <FormField
             control={form.control}
-            name="points"
+            name="grading_method"
             render={({ field }) => (
               <FormItem>
-                <div className="flex items-center gap-2">
-                  <FormLabel>
-                    Points <span className="text-destructive">*</span>
-                  </FormLabel>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Info size={16} className="text-info" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>The number of points this assignment is worth</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                <FormControl>
-                  <Input type="number" min={1} {...field} />
-                </FormControl>
+                <FormLabel>Grading Method <span className="text-destructive">*</span></FormLabel>
+                <Select onValueChange={field.onChange} value={field.value} disabled={imageLocked}>
+                  <FormControl>
+                    <SelectTrigger><SelectValue placeholder="Select grading method" /></SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="Manual">Manual Grading</SelectItem>
+                    <SelectItem value="Automatic">Automatic Grading</SelectItem>
+                    <SelectItem value="Hybrid">Hybrid Grading</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormDescription>
+                  {imageLocked
+                    ? "This problem produces an image, so there's nothing to auto-diff — grading is locked to Manual."
+                    : "How student submissions are evaluated."}
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
         </div>
-
-        <FormField
-          control={form.control}
-          name="grading_method"
-          render={({ field }) => (
-            <FormItem>
-              <div className="flex items-center gap-2">
-                <FormLabel>
-                  Grading Method <span className="text-destructive">*</span>
-                </FormLabel>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info size={16} className="text-info" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>How this assignment will be graded</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-              <Select
-                onValueChange={field.onChange}
-                value={field.value}
-                disabled={selectedProblem?.outputType === "image"}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select grading method" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="Manual">Manual Grading</SelectItem>
-                  <SelectItem value="Automatic">Automatic Grading</SelectItem>
-                  <SelectItem value="Hybrid">Hybrid Grading</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormDescription>
-                {selectedProblem?.outputType === "image"
-                  ? "This problem produces an image, so there's nothing to auto-diff against — grading is locked to Manual."
-                  : "Choose how student submissions will be evaluated."}
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
 
         {watchGradingMethod !== "Manual" && (
           <FormField
@@ -508,23 +229,16 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
                   <FormLabel>Grade Release</FormLabel>
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Info size={16} className="text-info" />
-                      </TooltipTrigger>
+                      <TooltipTrigger asChild><Info size={16} className="text-info" /></TooltipTrigger>
                       <TooltipContent>
-                        <p>
-                          When students can see their auto-computed score. Test
-                          pass/fail results are always shown immediately either way.
-                        </p>
+                        <p>When students can see their auto-computed score. Test pass/fail is always shown immediately.</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 </div>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select when grades are released" />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Select when grades are released" /></SelectTrigger>
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="immediate">Immediately after grading</SelectItem>
@@ -545,6 +259,93 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
               </FormItem>
             )}
           />
+        )}
+
+        <FormField
+          control={form.control}
+          name="libraryId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Library</FormLabel>
+              <Select
+                onValueChange={(value) => field.onChange(value === NO_LIBRARY_VALUE ? "" : value)}
+                defaultValue={field.value || NO_LIBRARY_VALUE}
+              >
+                <FormControl>
+                  <SelectTrigger><SelectValue placeholder="No library" /></SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value={NO_LIBRARY_VALUE}>No library</SelectItem>
+                  {libraries.map((library) => (
+                    <SelectItem key={library.libraryId} value={String(library.libraryId)}>{library.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormDescription>Optional: make an instructor library's helper code available when grading.</FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {groups.length > 0 && (
+          <FormField
+            control={form.control}
+            name="groupId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Group</FormLabel>
+                <Select
+                  onValueChange={(value) => field.onChange(value === NO_GROUP_VALUE ? "" : value)}
+                  defaultValue={field.value || NO_GROUP_VALUE}
+                >
+                  <FormControl>
+                    <SelectTrigger><SelectValue placeholder="Whole classroom" /></SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value={NO_GROUP_VALUE}>Whole classroom</SelectItem>
+                    {groups.map((group) => (
+                      <SelectItem key={group.groupId} value={String(group.groupId)}>{group.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormDescription>
+                  Optional: restrict this assignment to one lab group{singleProblem ? ", and optionally tweak its test cases below." : "."}
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
+
+        {showOverrides && (
+          <div className="space-y-3">
+            <div>
+              <h3 className="text-sm font-semibold">Test Case Overrides</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Leave a field blank to use the problem's original value for this group.</p>
+            </div>
+            {primaryProblem!.testCases.map((tc) => (
+              <div key={tc.testCaseId} className="border border-border rounded-md p-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <FormLabel className="text-xs">Input override (original: {tc.input || "(none)"})</FormLabel>
+                  <Textarea
+                    className="mt-1 min-h-[60px]"
+                    value={overrides[tc.testCaseId!]?.input ?? ""}
+                    onChange={(e) => handleOverrideChange(tc.testCaseId!, "input", e.target.value)}
+                    placeholder="Leave blank to keep original"
+                  />
+                </div>
+                <div>
+                  <FormLabel className="text-xs">Expected output override (original: {tc.expectedOutput})</FormLabel>
+                  <Textarea
+                    className="mt-1 min-h-[60px]"
+                    value={overrides[tc.testCaseId!]?.expectedOutput ?? ""}
+                    onChange={(e) => handleOverrideChange(tc.testCaseId!, "expectedOutput", e.target.value)}
+                    placeholder="Leave blank to keep original"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </CardContent>
     </Card>

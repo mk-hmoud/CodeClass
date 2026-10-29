@@ -8,8 +8,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { format, formatDate } from "date-fns";
-import { FormValues, LANGUAGE_LABELS } from "@/lib/assignmentUtils";
+import { format } from "date-fns";
+import { FormValues } from "@/lib/assignmentUtils";
 
 interface ConfirmationDialogProps {
   open: boolean;
@@ -17,6 +17,7 @@ interface ConfirmationDialogProps {
   formData: FormValues | null;
   onConfirm: () => void;
   problemTitle?: string | null;
+  problems?: { title: string; points: number }[];
 }
 
 const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
@@ -25,6 +26,7 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
   formData,
   onConfirm,
   problemTitle,
+  problems = [],
 }) => {
   if (!formData) return null;
 
@@ -40,30 +42,30 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
 
         <div className="space-y-4 max-h-[60vh] overflow-y-auto">
           <div className="space-y-2">
-            <h3 className="font-semibold">Basic Information</h3>
+            <h3 className="font-semibold">
+              Problems <span className="text-muted-foreground font-normal">({problems.length}, {problems.reduce((s, p) => s + p.points, 0)} pts total)</span>
+            </h3>
+            <ol className="text-sm space-y-1 list-decimal list-inside">
+              {problems.map((p, i) => (
+                <li key={i} className="flex justify-between gap-2">
+                  <span className="truncate">{p.title}</span>
+                  <span className="text-muted-foreground shrink-0">{p.points} pts</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="font-semibold">Assignment</h3>
             <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="text-muted-foreground">Problem:</div>
-              <div>{problemTitle}</div>
+              <div className="text-muted-foreground">Title:</div>
+              <div>{formData.title || (problemTitle ? `Using "${problemTitle}"` : "—")}</div>
 
-              <div className="col-span-2 pl-4 space-y-1">
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="text-muted-foreground">Title:</div>
-                  <div>{formData.title || "Using problem title"}</div>
-
-                  <div className="text-muted-foreground">Description:</div>
-                  <div>
-                    {formData.description
-                      ? "Custom description"
-                      : "Using problem description"}
-                  </div>
-                </div>
-              </div>
+              <div className="text-muted-foreground">Description:</div>
+              <div>{formData.description ? "Custom description" : "Using problem description"}</div>
 
               <div className="text-muted-foreground">Difficulty:</div>
               <div>{formData.difficulty_level}</div>
-
-              <div className="text-muted-foreground">Points:</div>
-              <div>{formData.points}</div>
 
               <div className="text-muted-foreground">Grading Method:</div>
               <div>{formData.grading_method}</div>
@@ -109,19 +111,6 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <h3 className="font-semibold">Programming Languages</h3>
-            <div className="flex flex-wrap gap-2">
-              {formData.programming_languages.map((lang) => (
-                <span
-                  key={lang}
-                  className="bg-primary/20 text-primary text-xs px-2 py-1 rounded-full"
-                >
-                  {LANGUAGE_LABELS[lang]}
-                </span>
-              ))}
-            </div>
-          </div>
         </div>
 
         <DialogFooter>

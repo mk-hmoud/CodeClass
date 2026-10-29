@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { ArrowLeft, ChevronRight, Copy, Plus, Save, Trash } from "lucide-react";
+import { ArrowLeft, ChevronRight, Copy, Download, Plus, Save, Trash, Upload } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -35,6 +35,8 @@ import { runCode, getRunStatus } from "@/services/JudgeService";
 import { JudgeVerdict } from "@/types/TestCase";
 import { getSchemaLibraries } from "@/services/SchemaLibraryService";
 import { SchemaLibrary } from "@/types/SchemaLibrary";
+import { parseTestCaseFile, testCasesToJson } from "@/lib/testCaseIO";
+import { downloadBlob } from "@/services/ExportService";
 
 const POLL_INTERVAL = 1000;
 
@@ -169,6 +171,47 @@ const ProblemCreation = () => {
 
   const [isSystems, setIsSystems] = useState(false);
   const systemsRef = useRef<SystemsAuthoringHandle>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
+
+  // Bulk-import test cases from a JSON or CSV/TSV file, appending them to the
+  // current set. If the set is still the single pristine blank case, replace it.
+  const importTestCases = async (file: File) => {
+    try {
+      const text = await file.text();
+      const parsed = parseTestCaseFile(file.name, text);
+      const imported: TestCase[] = parsed.map((p) => ({
+        input: p.input,
+        expectedOutput: p.expectedOutput,
+        isPublic: p.isPublic,
+      }));
+      const pristine =
+        testCases.length === 1 && !testCases[0].input && !testCases[0].expectedOutput;
+      const base = pristine
+        ? { tests: [] as TestCase[], refs: [] as string[], sources: [] as ("library" | "oneoff")[], collapsed: [] as boolean[] }
+        : { tests: testCases, refs: refQueries, sources: setupSource, collapsed };
+
+      const nextTests = [...base.tests, ...imported];
+      setTestCases(nextTests);
+      form.setValue(
+        "testCases",
+        nextTests.map((t) => ({ ...t }))
+      );
+      setRefQueries([...base.refs, ...imported.map(() => "")]);
+      setSetupSource([...base.sources, ...imported.map<"library" | "oneoff">(() => "oneoff")]);
+      // Collapse imported rows so a large import stays scannable.
+      setCollapsed([...base.collapsed, ...imported.map(() => true)]);
+      toast.success(`Imported ${imported.length} test case${imported.length === 1 ? "" : "s"}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not read that file");
+    }
+  };
+
+  const exportTestCases = () => {
+    const blob = new Blob([testCasesToJson(testCases)], { type: "application/json" });
+    const title = form.getValues().title?.trim();
+    const safe = (title || "problem").replace(/[^a-z0-9]/gi, "_").toLowerCase();
+    downloadBlob(blob, `${safe}_test_cases.json`);
+  };
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -537,6 +580,39 @@ const ProblemCreation = () => {
                     {allCollapsed ? "Expand all" : "Collapse all"}
                   </Button>
                 )}
+                <input
+                  ref={importInputRef}
+                  type="file"
+                  accept=".json,.csv,.tsv,.txt,application/json,text/csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) importTestCases(file);
+                    e.target.value = "";
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => importInputRef.current?.click()}
+                  className="flex items-center gap-1 text-muted-foreground"
+                  title="Import test cases from a JSON or CSV/TSV file"
+                >
+                  <Upload size={14} />
+                  Import
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={exportTestCases}
+                  className="flex items-center gap-1 text-muted-foreground"
+                  title="Export these test cases as JSON"
+                >
+                  <Download size={14} />
+                  Export
+                </Button>
                 <Button
                   type="button"
                   variant="outline"

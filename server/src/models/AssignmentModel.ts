@@ -72,12 +72,14 @@ export const createAssignment = async (
           points: p.points ?? assignment.points ?? 100,
           position: p.position ?? i,
           languages: p.languages,
+          libraryId: p.libraryId ?? null,
         }))
       : [{
           problemId: assignment.problemId,
           points: assignment.points ?? 100,
           position: 0,
           languages: assignment.languages,
+          libraryId: assignment.libraryId ?? null,
         }];
     const primaryProblemId = problemSet[0].problemId;
 
@@ -146,10 +148,10 @@ export const createAssignment = async (
 
     // The ordered problem set, plus each problem's own starter code.
     const apSql = `
-      INSERT INTO assignment_problems (assignment_id, problem_id, points, position)
-      VALUES ($1,$2,$3,$4)
+      INSERT INTO assignment_problems (assignment_id, problem_id, points, position, library_id)
+      VALUES ($1,$2,$3,$4,$5)
       ON CONFLICT (assignment_id, problem_id) DO UPDATE
-        SET points = EXCLUDED.points, position = EXCLUDED.position
+        SET points = EXCLUDED.points, position = EXCLUDED.position, library_id = EXCLUDED.library_id
     `;
     const langSql = `
       INSERT INTO assignment_languages_pairs
@@ -157,7 +159,7 @@ export const createAssignment = async (
       VALUES ($1,$2,$3,$4)
     `;
     for (const p of problemSet) {
-      await client.query(apSql, [assignmentId, p.problemId, p.points, p.position]);
+      await client.query(apSql, [assignmentId, p.problemId, p.points, p.position, p.libraryId ?? null]);
       if (p.languages?.length) {
         for (const { languageId, initial_code } of p.languages) {
           await client.query(langSql, [assignmentId, p.problemId, languageId, initial_code || null]);

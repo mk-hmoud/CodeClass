@@ -12,10 +12,15 @@ import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from "@/components/ui/command";
 import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
   GripVertical, Plus, X, ChevronDown, Check, FileCode2, Terminal,
 } from "lucide-react";
 import { getProblems } from "@/services/ProblemService";
+import { getLibraries } from "@/services/LibraryService";
 import { Problem } from "@/types/Problem";
+import { Library } from "@/types/Library";
 import { Language } from "@/types/Language";
 import AssignmentCodeEditor from "@/components/editors/AssignmentCodeEditor";
 import { LANGUAGE_LABELS, languageDefaultCode } from "@/lib/assignmentUtils";
@@ -28,7 +33,10 @@ export interface ProblemSetItem {
   points: number;
   languages: string[];                 // selected language names (standard only)
   codeByLanguage: Record<string, string>;
+  libraryId?: number | null;           // helper-code library for grading (standard only)
 }
+
+const NO_LIBRARY = "none";
 
 interface Props {
   value: ProblemSetItem[];
@@ -40,12 +48,14 @@ const isSystems = (p: Problem) => p.runtime === "systems";
 
 const ProblemSetBuilder: React.FC<Props> = ({ value, onChange, languages }) => {
   const [bank, setBank] = useState<Problem[]>([]);
+  const [libraries, setLibraries] = useState<Library[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [picked, setPicked] = useState<Set<number>>(new Set());
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     getProblems().then(setBank).catch((e) => console.error("Error fetching problems:", e));
+    getLibraries().then(setLibraries).catch((e) => console.error("Error fetching libraries:", e));
   }, []);
 
   const takenIds = new Set(value.map((it) => it.problem.problemId));
@@ -67,7 +77,7 @@ const ProblemSetBuilder: React.FC<Props> = ({ value, onChange, languages }) => {
   const confirmAdd = () => {
     const additions = bank
       .filter((p) => picked.has(p.problemId) && !takenIds.has(p.problemId))
-      .map<ProblemSetItem>((p) => ({ problem: p, points: 100, languages: [], codeByLanguage: {} }));
+      .map<ProblemSetItem>((p) => ({ problem: p, points: 100, languages: [], codeByLanguage: {}, libraryId: null }));
     onChange([...value, ...additions]);
     setPicked(new Set());
     setPickerOpen(false);
@@ -111,9 +121,11 @@ const ProblemSetBuilder: React.FC<Props> = ({ value, onChange, languages }) => {
                 item={item}
                 index={i}
                 languages={languages}
+                libraries={libraries}
                 expanded={expanded.has(item.problem.problemId)}
                 onToggleExpand={() => toggleExpand(item.problem.problemId)}
                 onPoints={(pts) => patch(item.problem.problemId, { points: pts })}
+                onLibrary={(libraryId) => patch(item.problem.problemId, { libraryId })}
                 onRemove={() => remove(item.problem.problemId)}
                 onToggleLang={(lang) => toggleLang(item, lang)}
                 onCode={(lang, code) =>
@@ -191,16 +203,18 @@ interface RowProps {
   item: ProblemSetItem;
   index: number;
   languages: Language[] | undefined;
+  libraries: Library[];
   expanded: boolean;
   onToggleExpand: () => void;
   onPoints: (pts: number) => void;
+  onLibrary: (libraryId: number | null) => void;
   onRemove: () => void;
   onToggleLang: (lang: string) => void;
   onCode: (lang: string, code: string) => void;
 }
 
 const ProblemRow: React.FC<RowProps> = ({
-  item, index, languages, expanded, onToggleExpand, onPoints, onRemove, onToggleLang, onCode,
+  item, index, languages, libraries, expanded, onToggleExpand, onPoints, onLibrary, onRemove, onToggleLang, onCode,
 }) => {
   const controls = useDragControls();
   const systems = isSystems(item.problem);
@@ -302,6 +316,24 @@ const ProblemRow: React.FC<RowProps> = ({
                     ))}
                   </div>
                 )}
+                <div>
+                  <p className="text-xs font-medium mb-1.5">Library</p>
+                  <Select
+                    value={item.libraryId != null ? String(item.libraryId) : NO_LIBRARY}
+                    onValueChange={(v) => onLibrary(v === NO_LIBRARY ? null : Number(v))}
+                  >
+                    <SelectTrigger className="h-8 text-xs w-full sm:w-64">
+                      <SelectValue placeholder="No library" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NO_LIBRARY}>No library</SelectItem>
+                      {libraries.map((lib) => (
+                        <SelectItem key={lib.libraryId} value={String(lib.libraryId)}>{lib.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[11px] text-muted-foreground mt-1">Optional helper code available to this problem's submissions when grading.</p>
+                </div>
               </>
             )}
           </div>

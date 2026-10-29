@@ -109,7 +109,7 @@ export const runCodeHandler = async (req: Request, res: Response): Promise<void>
     let libraryCode: string | null = null;
     if (assignmentId) {
       try {
-        libraryCode = await getLibraryCodeForAssignment(assignmentId, language);
+        libraryCode = await getLibraryCodeForAssignment(assignmentId, language, bodyProblemId);
       } catch (err) {
         logger.error(
           { fn: 'runCode', assignmentId, language, error: err },
@@ -212,7 +212,7 @@ export const previewGradeHandler = async (req: Request, res: Response): Promise<
         return;
       }
       let libraryCode: string | null = null;
-      try { libraryCode = await getLibraryCodeForAssignment(assignmentId, language); } catch { /* optional */ }
+      try { libraryCode = await getLibraryCodeForAssignment(assignmentId, language, problemId); } catch { /* optional */ }
       let outputType: 'text' | 'image' = 'text';
       try { outputType = await getProblemOutputTypeForAssignment(assignmentId, problemId); } catch { /* default */ }
       data = JSON.stringify({ code, language, testCases, mode: "run", libraryCode, outputType });
@@ -467,7 +467,7 @@ export const submitHandler = async (req: Request, res: Response): Promise<void> 
 
   let libraryCode: string | null = null;
   try {
-    libraryCode = await getLibraryCodeForAssignment(assignmentId, language);
+    libraryCode = await getLibraryCodeForAssignment(assignmentId, language, problemId);
   } catch (err) {
     logger.error(
       { fn: functionName, assignmentId, language, error: err },

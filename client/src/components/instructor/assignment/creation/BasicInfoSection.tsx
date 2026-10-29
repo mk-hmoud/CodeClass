@@ -27,10 +27,8 @@ import {
 } from "@/components/ui/tooltip";
 import { UseFormReturn } from "react-hook-form";
 import { FormValues } from "@/lib/assignmentUtils";
-import { getLibraries } from "@/services/LibraryService";
 import { getGroups } from "@/services/GroupService";
 import { Problem } from "@/types/Problem";
-import { Library } from "@/types/Library";
 import { LabGroup } from "@/types/Group";
 
 export interface TestCaseOverrideDraft {
@@ -49,7 +47,6 @@ interface BasicInfoSectionProps {
   onTestCaseOverridesChange?: (overrides: TestCaseOverrideDraft[]) => void;
 }
 
-const NO_LIBRARY_VALUE = "none";
 const NO_GROUP_VALUE = "none";
 
 const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
@@ -59,13 +56,8 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
   singleProblem,
   onTestCaseOverridesChange,
 }) => {
-  const [libraries, setLibraries] = useState<Library[]>([]);
   const [groups, setGroups] = useState<LabGroup[]>([]);
   const [overrides, setOverrides] = useState<Record<number, { input: string; expectedOutput: string }>>({});
-
-  useEffect(() => {
-    getLibraries().then(setLibraries).catch((e) => console.error("Error fetching libraries:", e));
-  }, []);
 
   useEffect(() => {
     if (classroomId) getGroups(classroomId).then(setGroups).catch((e) => console.error("Error fetching groups:", e));
@@ -260,32 +252,6 @@ const BasicInfoSection: React.FC<BasicInfoSectionProps> = ({
             )}
           />
         )}
-
-        <FormField
-          control={form.control}
-          name="libraryId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Library</FormLabel>
-              <Select
-                onValueChange={(value) => field.onChange(value === NO_LIBRARY_VALUE ? "" : value)}
-                defaultValue={field.value || NO_LIBRARY_VALUE}
-              >
-                <FormControl>
-                  <SelectTrigger><SelectValue placeholder="No library" /></SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value={NO_LIBRARY_VALUE}>No library</SelectItem>
-                  {libraries.map((library) => (
-                    <SelectItem key={library.libraryId} value={String(library.libraryId)}>{library.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormDescription>Optional: make an instructor library's helper code available when grading.</FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
 
         {groups.length > 0 && (
           <FormField

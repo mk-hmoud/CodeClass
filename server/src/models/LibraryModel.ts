@@ -194,18 +194,22 @@ export const deleteLibrary = async (libraryId: number): Promise<void> => {
 
 export const getLibraryCodeForAssignment = async (
   assignmentId: number,
-  languageName: string
+  languageName: string,
+  problemId?: number
 ): Promise<string | null> => {
   const fn = "getLibraryCodeForAssignment";
   try {
+    // The problem's own library wins; fall back to the assignment-level library.
     const query = `
       SELECT lf.content
       FROM assignments a
-      JOIN library_files lf ON lf.library_id = a.library_id
+      LEFT JOIN assignment_problems ap
+        ON ap.assignment_id = a.assignment_id AND ap.problem_id = $3
+      JOIN library_files lf ON lf.library_id = COALESCE(ap.library_id, a.library_id)
       JOIN languages l ON l.language_id = lf.language_id
       WHERE a.assignment_id = $1 AND l.name = $2
     `;
-    const { rows } = await pool.query(query, [assignmentId, languageName]);
+    const { rows } = await pool.query(query, [assignmentId, languageName, problemId ?? null]);
     return rows[0]?.content ?? null;
   } catch (error) {
     logger.error(

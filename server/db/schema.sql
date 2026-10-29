@@ -210,6 +210,11 @@ CREATE TABLE library_files (
 ALTER TABLE assignments
   ADD COLUMN library_id INT REFERENCES libraries(library_id) ON DELETE SET NULL;
 
+-- Library linking is per-problem within an assignment (grading falls back to
+-- the assignment-level library above when a problem has none).
+ALTER TABLE assignment_problems
+  ADD COLUMN library_id INT REFERENCES libraries(library_id) ON DELETE SET NULL;
+
 CREATE TABLE schema_libraries (
   schema_library_id SERIAL PRIMARY KEY,
   instructor_id INT NOT NULL,

@@ -215,6 +215,7 @@ export interface AssignmentCreationData{
     points?: number;
     position?: number;
     languages?: Array<{ languageId: number; initial_code?: string }>;
+    libraryId?: number | null;
   }>;
   title: string;
   description: string;

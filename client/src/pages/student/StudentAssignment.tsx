@@ -328,36 +328,44 @@ const StudentAssignment = ({ preview = false }: { preview?: boolean } = {}) => {
           >
             {isMulti && (
               <div className="bg-card border border-border rounded-xl p-4">
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                  Problems <span className="text-foreground">({problems.length})</span>
-                </h3>
-                <ul className="space-y-2">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Problems <span className="text-foreground">({problems.length})</span>
+                  </h3>
+                  <span className="text-xs text-muted-foreground">
+                    {problems.reduce((s, ap) => s + (ap.points || 0), 0)} pts total
+                  </span>
+                </div>
+                {/* Card grid: wraps into columns as problems stack, instead of one
+                    long vertical list. */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {problems.map((ap, i) => (
-                    <li key={ap.problem.problemId}>
-                      <button
-                        onClick={() => openProblem(ap.problem.problemId)}
-                        className="w-full flex items-center gap-3 rounded-lg border border-border bg-background/40 hover:bg-muted/60 transition-colors px-3 py-2.5 text-left"
-                      >
+                    <button
+                      key={ap.problem.problemId}
+                      onClick={() => openProblem(ap.problem.problemId)}
+                      className="group flex flex-col gap-2 rounded-xl border border-border bg-background/40 hover:bg-muted/60 hover:border-primary/40 transition-colors p-3 text-left"
+                    >
+                      <div className="flex items-center gap-2">
                         <span
                           className="w-6 h-6 rounded-md flex items-center justify-center text-xs font-semibold shrink-0"
                           style={{ backgroundColor: accent + "18", color: accent }}
                         >
                           {i + 1}
                         </span>
-                        <span className="flex-1 min-w-0">
-                          <span className="block text-sm font-medium truncate">{ap.problem.title}</span>
-                          {ap.problem.category && (
-                            <span className="block text-xs text-muted-foreground truncate">{ap.problem.category}</span>
-                          )}
-                        </span>
-                        <span className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
+                        <span className="text-sm font-medium flex-1 min-w-0 truncate">{ap.problem.title}</span>
+                        <ChevronRight size={15} className="text-muted-foreground shrink-0 group-hover:text-foreground transition-colors" />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        {ap.problem.category ? (
+                          <Badge variant="outline" className="text-[10px]">{ap.problem.category}</Badge>
+                        ) : <span />}
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
                           <Zap size={12} /><span className="font-semibold text-foreground">{ap.points}</span> pts
                         </span>
-                        <ChevronRight size={15} className="text-muted-foreground shrink-0" />
-                      </button>
-                    </li>
+                      </div>
+                    </button>
                   ))}
-                </ul>
+                </div>
               </div>
             )}
 

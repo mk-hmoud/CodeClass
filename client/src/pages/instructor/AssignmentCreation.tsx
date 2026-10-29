@@ -127,7 +127,7 @@ const CreateAssignmentPage: React.FC = () => {
       languages: it.problem.runtime === "systems"
         ? []
         : it.languages.map((name) => ({ languageId: langId(name), initial_code: it.codeByLanguage[name] || "" })),
-      libraryId: it.problem.runtime === "systems" ? null : (it.libraryId ?? null),
+      libraryIds: it.problem.runtime === "systems" ? [] : (it.libraryIds ?? []),
     }));
 
     // Flatten every problem's per-group test-case overrides into the one flat

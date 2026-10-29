@@ -48,7 +48,10 @@ export interface AssignmentCreationData {
     points?: number;
     position?: number;
     languages?: Array<{ languageId: number; initial_code?: string }>;
+    /** @deprecated single library — superseded by libraryIds. */
     libraryId?: number | null;
+    /** Helper-code libraries linked to this problem, in link order. */
+    libraryIds?: number[];
   }>;
   title?: string;
   description?: string;

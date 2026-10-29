@@ -72,14 +72,16 @@ export const createAssignment = async (
           points: p.points ?? assignment.points ?? 100,
           position: p.position ?? i,
           languages: p.languages,
-          libraryId: p.libraryId ?? null,
+          // A problem can link several helper-code libraries; accept the new
+          // libraryIds[] and fall back to the legacy single libraryId.
+          libraryIds: p.libraryIds ?? (p.libraryId != null ? [p.libraryId] : []),
         }))
       : [{
           problemId: assignment.problemId,
           points: assignment.points ?? 100,
           position: 0,
           languages: assignment.languages,
-          libraryId: assignment.libraryId ?? null,
+          libraryIds: assignment.libraryId != null ? [assignment.libraryId] : [],
         }];
     const primaryProblemId = problemSet[0].problemId;
 
@@ -158,8 +160,24 @@ export const createAssignment = async (
         (assignment_id, problem_id, language_id, initial_code)
       VALUES ($1,$2,$3,$4)
     `;
+    const apLibSql = `
+      INSERT INTO assignment_problem_libraries
+        (assignment_id, problem_id, library_id, position)
+      VALUES ($1,$2,$3,$4)
+      ON CONFLICT (assignment_id, problem_id, library_id) DO UPDATE SET position = EXCLUDED.position
+    `;
     for (const p of problemSet) {
-      await client.query(apSql, [assignmentId, p.problemId, p.points, p.position, p.libraryId ?? null]);
+      // ap.library_id keeps the first library for the legacy fallback path; the
+      // full ordered set lives in assignment_problem_libraries.
+      await client.query(apSql, [assignmentId, p.problemId, p.points, p.position, p.libraryIds[0] ?? null]);
+      // Replace this problem's library set (idempotent on re-run/upsert).
+      await client.query(
+        `DELETE FROM assignment_problem_libraries WHERE assignment_id = $1 AND problem_id = $2`,
+        [assignmentId, p.problemId]
+      );
+      for (let li = 0; li < p.libraryIds.length; li++) {
+        await client.query(apLibSql, [assignmentId, p.problemId, p.libraryIds[li], li]);
+      }
       if (p.languages?.length) {
         for (const { languageId, initial_code } of p.languages) {
           await client.query(langSql, [assignmentId, p.problemId, languageId, initial_code || null]);

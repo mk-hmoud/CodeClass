@@ -11,9 +11,6 @@ import {
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from "@/components/ui/command";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   GripVertical, Plus, X, ChevronDown, Check, FileCode2, Terminal, Users,
@@ -34,13 +31,12 @@ export interface ProblemSetItem {
   points: number;
   languages: string[];                 // selected language names (standard only)
   codeByLanguage: Record<string, string>;
-  libraryId?: number | null;           // helper-code library for grading (standard only)
+  libraryIds: number[];                // helper-code libraries for grading (standard only)
   // Per-(test case) overrides for the assignment's selected lab group. Keyed by
   // testCaseId; blank fields keep the problem's original value.
   overrides: Record<number, { input: string; expectedOutput: string }>;
 }
 
-const NO_LIBRARY = "none";
 
 interface Props {
   value: ProblemSetItem[];
@@ -84,7 +80,7 @@ const ProblemSetBuilder: React.FC<Props> = ({ value, onChange, languages, hasGro
   const confirmAdd = () => {
     const additions = bank
       .filter((p) => picked.has(p.problemId) && !takenIds.has(p.problemId))
-      .map<ProblemSetItem>((p) => ({ problem: p, points: 100, languages: [], codeByLanguage: {}, libraryId: null, overrides: {} }));
+      .map<ProblemSetItem>((p) => ({ problem: p, points: 100, languages: [], codeByLanguage: {}, libraryIds: [], overrides: {} }));
     onChange([...value, ...additions]);
     setPicked(new Set());
     setPickerOpen(false);
@@ -133,7 +129,7 @@ const ProblemSetBuilder: React.FC<Props> = ({ value, onChange, languages, hasGro
                 expanded={expanded.has(item.problem.problemId)}
                 onToggleExpand={() => toggleExpand(item.problem.problemId)}
                 onPoints={(pts) => patch(item.problem.problemId, { points: pts })}
-                onLibrary={(libraryId) => patch(item.problem.problemId, { libraryId })}
+                onLibraries={(libraryIds) => patch(item.problem.problemId, { libraryIds })}
                 onRemove={() => remove(item.problem.problemId)}
                 onToggleLang={(lang) => toggleLang(item, lang)}
                 onCode={(lang, code) =>
@@ -229,7 +225,7 @@ interface RowProps {
   expanded: boolean;
   onToggleExpand: () => void;
   onPoints: (pts: number) => void;
-  onLibrary: (libraryId: number | null) => void;
+  onLibraries: (libraryIds: number[]) => void;
   onRemove: () => void;
   onToggleLang: (lang: string) => void;
   onCode: (lang: string, code: string) => void;
@@ -237,7 +233,7 @@ interface RowProps {
 }
 
 const ProblemRow: React.FC<RowProps> = ({
-  item, index, languages, libraries, hasGroup, expanded, onToggleExpand, onPoints, onLibrary, onRemove, onToggleLang, onCode, onOverride,
+  item, index, languages, libraries, hasGroup, expanded, onToggleExpand, onPoints, onLibraries, onRemove, onToggleLang, onCode, onOverride,
 }) => {
   const controls = useDragControls();
   const systems = isSystems(item.problem);
@@ -342,22 +338,51 @@ const ProblemRow: React.FC<RowProps> = ({
                   </div>
                 )}
                 <div>
-                  <p className="text-xs font-medium mb-1.5">Library</p>
-                  <Select
-                    value={item.libraryId != null ? String(item.libraryId) : NO_LIBRARY}
-                    onValueChange={(v) => onLibrary(v === NO_LIBRARY ? null : Number(v))}
-                  >
-                    <SelectTrigger className="h-8 text-xs w-full sm:w-64">
-                      <SelectValue placeholder="No library" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NO_LIBRARY}>No library</SelectItem>
-                      {libraries.map((lib) => (
-                        <SelectItem key={lib.libraryId} value={String(lib.libraryId)}>{lib.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-[11px] text-muted-foreground mt-1">Optional helper code available to this problem's submissions when grading.</p>
+                  <p className="text-xs font-medium mb-1.5">
+                    Libraries
+                    {item.libraryIds.length > 0 && (
+                      <span className="ml-1.5 font-normal text-muted-foreground">
+                        {item.libraryIds.length} selected
+                      </span>
+                    )}
+                  </p>
+                  {libraries.length === 0 ? (
+                    <p className="text-[11px] text-muted-foreground">
+                      No libraries yet — create one from the instructor dashboard's
+                      "Libraries" tab.
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {libraries.map((lib) => {
+                        const selected = item.libraryIds.includes(lib.libraryId);
+                        return (
+                          <button
+                            key={lib.libraryId}
+                            type="button"
+                            onClick={() =>
+                              onLibraries(
+                                selected
+                                  ? item.libraryIds.filter((id) => id !== lib.libraryId)
+                                  : [...item.libraryIds, lib.libraryId]
+                              )
+                            }
+                            className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                              selected
+                                ? "border-primary bg-primary/10 text-primary"
+                                : "border-border text-muted-foreground hover:bg-muted"
+                            }`}
+                          >
+                            {lib.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Optional helper code available to this problem's submissions when
+                    grading. Pick several — their code is concatenated in the order
+                    you select them.
+                  </p>
                 </div>
               </>
             )}

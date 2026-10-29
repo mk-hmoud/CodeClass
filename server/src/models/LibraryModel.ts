@@ -199,7 +199,23 @@ export const getLibraryCodeForAssignment = async (
 ): Promise<string | null> => {
   const fn = "getLibraryCodeForAssignment";
   try {
-    // The problem's own library wins; fall back to the assignment-level library.
+    // A problem can link several libraries (assignment_problem_libraries):
+    // concatenate their code for this language, in link order.
+    const multiQuery = `
+      SELECT lf.content
+      FROM assignment_problem_libraries apl
+      JOIN library_files lf ON lf.library_id = apl.library_id
+      JOIN languages l ON l.language_id = lf.language_id
+      WHERE apl.assignment_id = $1 AND apl.problem_id = $3 AND l.name = $2
+      ORDER BY apl.position, apl.library_id
+    `;
+    const multi = await pool.query(multiQuery, [assignmentId, languageName, problemId ?? null]);
+    if (multi.rows.length > 0) {
+      return multi.rows.map((r) => r.content).join("\n\n");
+    }
+
+    // Fallback for problems with no linked set: the legacy per-problem library,
+    // then the assignment-level library.
     const query = `
       SELECT lf.content
       FROM assignments a

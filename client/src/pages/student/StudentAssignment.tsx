@@ -264,7 +264,7 @@ const StudentAssignment = ({ preview = false }: { preview?: boolean } = {}) => {
                 </div>
               )}
 
-              {p?.category && (
+              {!isMulti && p?.category && (
                 <div className="flex items-start gap-2.5 text-xs">
                   <BookOpen size={13} className="mt-0.5 shrink-0 text-muted-foreground" />
                   <div>
@@ -274,7 +274,7 @@ const StudentAssignment = ({ preview = false }: { preview?: boolean } = {}) => {
                 </div>
               )}
 
-              {tagList.length > 0 && (
+              {!isMulti && tagList.length > 0 && (
                 <div className="flex items-start gap-2.5 text-xs">
                   <Tag size={13} className="mt-0.5 shrink-0 text-muted-foreground" />
                   <div>
@@ -288,7 +288,7 @@ const StudentAssignment = ({ preview = false }: { preview?: boolean } = {}) => {
                 </div>
               )}
 
-              {assignment.languages?.length > 0 && (
+              {!isMulti && assignment.languages?.length > 0 && (
                 <div className="flex items-start gap-2.5 text-xs">
                   <Code size={13} className="mt-0.5 shrink-0 text-muted-foreground" />
                   <div>
@@ -327,48 +327,62 @@ const StudentAssignment = ({ preview = false }: { preview?: boolean } = {}) => {
             className="md:col-span-2 space-y-6"
           >
             {isMulti && (
-              <div className="bg-card border border-border rounded-xl p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    Problems <span className="text-foreground">({problems.length})</span>
-                  </h3>
-                  <span className="text-xs text-muted-foreground">
-                    {problems.reduce((s, ap) => s + (ap.points || 0), 0)} pts total
-                  </span>
+              <>
+                {/* Assignment-level description (per-problem descriptions live in
+                    the editor). */}
+                <div className="bg-card border border-border rounded-xl p-6">
+                  <h2 className="font-semibold text-lg mb-2">{assignment.title}</h2>
+                  {assignment.description ? (
+                    <div className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">
+                      {assignment.description}
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground italic text-sm">No description provided.</p>
+                  )}
                 </div>
-                {/* Card grid: wraps into columns as problems stack, instead of one
-                    long vertical list. */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {problems.map((ap, i) => (
-                    <button
-                      key={ap.problem.problemId}
-                      onClick={() => openProblem(ap.problem.problemId)}
-                      className="group flex flex-col gap-2 rounded-xl border border-border bg-background/40 hover:bg-muted/60 hover:border-primary/40 transition-colors p-3 text-left"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="w-6 h-6 rounded-md flex items-center justify-center text-xs font-semibold shrink-0"
-                          style={{ backgroundColor: accent + "18", color: accent }}
+
+                {/* Problems as a syllabus / module list. */}
+                <div className="bg-card border border-border rounded-xl overflow-hidden">
+                  <div className="flex items-center justify-between px-5 py-3 border-b border-border">
+                    <h3 className="text-sm font-semibold">
+                      Problems <span className="text-muted-foreground font-normal">({problems.length})</span>
+                    </h3>
+                    <span className="text-xs text-muted-foreground">
+                      {problems.reduce((s, ap) => s + (ap.points || 0), 0)} pts total
+                    </span>
+                  </div>
+                  <ul className="divide-y divide-border">
+                    {problems.map((ap, i) => (
+                      <li key={ap.problem.problemId}>
+                        <button
+                          onClick={() => openProblem(ap.problem.problemId)}
+                          className="group w-full flex items-center gap-4 px-5 py-4 hover:bg-muted/50 transition-colors text-left"
                         >
-                          {i + 1}
-                        </span>
-                        <span className="text-sm font-medium flex-1 min-w-0 truncate">{ap.problem.title}</span>
-                        <ChevronRight size={15} className="text-muted-foreground shrink-0 group-hover:text-foreground transition-colors" />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        {ap.problem.category ? (
-                          <Badge variant="outline" className="text-[10px]">{ap.problem.category}</Badge>
-                        ) : <span />}
-                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Zap size={12} /><span className="font-semibold text-foreground">{ap.points}</span> pts
-                        </span>
-                      </div>
-                    </button>
-                  ))}
+                          <span
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-semibold shrink-0"
+                            style={{ backgroundColor: accent + "18", color: accent }}
+                          >
+                            {i + 1}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium truncate">{ap.problem.title}</div>
+                            {ap.problem.category && (
+                              <div className="text-xs text-muted-foreground mt-0.5">{ap.problem.category}</div>
+                            )}
+                          </div>
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
+                            <Zap size={12} /><span className="font-semibold text-foreground">{ap.points}</span> pts
+                          </span>
+                          <ChevronRight size={16} className="text-muted-foreground shrink-0 group-hover:text-foreground transition-colors" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-              </div>
+              </>
             )}
 
+            {!isMulti && (
             <div className="bg-card border border-border rounded-xl overflow-hidden h-full min-h-[480px] flex flex-col">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1">
                 <div className="border-b border-border px-4 pt-3">
@@ -435,6 +449,7 @@ const StudentAssignment = ({ preview = false }: { preview?: boolean } = {}) => {
                 </TabsContent>
               </Tabs>
             </div>
+            )}
           </motion.div>
         </div>
       </div>

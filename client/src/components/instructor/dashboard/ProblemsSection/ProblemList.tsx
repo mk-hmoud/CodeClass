@@ -16,7 +16,7 @@ const ProblemList: React.FC<ProblemListProps> = ({
   onDelete,
 }) => {
   return (
-    <div className="space-y-4">
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
       {problems.map((problem) => (
         <ProblemCard
           key={problem.problemId}

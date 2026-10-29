@@ -18,7 +18,7 @@ import logger from "../../config/logger";
 
 const AI_BASE_URL = process.env.AI_BASE_URL;
 const AI_API_KEY = process.env.AI_API_KEY;
-const AI_MODEL = process.env.AI_MODEL || "gemini-3.8-flash";
+const AI_MODEL = process.env.AI_MODEL || "gemini-3.6-flash";
 
 export const isAiConfigured = (): boolean => Boolean(AI_BASE_URL && AI_API_KEY);
 
@@ -145,7 +145,7 @@ export const suggestTestCases = async (
         Authorization: `Bearer ${AI_API_KEY}`,
         "Content-Type": "application/json",
       },
-      timeout: 30000,
+      timeout: 60000,
     }
   );
 

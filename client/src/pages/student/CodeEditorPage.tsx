@@ -823,7 +823,7 @@ const CodeEditorPage = ({ preview = false }: { preview?: boolean } = {}) => {
 
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <ChevronRight size={14} className="text-muted-foreground shrink-0" />
-            <h1 className="font-semibold text-sm truncate">{assignment?.title}</h1>
+            <h1 className="font-semibold text-sm truncate">{assignment?.problem?.title ?? assignment?.title}</h1>
             {preview && (
               <span className="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/40">
                 PREVIEW
@@ -906,9 +906,15 @@ const CodeEditorPage = ({ preview = false }: { preview?: boolean } = {}) => {
                     <div className="flex-1 overflow-y-auto p-4">
                       {descTab === "description" ? (
                         <div className="prose prose-sm dark:prose-invert max-w-none">
-                          {assignment?.description ? (
+                          {/* The editor shows the PROBLEM's own title + description
+                              (the assignment-level description lives on the outer
+                              assignment page). */}
+                          {assignment?.problem?.title && (
+                            <h2 className="text-base font-semibold text-foreground mb-2">{assignment.problem.title}</h2>
+                          )}
+                          {assignment?.problem?.description ? (
                             <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-relaxed text-foreground bg-transparent p-0 m-0">
-                              {assignment.description}
+                              {assignment.problem.description}
                             </pre>
                           ) : (
                             <p className="text-muted-foreground italic text-sm">No description provided.</p>

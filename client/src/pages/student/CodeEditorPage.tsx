@@ -23,8 +23,8 @@ import "@/lib/monacoConfig";
 import { TestCase, JudgeVerdict } from "@/types/TestCase";
 import { Assignment } from "@/types/Assignment";
 import { FullSubmission } from "@/types/Submission";
-import { runCode, getRunStatus, submit, getSubmitStatus, runSystems } from "@/services/JudgeService";
-import { getRemainingAttempts, getAssignmentById, getMySubmission } from "@/services/AssignmentService";
+import { runCode, getRunStatus, submit, getSubmitStatus, runSystems, previewGrade } from "@/services/JudgeService";
+import { getRemainingAttempts, getAssignmentById, getAssignmentPreview, getMySubmission } from "@/services/AssignmentService";
 import { getCodeDraft, removeCodeDraft, saveCodeDraft } from "@/utils/CodeDraftManager";
 import { LANGUAGE_LABELS, normalizeAssignment } from "@/lib/assignmentUtils";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -57,7 +57,7 @@ const withActiveProblem = (a: Assignment | null, pid?: number): Assignment | nul
   return { ...a, problem: match.problem, languages: match.languages ?? a.languages };
 };
 
-const CodeEditorPage = () => {
+const CodeEditorPage = ({ preview = false }: { preview?: boolean } = {}) => {
   const navigate = useNavigate();
   const { classroomId, assignmentId } = useParams();
   const location = useLocation();
@@ -118,12 +118,16 @@ const CodeEditorPage = () => {
     if (stateAssignment || !assignmentId) return;
     (async () => {
       try {
-        const raw = await getAssignmentById(Number(assignmentId));
+        const raw = preview
+          ? await getAssignmentPreview(Number(assignmentId))
+          : await getAssignmentById(Number(assignmentId));
         if (!raw?.assignment) throw new Error("Assignment not found");
         setAssignment(withActiveProblem(normalizeAssignment(raw.assignment), activeProblemId));
       } catch {
         toast.error("Failed to load assignment");
-        navigate(`/student/classrooms/${classroomId}/view`);
+        navigate(preview
+          ? `/instructor/classrooms/${classroomId}/assignments/${assignmentId}/view`
+          : `/student/classrooms/${classroomId}/view`);
       } finally {
         setAssignmentLoading(false);
       }
@@ -138,11 +142,13 @@ const CodeEditorPage = () => {
   // independent of the assignment fetch above, so it runs in parallel rather
   // than waiting on it (both only need assignmentId, which is already known).
   useEffect(() => {
-    if (!assignmentId) { setMySubmissionLoading(false); return; }
+    // No "my submission" when an instructor is previewing (the endpoint 403s for
+    // non-students, and preview records nothing).
+    if (!assignmentId || preview) { setMySubmissionLoading(false); return; }
     getMySubmission(Number(assignmentId))
       .then(setMySubmission)
       .finally(() => setMySubmissionLoading(false));
-  }, [assignmentId]);
+  }, [assignmentId, preview]);
 
   // Once the previous submission (if any) is loaded, surface it immediately in
   // the Submit tab so the student doesn't have to press Submit again just to
@@ -252,13 +258,14 @@ const CodeEditorPage = () => {
     return () => { document.body.style.overflow = ""; document.documentElement.style.overflow = ""; };
   }, []);
 
-  // Fetch remaining attempts (per problem for multi-problem assignments)
+  // Fetch remaining attempts (per problem for multi-problem assignments).
+  // Skipped in preview: instructors have no attempts and the endpoint 403s.
   useEffect(() => {
-    if (!assignmentId) return;
+    if (!assignmentId || preview) return;
     getRemainingAttempts(Number(assignmentId), activeProblemId)
       .then(setRemainingAttempts)
       .catch(() => {});
-  }, [assignmentId, activeProblemId]);
+  }, [assignmentId, activeProblemId, preview]);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   const getCode = () => monacoInstance.current?.getValue() ?? "";
@@ -336,7 +343,7 @@ const CodeEditorPage = () => {
 
   // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmitCode = async () => {
-    if (remainingAttempts !== null && remainingAttempts <= 0) {
+    if (!preview && remainingAttempts !== null && remainingAttempts <= 0) {
       toast.error("No submission attempts remaining");
       return;
     }
@@ -345,9 +352,17 @@ const CodeEditorPage = () => {
     setSubmitVerdict({ ...emptyVerdict });
 
     try {
-      const { job_id } = isSystems
-        ? await submit(assignment!.assignmentId, "", "c", systemsPaneRef.current?.getFiles() ?? [], assignment?.problem?.problemId)
-        : await submit(assignment!.assignmentId, getCode(), selectedLanguage, undefined, assignment?.problem?.problemId);
+      const files = systemsPaneRef.current?.getFiles() ?? [];
+      // Preview grades against ALL tests without recording anything, and reads
+      // the verdict via the run-status path; a real submit records the attempt.
+      const { job_id } = preview
+        ? (isSystems
+            ? await previewGrade(assignment!.assignmentId, "", "c", files, assignment?.problem?.problemId)
+            : await previewGrade(assignment!.assignmentId, getCode(), selectedLanguage, undefined, assignment?.problem?.problemId))
+        : (isSystems
+            ? await submit(assignment!.assignmentId, "", "c", files, assignment?.problem?.problemId)
+            : await submit(assignment!.assignmentId, getCode(), selectedLanguage, undefined, assignment?.problem?.problemId));
+      const pollStatus = preview ? getRunStatus : getSubmitStatus;
       let statusData: JudgeVerdict;
       // Bound the wait: the judge can die or the queue can stall, and an
       // unbounded poll would leave the student on a spinner forever.
@@ -355,18 +370,24 @@ const CodeEditorPage = () => {
       let polls = 0;
       do {
         await new Promise((r) => setTimeout(r, POLL_INTERVAL));
-        statusData = await getSubmitStatus(job_id);
+        statusData = await pollStatus(job_id);
         setSubmitVerdict(statusData);
         polls += 1;
       } while (statusData.status === "pending" && polls < maxPolls);
 
       if (statusData.status === "pending") {
-        toast.error("Still judging — this is taking longer than usual. Check back in a moment; your submission was recorded.");
+        toast.error(preview
+          ? "Still judging — this is taking longer than usual. Check back in a moment."
+          : "Still judging — this is taking longer than usual. Check back in a moment; your submission was recorded.");
         return;
       }
 
       if (statusData.status === "compile_error") {
         toast.error(`Compile error: ${statusData.error?.errorMessage}`);
+      } else if (preview && statusData.status === "completed" && statusData.metrics) {
+        const { passedTests = 0, totalTests = 0 } = statusData.metrics;
+        if (passedTests === totalTests) toast.success(`Preview: all ${totalTests} tests passed 🎉`);
+        else toast.warning(`Preview: ${passedTests}/${totalTests} tests passed`);
       } else if (statusData.status === "completed" && statusData.metrics) {
         removeCodeDraft(assignmentId);
         setSaveStatus("saved");
@@ -413,7 +434,7 @@ const CodeEditorPage = () => {
       toast.error(serverMsg || "Failed to submit code");
       // On "no attempts left", resync the counter from the server so the UI
       // stops offering a submit that will keep failing.
-      if (resp?.status === 403 && assignmentId) {
+      if (!preview && resp?.status === 403 && assignmentId) {
         getRemainingAttempts(Number(assignmentId), assignment?.problem?.problemId).then(setRemainingAttempts).catch(() => {});
       }
     } finally {
@@ -425,7 +446,7 @@ const CodeEditorPage = () => {
   // submission exists -- createSubmission silently deletes it (and any grade)
   // on resubmit, so the student should know that's about to happen.
   const requestSubmit = () => {
-    if (mySubmission) {
+    if (!preview && mySubmission) {
       setResubmitConfirmOpen(true);
       return;
     }
@@ -791,7 +812,9 @@ const CodeEditorPage = () => {
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"
-                onClick={() => navigate(`/student/classrooms/${classroomId}/assignments/${assignmentId}/view`)}>
+                onClick={() => navigate(preview
+                  ? `/instructor/classrooms/${classroomId}/assignments/${assignmentId}/preview`
+                  : `/student/classrooms/${classroomId}/assignments/${assignmentId}/view`)}>
                 <ArrowLeft size={16} />
               </Button>
             </TooltipTrigger>
@@ -801,6 +824,11 @@ const CodeEditorPage = () => {
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <ChevronRight size={14} className="text-muted-foreground shrink-0" />
             <h1 className="font-semibold text-sm truncate">{assignment?.title}</h1>
+            {preview && (
+              <span className="shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/40">
+                PREVIEW
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-2 shrink-0">

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createAssignmentController, getAssignmentsController, getAssignmentByIdController, deleteAssignmentController, getRemainingAttemptsController, getUpcomingDeadlinesController, getMySubmissionController, releaseGradesController } from '../controllers/AssignmentController';
+import { createAssignmentController, getAssignmentsController, getAssignmentByIdController, getAssignmentPreviewController, deleteAssignmentController, getRemainingAttemptsController, getUpcomingDeadlinesController, getMySubmissionController, releaseGradesController } from '../controllers/AssignmentController';
 import { authMiddleware, requireRole } from '../middleware/AuthMiddleware';
 import { getAssignmentAnalyticsController } from '../controllers/AnalyticsController';
 import { getAssignmentPlagiarismReportsController } from '../controllers/PlagiarismController';
@@ -11,6 +11,7 @@ router.post('/', authMiddleware, createAssignmentController);
 router.get('/upcoming-deadlines', authMiddleware, getUpcomingDeadlinesController);
 router.get('/assignments', authMiddleware, getAssignmentsController);
 router.get('/:assignmentId', authMiddleware, getAssignmentByIdController);
+router.get('/:assignmentId/preview', authMiddleware, getAssignmentPreviewController);
 router.get('/:assignmentId/remaining-attempts', authMiddleware, getRemainingAttemptsController);
 router.get('/:assignmentId/my-submission', authMiddleware, getMySubmissionController);
 router.post('/:assignmentId/release-grades', authMiddleware, releaseGradesController);

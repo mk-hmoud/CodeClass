@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { getAssignmentById, getRemainingAttempts } from "@/services/AssignmentService";
+import { getAssignmentById, getAssignmentPreview, getRemainingAttempts } from "@/services/AssignmentService";
 import { toast } from "sonner";
 import { Assignment } from "@/types/Assignment";
 import { LANGUAGE_LABELS, normalizeAssignment } from "@/lib/assignmentUtils";
@@ -31,7 +31,7 @@ const Skeleton = ({ className }: { className?: string }) => (
   <div className={cn("animate-pulse rounded-lg bg-muted", className)} />
 );
 
-const StudentAssignment = () => {
+const StudentAssignment = ({ preview = false }: { preview?: boolean } = {}) => {
   const { classroomId, assignmentId } = useParams();
   const navigate = useNavigate();
   const [assignment, setAssignment] = useState<Assignment | null>(null);
@@ -44,21 +44,27 @@ const StudentAssignment = () => {
     (async () => {
       setLoading(true);
       try {
-        const raw = await getAssignmentById(parseInt(assignmentId, 10));
+        const raw = preview
+          ? await getAssignmentPreview(parseInt(assignmentId, 10))
+          : await getAssignmentById(parseInt(assignmentId, 10));
         setAssignment(normalizeAssignment(raw.assignment));
-        const att = await getRemainingAttempts(parseInt(assignmentId, 10));
-        setRemainingAttempts(att);
+        // Attempts don't exist for an instructor previewing; skip (the endpoint
+        // 403s for non-students anyway).
+        if (!preview) {
+          const att = await getRemainingAttempts(parseInt(assignmentId, 10));
+          setRemainingAttempts(att);
+        }
       } catch {
         toast.error("Failed to load assignment");
       } finally {
         setLoading(false);
       }
     })();
-  }, [assignmentId]);
+  }, [assignmentId, preview]);
 
   useEffect(() => {
-    if (!loading && !assignment) navigate("/student/dashboard");
-  }, [loading, assignment, navigate]);
+    if (!loading && !assignment) navigate(preview ? "/instructor/dashboard" : "/student/dashboard");
+  }, [loading, assignment, navigate, preview]);
 
   if (loading) {
     return (
@@ -100,23 +106,42 @@ const StudentAssignment = () => {
   const isMulti = problems.length > 1;
   // Open the editor on a specific problem; the id rides in the URL (survives
   // refresh / shared links) and in nav state (fast path). Omit for the primary.
-  const openProblem = (pid?: number) =>
-    navigate(
-      `/student/classrooms/${classroomId}/assignments/${assignmentId}/solve${pid != null ? `?problem=${pid}` : ""}`,
-      { state: { ...assignment, activeProblemId: pid } }
-    );
+  const openProblem = (pid?: number) => {
+    const base = preview
+      ? `/instructor/classrooms/${classroomId}/assignments/${assignmentId}/preview/solve`
+      : `/student/classrooms/${classroomId}/assignments/${assignmentId}/solve`;
+    navigate(`${base}${pid != null ? `?problem=${pid}` : ""}`, { state: { ...assignment, activeProblemId: pid } });
+  };
 
   return (
     <div className="flex-1 flex flex-col">
+      {preview && (
+        <div className="bg-amber-500/15 border-b border-amber-500/40 text-amber-700 dark:text-amber-300">
+          <div className="max-w-6xl mx-auto px-6 py-2.5 flex items-center justify-between gap-3 text-sm">
+            <span className="flex items-center gap-2">
+              <AlertCircle size={15} />
+              <span><span className="font-semibold">Preview</span> — this is exactly what a student sees. Nothing is recorded.</span>
+            </span>
+            <button
+              onClick={() => navigate(`/instructor/classrooms/${classroomId}/assignments/${assignmentId}/view`)}
+              className="font-medium hover:underline shrink-0"
+            >
+              Exit preview
+            </button>
+          </div>
+        </div>
+      )}
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="border-b border-border bg-gradient-to-br from-background via-background to-muted/30">
         <div className="max-w-6xl mx-auto px-6 py-6">
           <button
-            onClick={() => navigate(`/student/classrooms/${classroomId}/view`)}
+            onClick={() => navigate(preview
+              ? `/instructor/classrooms/${classroomId}/assignments/${assignmentId}/view`
+              : `/student/classrooms/${classroomId}/view`)}
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-5"
           >
             <ArrowLeft size={15} />
-            Back to Classroom
+            {preview ? "Back to Assignment" : "Back to Classroom"}
           </button>
 
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">

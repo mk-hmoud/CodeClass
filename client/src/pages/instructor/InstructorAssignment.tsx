@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   MoreVertical, Trash2, Clock, Calendar, BookOpen,
-  BarChart2, ArrowLeft, Zap, ClipboardCheck, Megaphone,
+  BarChart2, ArrowLeft, Zap, ClipboardCheck, Megaphone, Eye,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -207,6 +207,14 @@ const InstructorAssignment: React.FC = () => {
                       {releasingGrades ? "Releasing…" : "Release Grades"}
                     </Button>
                   )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => window.open(`/instructor/classrooms/${classroomId}/assignments/${assignmentId}/preview`, "_blank")}
+                >
+                  <Eye size={14} />Preview as student
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"

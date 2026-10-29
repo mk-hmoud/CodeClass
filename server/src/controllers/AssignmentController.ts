@@ -1,6 +1,6 @@
 import logger from '../config/logger';
 import { Request, Response } from 'express';
-import { createAssignment, getAssignments, getAssignmentById, deleteAssignment, getRemainingAttempts, getAssignmentForStudent, getUpcomingDeadlines, getAssignmentReleaseInfo, getAssignmentOwnerInstructorId, releaseGrades, ASSIGNMENT_NOT_ACCESSIBLE } from '../models/AssignmentModel';
+import { createAssignment, getAssignments, getAssignmentById, deleteAssignment, getRemainingAttempts, getAssignmentForStudent, getAssignmentPreviewForInstructor, getUpcomingDeadlines, getAssignmentReleaseInfo, getAssignmentOwnerInstructorId, releaseGrades, ASSIGNMENT_NOT_ACCESSIBLE } from '../models/AssignmentModel';
 import { getInstructorByUserId } from '../models/InstructorModel';
 import { getSubmissionsByAssignment } from '../models/SubmissionModel';
 import { isGradeVisible } from '../utils/gradeVisibility';
@@ -85,6 +85,36 @@ export const getAssignmentByIdController = async (req: Request, res: Response): 
       success: false,
       message: 'Failed to fetch assignment'
     });
+  }
+};
+
+/**
+ * "Preview as student": returns the exact student-facing projection of an
+ * assignment (public tests only, instructor fields stripped), authorized by the
+ * requesting instructor owning the classroom rather than by enrollment.
+ */
+export const getAssignmentPreviewController = async (req: Request, res: Response): Promise<void> => {
+  const fn = 'getAssignmentPreviewController';
+  try {
+    if (req.user?.role !== 'instructor') {
+      res.status(403).json({ success: false, message: 'Forbidden: instructor role required' });
+      return;
+    }
+    const instructor = await getInstructorByUserId(req.user.id);
+    if (!instructor) {
+      res.status(401).json({ success: false, message: 'Unauthorized: instructor not identified' });
+      return;
+    }
+    const assignmentId = Number(req.params.assignmentId);
+    const assignment = await getAssignmentPreviewForInstructor(assignmentId, instructor.instructor_id);
+    res.status(200).json({ success: true, data: { assignment } });
+  } catch (error) {
+    if (error instanceof Error && error.message === ASSIGNMENT_NOT_ACCESSIBLE) {
+      res.status(404).json({ success: false, message: 'Assignment not found' });
+      return;
+    }
+    logger.error({ fn, error }, `Error fetching assignment preview: ${error}`);
+    res.status(500).json({ success: false, message: 'Failed to fetch assignment preview' });
   }
 };
 

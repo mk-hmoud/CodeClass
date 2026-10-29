@@ -26,6 +26,18 @@ export const getAssignmentById = async (
   }
 };
 
+/** Instructor "preview as student": the student-facing projection of an
+ *  assignment (public tests only), authorized by ownership. */
+export const getAssignmentPreview = async (assignmentId: number): Promise<any> => {
+  try {
+    const response = await apiClient.get(`/assignments/${assignmentId}/preview`);
+    return response.data.data; // { assignment }
+  } catch (error) {
+    console.error("Error fetching assignment preview:", error);
+    return null;
+  }
+};
+
 export const deleteAssignment = (assignmentId: number) => {
   return apiClient.delete(`/assignments/${assignmentId}`);
 };

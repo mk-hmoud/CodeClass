@@ -89,6 +89,22 @@ export const runSystems = async (
   return data;
 };
 
+/** Instructor preview-grade: grades against ALL tests without recording a
+ *  submission/attempt. Uses the run-status path to read the verdict. */
+export const previewGrade = async (
+  assignmentId: number,
+  code: string,
+  language: string,
+  files?: { path: string; content: string }[],
+  problemId?: number,
+): Promise<JudgeResponse> => {
+  const { data } = await apiClient.post<JudgeResponse>(
+    "/judge/preview-grade",
+    { assignmentId, code, language, files, problemId }
+  );
+  return data;
+};
+
 export const getSubmitStatus = async (
   jobId: string
 ): Promise<JudgeVerdict> => {

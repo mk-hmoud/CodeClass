@@ -113,6 +113,17 @@ const App = () => (
             element={<CodeEditor />}
           />
 
+          {/* Instructor "preview as student" — the same student pages rendered
+              full-screen in preview mode (no student layout chrome). */}
+          <Route
+            path="/instructor/classrooms/:classroomId/assignments/:assignmentId/preview"
+            element={<StudentAssignment preview />}
+          />
+          <Route
+            path="/instructor/classrooms/:classroomId/assignments/:assignmentId/preview/solve"
+            element={<CodeEditor preview />}
+          />
+
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

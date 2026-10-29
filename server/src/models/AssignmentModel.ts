@@ -461,6 +461,25 @@ export const getAssignmentById = async (
 
 export const ASSIGNMENT_NOT_ACCESSIBLE = "Assignment not found";
 
+/**
+ * The exact projection a student is allowed to see: private test cases removed
+ * from every problem, and instructor-only fields stripped. Mutates and returns
+ * the assignment. Shared by the student fetch and the instructor "preview as
+ * student" fetch so both are guaranteed identical.
+ */
+export const toStudentProjection = (a: Assignment): Assignment => {
+  a.problem.testCases = a.problem.testCases.filter((tc) => tc.isPublic);
+  if (a.problems) {
+    for (const ap of a.problems) {
+      ap.problem.testCases = ap.problem.testCases.filter((tc) => tc.isPublic);
+    }
+  }
+  delete (a as any).grading_method;
+  delete (a as any).assigned_at;
+  delete (a as any).plagiarism_detection;
+  return a;
+};
+
 export const getAssignmentForStudent = async (
   assignmentId: number,
   studentId: number
@@ -476,31 +495,30 @@ export const getAssignmentForStudent = async (
       throw new Error(ASSIGNMENT_NOT_ACCESSIBLE);
     }
 
-    const a = await getAssignmentById(assignmentId);
-
-    const beforeCount = a.problem.testCases.length;
-    a.problem.testCases = a.problem.testCases.filter((tc) => tc.isPublic);
-    const afterCount = a.problem.testCases.length;
-    // Same filtering for every problem in a multi-problem assignment, so private
-    // tests never reach the student for any of them.
-    if (a.problems) {
-      for (const ap of a.problems) {
-        ap.problem.testCases = ap.problem.testCases.filter((tc) => tc.isPublic);
-      }
-    }
-    logger.debug({ fn, assignmentId, beforeCount, afterCount }, `Filtered test cases: ${beforeCount} → ${afterCount} public only`);
-
-    delete (a as any).grading_method;
-    delete (a as any).assigned_at;
-    delete (a as any).plagiarism_detection;
-    logger.debug({ fn, assignmentId }, 'Stripped instructor-only fields from assignment object');
-
+    const a = toStudentProjection(await getAssignmentById(assignmentId));
     logger.info({ fn, assignmentId }, `Returning assignment ${assignmentId} to student`);
     return a;
   } catch (err) {
     logger.error({ fn, assignmentId, err }, 'Error in getAssignmentForStudent');
     throw err;
   }
+};
+
+/**
+ * The same student projection, but authorized by the instructor OWNING the
+ * assignment's classroom instead of by enrollment -- for "preview as student".
+ */
+export const getAssignmentPreviewForInstructor = async (
+  assignmentId: number,
+  instructorId: number
+): Promise<Assignment> => {
+  const fn = "getAssignmentPreviewForInstructor";
+  const ownerId = await getAssignmentOwnerInstructorId(assignmentId);
+  if (ownerId === null || ownerId !== instructorId) {
+    logger.warn({ fn, assignmentId, instructorId, ownerId }, `Instructor ${instructorId} may not preview assignment ${assignmentId}`);
+    throw new Error(ASSIGNMENT_NOT_ACCESSIBLE);
+  }
+  return toStudentProjection(await getAssignmentById(assignmentId));
 };
 
 export const deleteAssignment = async (assignmentId: number): Promise<void> => {

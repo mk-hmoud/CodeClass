@@ -12,7 +12,8 @@ import { assembleSystemsJob } from '../services/systems/runnerJob';
 import { runPlagiarismCheck } from './PlagiarismController';
 import { systemEventEmitter } from '../services/statistics/emitter'; 
 import { SubmissionCompletedEvent, SubmissionCreatedEvent } from '../services/statistics/events';
-import { canStudentAccessAssignment, getSubmissionAttemptCount, getAssignmentRuntime, resolveAssignmentProblemId } from '../models/AssignmentModel';
+import { canStudentAccessAssignment, getSubmissionAttemptCount, getAssignmentRuntime, resolveAssignmentProblemId, getAssignmentOwnerInstructorId } from '../models/AssignmentModel';
+import { getInstructorByUserId } from '../models/InstructorModel';
 import { calculateGrade } from '../services/grading/Grader';
 
 
@@ -148,6 +149,83 @@ export const runCodeHandler = async (req: Request, res: Response): Promise<void>
   }
 };
 
+
+/**
+ * Instructor "preview as student" full grade. Builds the SAME grading job a
+ * student submit would (all tests, resolved server-side), but enqueues it as a
+ * RUN job so the verdict is read back via the run-status path WITHOUT recording
+ * any submission or attempt. Requires the caller to own the assignment.
+ */
+export const previewGradeHandler = async (req: Request, res: Response): Promise<void> => {
+  const fn = "previewGrade";
+  const { assignmentId, problemId: bodyProblemId, code, language, files } = req.body as {
+    assignmentId: number; problemId?: number; code?: string; language: string;
+    files?: { path: string; content: string }[];
+  };
+
+  if (req.user?.role !== "instructor") {
+    res.status(403).json({ error: "Instructor role required" });
+    return;
+  }
+  const instructor = await getInstructorByUserId(req.user.id);
+  if (!instructor) {
+    res.status(401).json({ error: "Instructor not identified" });
+    return;
+  }
+
+  const hasFiles = Array.isArray(files) && files.length > 0;
+  if ((!code && !hasFiles) || !language || !assignmentId) {
+    res.status(400).json({ error: "Missing required parameters" });
+    return;
+  }
+
+  const owner = await getAssignmentOwnerInstructorId(assignmentId);
+  if (owner === null || owner !== instructor.instructor_id) {
+    res.status(404).json({ error: "Assignment not found" });
+    return;
+  }
+  if (!redisClient.isReady) {
+    res.status(503).json({ error: "Service temporarily unavailable" });
+    return;
+  }
+
+  let problemId: number;
+  try {
+    problemId = await resolveAssignmentProblemId(assignmentId, bodyProblemId);
+  } catch {
+    res.status(404).json({ error: "Problem not found in assignment" });
+    return;
+  }
+
+  try {
+    const jobId = nanoid();
+    const rt = await getAssignmentRuntime(assignmentId, problemId);
+    let data: string;
+    if (rt?.runtime === "systems") {
+      // All tests (public + private) -- the instructor is allowed to see them.
+      const job = await assembleSystemsJob(rt.problemId, files ?? []);
+      data = JSON.stringify({ runtime: "systems", runnerInput: JSON.stringify(job), language: "c", mode: "run" });
+    } else {
+      const testCases = await getAssignmentTestCases(assignmentId, problemId);
+      if (testCases.length === 0) {
+        res.status(500).json({ error: "No test cases found for this problem" });
+        return;
+      }
+      let libraryCode: string | null = null;
+      try { libraryCode = await getLibraryCodeForAssignment(assignmentId, language); } catch { /* optional */ }
+      let outputType: 'text' | 'image' = 'text';
+      try { outputType = await getProblemOutputTypeForAssignment(assignmentId, problemId); } catch { /* default */ }
+      data = JSON.stringify({ code, language, testCases, mode: "run", libraryCode, outputType });
+    }
+    await redisClient.hSet(`judge:${jobId}`, { data, createdAt: Date.now().toString() });
+    await redisClient.lPush("judge:queue", jobId);
+    logger.info({ fn, assignmentId, problemId, jobId }, `Queued preview grade ${jobId}`);
+    res.status(202).json({ job_id: jobId, status_url: `/api/judge/status/run/${jobId}` });
+  } catch (err) {
+    logger.error({ fn, assignmentId, error: err }, `Preview grade failed: ${err}`);
+    res.status(500).json({ error: "Failed to queue preview grade" });
+  }
+};
 
 export const getRunStatusHandler = async (req: Request, res: Response): Promise<void> => {
   const { jobId } = req.params;

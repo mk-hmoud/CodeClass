@@ -159,13 +159,13 @@ const ProblemSetBuilder: React.FC<Props> = ({ value, onChange, languages, hasGro
 
       {/* Searchable picker over the whole problem bank */}
       <Dialog open={pickerOpen} onOpenChange={(o) => { setPickerOpen(o); if (!o) setPicked(new Set()); }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Add problems</DialogTitle>
           </DialogHeader>
           <Command className="border border-border rounded-lg">
-            <CommandInput placeholder="Search problems…" />
-            <CommandList className="max-h-72">
+            <CommandInput placeholder="Search problems by title, category or tag…" />
+            <CommandList className="max-h-[60vh]">
               <CommandEmpty>No problems found.</CommandEmpty>
               <CommandGroup>
                 {bank.map((p) => {
@@ -174,7 +174,7 @@ const ProblemSetBuilder: React.FC<Props> = ({ value, onChange, languages, hasGro
                   return (
                     <CommandItem
                       key={p.problemId}
-                      value={`${p.title} ${p.category ?? ""} ${p.runtime ?? ""}`}
+                      value={`${p.title} ${p.category ?? ""} ${p.tags ?? ""} ${p.runtime ?? ""}`}
                       disabled={already}
                       onSelect={() => {
                         if (already) return;
@@ -184,15 +184,22 @@ const ProblemSetBuilder: React.FC<Props> = ({ value, onChange, languages, hasGro
                           return n;
                         });
                       }}
-                      className="gap-2"
+                      className="gap-3 py-2.5 items-start"
                     >
-                      <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${sel ? "bg-primary border-primary text-primary-foreground" : "border-border"}`}>
+                      <span className={`mt-0.5 w-4 h-4 rounded border flex items-center justify-center shrink-0 ${sel ? "bg-primary border-primary text-primary-foreground" : "border-border"}`}>
                         {sel && <Check size={12} />}
                       </span>
-                      <span className="flex-1 min-w-0 truncate">{p.title}</span>
-                      {isSystems(p) && <Badge variant="outline" className="text-[10px] shrink-0">systems</Badge>}
-                      {p.category && <Badge variant="outline" className="text-[10px] shrink-0">{p.category}</Badge>}
-                      {already && <span className="text-[10px] text-muted-foreground shrink-0">added</span>}
+                      <span className="flex-1 min-w-0">
+                        <span className="flex items-center gap-2">
+                          <span className="font-medium truncate">{p.title}</span>
+                          {isSystems(p) && <Badge variant="outline" className="text-[10px] shrink-0">systems</Badge>}
+                          {p.category && <Badge variant="outline" className="text-[10px] shrink-0">{p.category}</Badge>}
+                          {already && <span className="text-[10px] text-muted-foreground shrink-0">added</span>}
+                        </span>
+                        {p.description && (
+                          <span className="block text-xs text-muted-foreground truncate mt-0.5">{p.description}</span>
+                        )}
+                      </span>
                     </CommandItem>
                   );
                 })}

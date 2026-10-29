@@ -121,7 +121,7 @@ const ProblemSetBuilder: React.FC<Props> = ({ value, onChange, languages, hasGro
             No problems yet. Add at least one to base this assignment on.
           </div>
         ) : (
-          <Reorder.Group axis="y" values={value} onReorder={onChange} className="space-y-2">
+          <Reorder.Group axis="y" values={value} onReorder={onChange} className="space-y-2.5">
             {value.map((item, i) => (
               <ProblemRow
                 key={item.problem.problemId}
@@ -249,52 +249,54 @@ const ProblemRow: React.FC<RowProps> = ({
       dragControls={controls}
       className="rounded-lg border border-border bg-card"
     >
-      <div className="flex items-center gap-2 px-3 py-2.5">
+      <div className="flex items-center gap-3 px-4 py-3.5">
         <button
           type="button"
           onPointerDown={(e) => controls.start(e)}
-          className="cursor-grab active:cursor-grabbing text-muted-foreground touch-none shrink-0"
+          className="cursor-grab active:cursor-grabbing text-muted-foreground/70 hover:text-muted-foreground touch-none shrink-0"
           aria-label="Drag to reorder"
         >
           <GripVertical size={16} />
         </button>
-        <span className="w-6 h-6 rounded-md bg-primary/15 text-primary flex items-center justify-center text-xs font-semibold shrink-0">
+        <span className="w-7 h-7 rounded-md bg-primary/15 text-primary flex items-center justify-center text-sm font-semibold shrink-0">
           {index + 1}
         </span>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-medium truncate">{item.problem.title}</div>
-          <div className="flex items-center gap-1.5 mt-0.5">
+          <div className="flex items-center gap-2 mt-1.5">
             <Badge variant="outline" className="text-[10px]">
               {systems ? <><Terminal size={10} className="mr-1" />systems</> : <><FileCode2 size={10} className="mr-1" />{item.problem.category ?? "standard"}</>}
             </Badge>
             {!systems && item.languages.length > 0 && (
-              <span className="text-[10px] text-muted-foreground">
+              <span className="text-[10px] text-muted-foreground truncate">
                 {item.languages.map((l) => LANGUAGE_LABELS[l] ?? l).join(", ")}
               </span>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0 pl-2 border-l border-border/60">
           <Input
             type="number"
             min={1}
             value={item.points}
             onChange={(e) => onPoints(Number(e.target.value))}
-            className="h-8 w-20 text-sm"
+            className="h-8 w-16 text-sm"
           />
           <span className="text-xs text-muted-foreground">pts</span>
         </div>
-        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onToggleExpand}>
-          <ChevronDown size={15} className={`transition-transform ${expanded ? "rotate-180" : ""}`} />
-        </Button>
-        <button
-          type="button"
-          onClick={onRemove}
-          className="w-8 h-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
-          aria-label="Remove problem"
-        >
-          <X size={15} />
-        </button>
+        <div className="flex items-center gap-0.5 shrink-0">
+          <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={onToggleExpand}>
+            <ChevronDown size={15} className={`transition-transform ${expanded ? "rotate-180" : ""}`} />
+          </Button>
+          <button
+            type="button"
+            onClick={onRemove}
+            className="w-8 h-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            aria-label="Remove problem"
+          >
+            <X size={15} />
+          </button>
+        </div>
       </div>
 
       <Collapsible open={expanded}>

@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Save, Trash } from "lucide-react";
+import { ArrowLeft, ChevronRight, Copy, Plus, Save, Trash } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -73,6 +73,9 @@ const ProblemCreation = () => {
   const [testCases, setTestCases] = useState<TestCase[]>([
     { input: "", expectedOutput: "", isPublic: false },
   ]);
+  // Per-case collapse state (parallel to `testCases`): collapsed rows show a
+  // one-line summary so long test-case lists stay scannable.
+  const [collapsed, setCollapsed] = useState<boolean[]>([false]);
   // "sql" is a form-only output type — it relabels fields below and unlocks the
   // reference-query helper, but is never sent to the backend as-is: the
   // problem's real (persisted) outputType is still "text", since SQL results
@@ -231,6 +234,50 @@ const ProblemCreation = () => {
     form.setValue("testCases", [...form.getValues().testCases, newTestCase]);
     setRefQueries([...refQueries, ""]);
     setSetupSource([...setupSource, "oneoff"]);
+    setCollapsed([...collapsed, false]);
+  };
+
+  // Insert a copy of a test case right after it, duplicating every parallel
+  // array (ref query, setup source) so the clone carries the SQL state too.
+  const cloneTestCase = (index: number) => {
+    const src = testCases[index];
+    const copy: TestCase = {
+      input: src.input,
+      expectedOutput: src.expectedOutput,
+      isPublic: src.isPublic,
+      schemaLibraryId: src.schemaLibraryId ?? null,
+    };
+    const at = index + 1;
+    const insert = <T,>(arr: T[], value: T): T[] => {
+      const next = [...arr];
+      next.splice(at, 0, value);
+      return next;
+    };
+    setTestCases(insert(testCases, copy));
+    form.setValue("testCases", insert(form.getValues().testCases, { ...copy }));
+    setRefQueries(insert(refQueries, refQueries[index] ?? ""));
+    setSetupSource(insert(setupSource, setupSource[index] ?? "oneoff"));
+    setCollapsed(insert(collapsed, false));
+  };
+
+  const toggleCollapsed = (index: number) => {
+    setCollapsed((prev) => prev.map((c, i) => (i === index ? !c : c)));
+  };
+
+  const allCollapsed = testCases.length > 0 && collapsed.every(Boolean);
+  const toggleAllCollapsed = () => {
+    const next = !allCollapsed;
+    setCollapsed(testCases.map(() => next));
+  };
+
+  // One-line summary shown when a case is collapsed.
+  const testCasePreview = (tc: TestCase): string => {
+    const firstLine = (s?: string) => (s ?? "").split("\n")[0].slice(0, 48);
+    if (outputType === "image") return firstLine(tc.input) || "(image problem)";
+    const inp = firstLine(tc.input);
+    const out = firstLine(tc.expectedOutput);
+    if (!inp && !out) return "(empty)";
+    return `${inp || "∅"} → ${out || "∅"}`;
   };
 
   const removeTestCase = (index: number) => {
@@ -253,6 +300,10 @@ const ProblemCreation = () => {
     const newSetupSource = [...setupSource];
     newSetupSource.splice(index, 1);
     setSetupSource(newSetupSource);
+
+    const newCollapsed = [...collapsed];
+    newCollapsed.splice(index, 1);
+    setCollapsed(newCollapsed);
   };
 
   const updateTestCase = (
@@ -470,37 +521,94 @@ const ProblemCreation = () => {
             <div className="flex justify-between items-center">
               <Label>
                 Test Cases <span className="text-destructive">*</span>
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  {testCases.length} total
+                </span>
               </Label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={addTestCase}
-                className="flex items-center gap-1"
-              >
-                <Plus size={14} />
-                Add Test Case
-              </Button>
+              <div className="flex items-center gap-2">
+                {testCases.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={toggleAllCollapsed}
+                    className="text-xs text-muted-foreground"
+                  >
+                    {allCollapsed ? "Expand all" : "Collapse all"}
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addTestCase}
+                  className="flex items-center gap-1"
+                >
+                  <Plus size={14} />
+                  Add Test Case
+                </Button>
+              </div>
             </div>
 
             {testCases.map((testCase, index) => (
               <Card key={index} className="bg-card border-border">
                 <CardContent className="p-4">
-                  <div className="flex justify-between items-start mb-4">
-                    <h3 className="text-sm font-semibold text-muted-foreground">
-                      Test Case #{index + 1}
-                    </h3>
-                    <Button
+                  <div className="flex justify-between items-start gap-2 mb-4">
+                    <button
                       type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeTestCase(index)}
-                      className="h-8 w-8 p-0 text-destructive"
+                      onClick={() => toggleCollapsed(index)}
+                      className="flex items-center gap-2 min-w-0 flex-1 text-left"
                     >
-                      <Trash size={14} />
-                    </Button>
+                      <ChevronRight
+                        size={16}
+                        className={`shrink-0 text-muted-foreground transition-transform ${
+                          collapsed[index] ? "" : "rotate-90"
+                        }`}
+                      />
+                      <h3 className="shrink-0 text-sm font-semibold text-muted-foreground">
+                        Test Case #{index + 1}
+                      </h3>
+                      <span
+                        className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                          testCase.isPublic
+                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                            : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {testCase.isPublic ? "Public" : "Hidden"}
+                      </span>
+                      {collapsed[index] && (
+                        <span className="truncate font-mono text-xs text-muted-foreground/80">
+                          {testCasePreview(testCase)}
+                        </span>
+                      )}
+                    </button>
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => cloneTestCase(index)}
+                        className="h-8 w-8 p-0 text-muted-foreground"
+                        title="Duplicate this test case"
+                      >
+                        <Copy size={14} />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeTestCase(index)}
+                        className="h-8 w-8 p-0 text-destructive"
+                        title="Remove this test case"
+                      >
+                        <Trash size={14} />
+                      </Button>
+                    </div>
                   </div>
 
+                  {!collapsed[index] && (
+                  <>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor={`input-${index}`}>
@@ -663,6 +771,8 @@ const ProblemCreation = () => {
                       Make this test case visible to students
                     </Label>
                   </div>
+                  </>
+                  )}
                 </CardContent>
               </Card>
             ))}

@@ -22,14 +22,27 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { ArrowLeft, ChevronRight, Copy, Download, Plus, Save, Trash, Upload } from "lucide-react";
+import { ArrowLeft, ChevronRight, Copy, Download, Plus, Save, Sparkles, Trash, Upload } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { TestCase } from "../../types/TestCase";
-import { createProblem } from "@/services/ProblemService";
+import {
+  createProblem,
+  getAiStatus,
+  suggestTestCases as requestAiTestCases,
+  SuggestedTestCase,
+} from "@/services/ProblemService";
 import SystemsAuthoring, { SystemsAuthoringHandle } from "./SystemsAuthoring";
 import { runCode, getRunStatus } from "@/services/JudgeService";
 import { JudgeVerdict } from "@/types/TestCase";
@@ -173,34 +186,42 @@ const ProblemCreation = () => {
   const systemsRef = useRef<SystemsAuthoringHandle>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
 
-  // Bulk-import test cases from a JSON or CSV/TSV file, appending them to the
-  // current set. If the set is still the single pristine blank case, replace it.
+  // Append a batch of test cases (from file import or AI), collapsing them so a
+  // large batch stays scannable. If the set is still the single pristine blank
+  // case, replace it rather than leaving an empty row on top.
+  const appendTestCases = (
+    incoming: Array<Pick<TestCase, "input" | "expectedOutput" | "isPublic">>
+  ) => {
+    const added: TestCase[] = incoming.map((p) => ({
+      input: p.input ?? "",
+      expectedOutput: p.expectedOutput ?? "",
+      isPublic: !!p.isPublic,
+    }));
+    const pristine =
+      testCases.length === 1 && !testCases[0].input && !testCases[0].expectedOutput;
+    const base = pristine
+      ? { tests: [] as TestCase[], refs: [] as string[], sources: [] as ("library" | "oneoff")[], collapsed: [] as boolean[] }
+      : { tests: testCases, refs: refQueries, sources: setupSource, collapsed };
+
+    const nextTests = [...base.tests, ...added];
+    setTestCases(nextTests);
+    form.setValue(
+      "testCases",
+      nextTests.map((t) => ({ ...t }))
+    );
+    setRefQueries([...base.refs, ...added.map(() => "")]);
+    setSetupSource([...base.sources, ...added.map<"library" | "oneoff">(() => "oneoff")]);
+    setCollapsed([...base.collapsed, ...added.map(() => true)]);
+    return added.length;
+  };
+
+  // Bulk-import test cases from a JSON or CSV/TSV file.
   const importTestCases = async (file: File) => {
     try {
       const text = await file.text();
       const parsed = parseTestCaseFile(file.name, text);
-      const imported: TestCase[] = parsed.map((p) => ({
-        input: p.input,
-        expectedOutput: p.expectedOutput,
-        isPublic: p.isPublic,
-      }));
-      const pristine =
-        testCases.length === 1 && !testCases[0].input && !testCases[0].expectedOutput;
-      const base = pristine
-        ? { tests: [] as TestCase[], refs: [] as string[], sources: [] as ("library" | "oneoff")[], collapsed: [] as boolean[] }
-        : { tests: testCases, refs: refQueries, sources: setupSource, collapsed };
-
-      const nextTests = [...base.tests, ...imported];
-      setTestCases(nextTests);
-      form.setValue(
-        "testCases",
-        nextTests.map((t) => ({ ...t }))
-      );
-      setRefQueries([...base.refs, ...imported.map(() => "")]);
-      setSetupSource([...base.sources, ...imported.map<"library" | "oneoff">(() => "oneoff")]);
-      // Collapse imported rows so a large import stays scannable.
-      setCollapsed([...base.collapsed, ...imported.map(() => true)]);
-      toast.success(`Imported ${imported.length} test case${imported.length === 1 ? "" : "s"}`);
+      const n = appendTestCases(parsed);
+      toast.success(`Imported ${n} test case${n === 1 ? "" : "s"}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not read that file");
     }
@@ -211,6 +232,91 @@ const ProblemCreation = () => {
     const title = form.getValues().title?.trim();
     const safe = (title || "problem").replace(/[^a-z0-9]/gi, "_").toLowerCase();
     downloadBlob(blob, `${safe}_test_cases.json`);
+  };
+
+  // --- AI-suggested test cases (#10) --------------------------------------
+  // The server reports whether a provider is configured; the button only shows
+  // when it is. Suggestions land in a review dialog — the instructor picks
+  // which to add, since AI-generated expected outputs can be wrong.
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiCount, setAiCount] = useState(5);
+  const [aiSuggestions, setAiSuggestions] = useState<
+    Array<SuggestedTestCase & { selected: boolean }>
+  >([]);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getAiStatus()
+      .then(setAiEnabled)
+      .catch(() => setAiEnabled(false));
+  }, []);
+
+  const openAiDialog = () => {
+    setAiError(null);
+    setAiSuggestions([]);
+    setAiOpen(true);
+  };
+
+  const generateAiSuggestions = async () => {
+    const { title, description, category } = form.getValues();
+    if (!title?.trim() || !description?.trim()) {
+      setAiError("Add a problem title and description first — the AI works from them.");
+      return;
+    }
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const existingInputs = testCases
+        .map((t) => t.input?.trim())
+        .filter((i): i is string => !!i);
+      const suggestions = await requestAiTestCases({
+        title,
+        description,
+        category,
+        outputType: uiOutputType,
+        count: aiCount,
+        existingInputs,
+      });
+      if (suggestions.length === 0) {
+        setAiError("The AI didn't return any usable test cases. Try again, or add detail to the description.");
+      }
+      setAiSuggestions(suggestions.map((s) => ({ ...s, selected: true })));
+    } catch (err) {
+      const e = err as { response?: { status?: number; data?: { message?: string } } };
+      setAiError(
+        e.response?.data?.message ||
+          (e.response?.status === 503
+            ? "AI suggestions aren't configured on the server yet."
+            : "Couldn't reach the AI provider. Please try again.")
+      );
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const toggleAiSuggestion = (index: number) => {
+    setAiSuggestions((prev) =>
+      prev.map((s, i) => (i === index ? { ...s, selected: !s.selected } : s))
+    );
+  };
+
+  const addSelectedAiSuggestions = () => {
+    const chosen = aiSuggestions.filter((s) => s.selected);
+    if (chosen.length === 0) {
+      toast.error("Select at least one suggestion to add.");
+      return;
+    }
+    const n = appendTestCases(
+      chosen.map((s) => ({
+        input: s.input,
+        expectedOutput: s.expectedOutput,
+        isPublic: s.isPublic,
+      }))
+    );
+    toast.success(`Added ${n} AI-suggested test case${n === 1 ? "" : "s"} — review before saving`);
+    setAiOpen(false);
   };
 
   const form = useForm<FormValues>({
@@ -580,6 +686,19 @@ const ProblemCreation = () => {
                     {allCollapsed ? "Expand all" : "Collapse all"}
                   </Button>
                 )}
+                {aiEnabled && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={openAiDialog}
+                    className="flex items-center gap-1 text-primary"
+                    title="Suggest test cases with AI from the problem description"
+                  >
+                    <Sparkles size={14} />
+                    Suggest with AI
+                  </Button>
+                )}
                 <input
                   ref={importInputRef}
                   type="file"
@@ -860,6 +979,126 @@ const ProblemCreation = () => {
               <SystemsAuthoring ref={systemsRef} />
             </div>
           )}
+
+          <Dialog open={aiOpen} onOpenChange={setAiOpen}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Sparkles size={16} className="text-primary" />
+                  Suggest test cases with AI
+                </DialogTitle>
+                <DialogDescription>
+                  Generated from the problem title and description. Pick the ones to
+                  add — expected outputs are AI-generated and may be wrong, so review
+                  them before saving.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="flex items-center gap-2">
+                <Label htmlFor="ai-count" className="text-sm">
+                  How many
+                </Label>
+                <Input
+                  id="ai-count"
+                  type="number"
+                  min={1}
+                  max={12}
+                  value={aiCount}
+                  onChange={(e) =>
+                    setAiCount(Math.min(12, Math.max(1, Number(e.target.value) || 1)))
+                  }
+                  className="w-20"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={generateAiSuggestions}
+                  disabled={aiLoading}
+                  className="gap-1.5"
+                >
+                  <Sparkles size={14} />
+                  {aiLoading
+                    ? "Generating…"
+                    : aiSuggestions.length
+                    ? "Regenerate"
+                    : "Generate"}
+                </Button>
+              </div>
+
+              {aiError && <p className="text-sm text-destructive">{aiError}</p>}
+
+              {aiSuggestions.length > 0 && (
+                <div className="max-h-[50vh] space-y-2 overflow-auto pr-1">
+                  {aiSuggestions.map((s, i) => (
+                    <div
+                      key={i}
+                      className={`rounded-md border p-3 ${
+                        s.selected ? "border-primary/50 bg-primary/5" : "border-border"
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <Checkbox
+                          id={`ai-${i}`}
+                          checked={s.selected}
+                          onCheckedChange={() => toggleAiSuggestion(i)}
+                          className="mt-0.5"
+                        />
+                        <div className="min-w-0 flex-1 space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            {s.rationale && (
+                              <span className="text-xs font-medium text-foreground">
+                                {s.rationale}
+                              </span>
+                            )}
+                            <span
+                              className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                                s.isPublic
+                                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                  : "bg-muted text-muted-foreground"
+                              }`}
+                            >
+                              {s.isPublic ? "Public" : "Hidden"}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                                Input
+                              </p>
+                              <pre className="mt-0.5 max-h-24 overflow-auto whitespace-pre-wrap rounded bg-muted/50 p-1.5 font-mono text-xs">
+                                {s.input || "∅"}
+                              </pre>
+                            </div>
+                            <div>
+                              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                                Expected
+                              </p>
+                              <pre className="mt-0.5 max-h-24 overflow-auto whitespace-pre-wrap rounded bg-muted/50 p-1.5 font-mono text-xs">
+                                {s.expectedOutput || "∅"}
+                              </pre>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setAiOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={addSelectedAiSuggestions}
+                  disabled={aiSuggestions.filter((s) => s.selected).length === 0}
+                >
+                  Add selected ({aiSuggestions.filter((s) => s.selected).length})
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           <div className="flex justify-end gap-4 pt-6">
             <Button

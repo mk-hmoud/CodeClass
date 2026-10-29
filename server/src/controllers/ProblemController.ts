@@ -9,6 +9,11 @@ import {
   deleteProblem,
 } from "../models/ProblemModel";
 import { ProblemCreationData } from "../types";
+import {
+  suggestTestCases,
+  isAiConfigured,
+  AiNotConfiguredError,
+} from "../services/ai/testCaseSuggester";
 
 
 export const createProblemController = async (
@@ -163,6 +168,72 @@ export const updateProblemController = async (
       .status(500)
       .json({ success: false, message: "Failed to update problem" });
   }
+};
+
+export const suggestTestCasesController = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const functionName = "suggestTestCasesController";
+  try {
+    if (!req.user || !req.user.role_id) {
+      res.status(401).json({
+        success: false,
+        message: "Unauthorized: Instructor not identified",
+      });
+      return;
+    }
+
+    const { title, description, category, outputType, count, existingInputs } =
+      req.body;
+
+    if (!title?.trim() || !description?.trim()) {
+      res.status(400).json({
+        success: false,
+        message: "A problem title and description are required to suggest test cases.",
+      });
+      return;
+    }
+
+    logger.info({ fn: functionName }, "Received request to suggest test cases.");
+
+    const suggestions = await suggestTestCases({
+      title,
+      description,
+      category,
+      outputType,
+      count,
+      existingInputs: Array.isArray(existingInputs) ? existingInputs : undefined,
+    });
+
+    res.status(200).json({ success: true, data: suggestions });
+  } catch (error) {
+    if (error instanceof AiNotConfiguredError) {
+      logger.warn({ fn: functionName }, "AI suggestions requested but not configured.");
+      res.status(503).json({
+        success: false,
+        message:
+          "AI suggestions aren't set up on this server yet. Add the provider key to enable them.",
+      });
+      return;
+    }
+    logger.error(
+      { fn: functionName, error },
+      `Error suggesting test cases: ${error}`
+    );
+    res.status(502).json({
+      success: false,
+      message: "The AI provider could not generate suggestions right now. Please try again.",
+    });
+  }
+};
+
+/** Lightweight capability probe so the client can show/hide the AI button. */
+export const aiStatusController = async (
+  _req: Request,
+  res: Response
+): Promise<void> => {
+  res.status(200).json({ success: true, data: { enabled: isAiConfigured() } });
 };
 
 export const deleteProblemController = async (

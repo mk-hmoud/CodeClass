@@ -46,6 +46,35 @@ export const updateProblem = async (problem: Problem): Promise<Problem> => {
   }
 };
 
+export interface SuggestedTestCase {
+  input: string;
+  expectedOutput: string;
+  isPublic: boolean;
+  rationale?: string;
+}
+
+/** Whether the server has an AI provider configured (controls the AI button). */
+export const getAiStatus = async (): Promise<boolean> => {
+  try {
+    const response = await apiClient.get('/problems/ai/status');
+    return !!response.data?.data?.enabled;
+  } catch {
+    return false;
+  }
+};
+
+export const suggestTestCases = async (params: {
+  title: string;
+  description: string;
+  category?: string;
+  outputType?: string;
+  count?: number;
+  existingInputs?: string[];
+}): Promise<SuggestedTestCase[]> => {
+  const response = await apiClient.post('/problems/ai/suggest-test-cases', params);
+  return response.data.data as SuggestedTestCase[];
+};
+
 export const deleteProblem = async (problemId: number): Promise<void> => {
   try {
     await apiClient.delete(`/problems/${problemId}`);

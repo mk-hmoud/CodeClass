@@ -1,5 +1,6 @@
 .vscode/
 .env
+.env.pentest
 
 /judge/bin
 /judge/build

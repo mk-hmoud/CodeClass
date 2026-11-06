@@ -27,6 +27,8 @@ import {
   updateGroup,
   deleteGroup,
   setGroupRoster,
+  importGroupRosters,
+  GroupRosterBucket,
 } from "@/services/GroupService";
 import { LabGroup } from "@/types/Group";
 import { ClassroomStudent } from "@/types/Classroom";
@@ -49,6 +51,15 @@ interface GroupFormState {
 
 const emptyForm: GroupFormState = { name: "", dayOfWeek: NO_DAY_VALUE, startTime: "", endTime: "" };
 
+interface ImportPreview {
+  buckets: GroupRosterBucket[];
+  newNumbers: number[];      // group numbers that don't exist yet (will be created)
+  existingNumbers: number[]; // group numbers matched to an existing group
+  totalStudents: number;
+  unknown: number;           // rows whose student_number isn't enrolled here
+  skipped: number;           // rows with no usable lab_group value
+}
+
 // The scheduling PDFs name groups "Group-1".."Group-6" and carry a matching
 // `lab_group` number per student, so a group is matched to a CSV value by the
 // number in its name. Any naming works as long as it contains that number
@@ -70,6 +81,7 @@ const GroupsTab: React.FC<Props> = ({ classroomId, students }) => {
   const [deleteTarget, setDeleteTarget] = useState<LabGroup | null>(null);
   const rosterCsvRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
+  const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
 
   const loadGroups = async () => {
     setLoading(true);
@@ -146,17 +158,17 @@ const GroupsTab: React.FC<Props> = ({ classroomId, students }) => {
     }
   };
 
-  // Assigning six groups by hand is ~170 checkbox clicks across six modals,
-  // and the scheduling CSV already holds every answer in its `lab_group`
-  // column. Applies one group per request because setGroupRoster replaces a
-  // single group's roster; a failure part-way is reported with the groups that
-  // did land, so a retry is safe (each PUT is a full replace, not an append).
+  // Reads the scheduling CSV (first_name,last_name,student_number,lab_group) and
+  // builds a preview: which groups it will create vs reuse, and how many
+  // students land where. Nothing is applied until the instructor confirms.
+  // Groups no longer need to exist first -- the import creates "Group-N" for any
+  // lab_group number that has no matching group yet.
   const handleRosterCsv = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = async (event) => {
+    reader.onload = (event) => {
       try {
         const rows = parseRosterCsv(event.target?.result as string);
         if (rows === null) {
@@ -185,51 +197,31 @@ const GroupsTab: React.FC<Props> = ({ classroomId, students }) => {
           idsByGroupNumber.set(groupNumber, list);
         }
 
-        const targets = groups
-          .map((g) => ({ group: g, number: groupNumberOf(g.name) }))
-          .filter((t): t is { group: LabGroup; number: number } => t.number !== null)
-          .filter((t) => idsByGroupNumber.has(t.number));
+        const buckets: GroupRosterBucket[] = [...idsByGroupNumber.entries()]
+          .sort((a, b) => a[0] - b[0])
+          .map(([groupNumber, studentIds]) => ({ groupNumber, studentIds }));
 
-        if (targets.length === 0) {
-          toast.error("No group name matched a lab_group value. Name groups so they contain the number, e.g. \"Group-1\".");
+        if (buckets.length === 0) {
+          toast.error("None of the students in the CSV are enrolled in this classroom.");
           return;
         }
 
-        setImporting(true);
-        let assigned = 0;
-        const applied: string[] = [];
-        try {
-          for (const { group, number } of targets) {
-            const ids = idsByGroupNumber.get(number) as number[];
-            await setGroupRoster(group.groupId, ids);
-            assigned += ids.length;
-            applied.push(group.name);
-          }
-        } catch (error) {
-          toast.error(
-            applied.length > 0
-              ? `Failed partway. Applied: ${applied.join(", ")}. Re-run to finish.`
-              : "Failed to apply rosters."
-          );
-          await loadGroups();
-          return;
-        } finally {
-          setImporting(false);
-        }
-
-        const unmatchedGroups = [...idsByGroupNumber.keys()].filter(
-          (n) => !targets.some((t) => t.number === n)
+        const existingByNumber = new Set(
+          groups
+            .map((g) => groupNumberOf(g.name))
+            .filter((n): n is number => n !== null)
         );
-        const notes = [
-          unknown > 0 ? `${unknown} not enrolled in this classroom` : null,
-          unmatchedGroups.length > 0 ? `no group named for ${unmatchedGroups.map((n) => `#${n}`).join(", ")}` : null,
-        ].filter(Boolean);
+        const newNumbers = buckets.map((b) => b.groupNumber).filter((n) => !existingByNumber.has(n));
+        const existingNumbers = buckets.map((b) => b.groupNumber).filter((n) => existingByNumber.has(n));
 
-        toast.success(
-          `Assigned ${assigned} students across ${applied.length} group${applied.length === 1 ? "" : "s"}` +
-            (notes.length > 0 ? ` (${notes.join("; ")})` : "")
-        );
-        await loadGroups();
+        setImportPreview({
+          buckets,
+          newNumbers,
+          existingNumbers,
+          totalStudents: buckets.reduce((sum, b) => sum + b.studentIds.length, 0),
+          unknown,
+          skipped: rows.length - withGroup.length,
+        });
       } catch {
         toast.error("Failed to parse CSV file");
       } finally {
@@ -237,6 +229,31 @@ const GroupsTab: React.FC<Props> = ({ classroomId, students }) => {
       }
     };
     reader.readAsText(file);
+  };
+
+  // One request, applied atomically on the server (creates missing groups + sets
+  // every roster in a transaction), so there is no partial-failure state.
+  const handleConfirmImport = async () => {
+    if (!importPreview) return;
+    setImporting(true);
+    try {
+      const result = await importGroupRosters(classroomId, importPreview.buckets);
+      const assigned = result.assignments.reduce((sum, a) => sum + a.count, 0);
+      const notes = [
+        result.created.length > 0 ? `created ${result.created.length} new group${result.created.length === 1 ? "" : "s"}` : null,
+        importPreview.unknown > 0 ? `${importPreview.unknown} not enrolled` : null,
+      ].filter(Boolean);
+      toast.success(
+        `Assigned ${assigned} students across ${result.assignments.length} group${result.assignments.length === 1 ? "" : "s"}` +
+          (notes.length > 0 ? ` (${notes.join("; ")})` : "")
+      );
+      setImportPreview(null);
+      await loadGroups();
+    } catch {
+      toast.error("Failed to import rosters");
+    } finally {
+      setImporting(false);
+    }
   };
 
   const openRoster = (group: LabGroup) => {
@@ -296,13 +313,13 @@ const GroupsTab: React.FC<Props> = ({ classroomId, students }) => {
             variant="outline"
             className="gap-2"
             onClick={() => rosterCsvRef.current?.click()}
-            disabled={importing || groups.length === 0}
-            title={groups.length === 0 ? "Create the groups first" : "Assign rosters from a CSV with a lab_group column"}
+            disabled={importing || students.length === 0}
+            title={students.length === 0 ? "Enroll students first" : "Create groups and assign rosters from a CSV with a lab_group column"}
           >
             <Upload size={16} />
-            {importing ? "Assigning…" : "Rosters from CSV"}
+            {importing ? "Importing…" : "Groups from CSV"}
           </Button>
-          <Button className="gap-2" onClick={openCreateForm}>
+          <Button variant="outline" className="gap-2" onClick={openCreateForm}>
             <Plus size={16} />
             Create Group
           </Button>
@@ -312,12 +329,36 @@ const GroupsTab: React.FC<Props> = ({ classroomId, students }) => {
       {loading && <div className="text-center py-8">Loading...</div>}
 
       {!loading && groups.length === 0 && (
-        <div className="text-center py-12 border border-dashed border-border rounded-xl bg-muted/10">
-          <p className="text-muted-foreground mb-4">
-            No groups yet. Groups are optional — only set these up if you want per-time-slot
-            attendance rosters or assignment variants.
+        <div className="text-center py-12 border border-dashed border-border rounded-xl bg-muted/10 px-6">
+          <p className="text-muted-foreground mb-1">
+            No groups yet. Groups are optional — set them up for per-time-slot attendance
+            rosters or assignment variants.
           </p>
-          <Button onClick={openCreateForm}>Create Your First Group</Button>
+          <p className="text-sm text-muted-foreground mb-5">
+            Fastest way: upload the scheduling CSV you used to enrol students, with a{" "}
+            <code className="text-xs bg-muted px-1 py-0.5 rounded">lab_group</code> column holding
+            each student's group number. It creates every group and assigns everyone in one step.
+          </p>
+          <div className="flex items-center justify-center gap-2">
+            <Button
+              className="gap-2"
+              onClick={() => rosterCsvRef.current?.click()}
+              disabled={importing || students.length === 0}
+              title={students.length === 0 ? "Enroll students first" : undefined}
+            >
+              <Upload size={16} />
+              Import Groups from CSV
+            </Button>
+            <Button variant="outline" onClick={openCreateForm}>
+              Create One Manually
+            </Button>
+          </div>
+          <div className="mt-5 text-left inline-block">
+            <p className="text-xs text-muted-foreground mb-1">Expected columns:</p>
+            <pre className="text-xs bg-muted/60 rounded-md px-3 py-2 overflow-x-auto">{`first_name,last_name,student_number,lab_group
+Ada,Lovelace,23175026,1
+Alan,Turing,23175027,3`}</pre>
+          </div>
         </div>
       )}
 
@@ -452,6 +493,76 @@ const GroupsTab: React.FC<Props> = ({ classroomId, students }) => {
           </div>
           <DialogFooter>
             <Button onClick={handleSaveRoster}>Save Roster</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!importPreview} onOpenChange={(open) => !open && !importing && setImportPreview(null)}>
+        <DialogContent className="max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Import groups from CSV</DialogTitle>
+          </DialogHeader>
+          {importPreview && (
+            <div className="space-y-4 py-2">
+              <p className="text-sm">
+                This will assign <span className="font-semibold">{importPreview.totalStudents}</span> student
+                {importPreview.totalStudents === 1 ? "" : "s"} across{" "}
+                <span className="font-semibold">{importPreview.buckets.length}</span> group
+                {importPreview.buckets.length === 1 ? "" : "s"}
+                {importPreview.newNumbers.length > 0 && (
+                  <> — <span className="font-semibold text-primary">{importPreview.newNumbers.length} new</span> will be created</>
+                )}
+                {importPreview.existingNumbers.length > 0 && (
+                  <>, {importPreview.existingNumbers.length} existing re-filled</>
+                )}
+                .
+              </p>
+
+              <div className="space-y-1.5 max-h-56 overflow-y-auto">
+                {importPreview.buckets.map((b) => {
+                  const isNew = importPreview.newNumbers.includes(b.groupNumber);
+                  return (
+                    <div
+                      key={b.groupNumber}
+                      className="flex items-center justify-between text-sm px-3 py-1.5 rounded-md bg-muted/40"
+                    >
+                      <span className="flex items-center gap-2">
+                        Group-{b.groupNumber}
+                        {isNew ? (
+                          <span className="text-[10px] uppercase tracking-wide bg-primary/15 text-primary px-1.5 py-0.5 rounded">new</span>
+                        ) : (
+                          <span className="text-[10px] uppercase tracking-wide bg-muted text-muted-foreground px-1.5 py-0.5 rounded">existing</span>
+                        )}
+                      </span>
+                      <span className="text-muted-foreground">{b.studentIds.length} students</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {(importPreview.unknown > 0 || importPreview.skipped > 0) && (
+                <p className="text-xs text-muted-foreground">
+                  {[
+                    importPreview.unknown > 0 ? `${importPreview.unknown} row(s) skipped — not enrolled in this classroom` : null,
+                    importPreview.skipped > 0 ? `${importPreview.skipped} row(s) had no lab_group value` : null,
+                  ].filter(Boolean).join(" · ")}
+                </p>
+              )}
+
+              {importPreview.existingNumbers.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Existing groups have their rosters <span className="font-medium">replaced</span>, not appended.
+                </p>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImportPreview(null)} disabled={importing}>
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmImport} disabled={importing}>
+              {importing ? "Importing…" : "Import"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

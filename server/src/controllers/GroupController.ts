@@ -8,6 +8,7 @@ import {
   updateGroup,
   deleteGroup,
   setGroupRoster,
+  importGroupRosters,
   getClassroomInstructorId,
 } from "../models/GroupModel";
 import { LabGroupCreationData } from "../types";
@@ -191,5 +192,46 @@ export const setGroupRosterController = async (
   } catch (error) {
     logger.error({ fn, error }, `Error setting group roster: ${error}`);
     res.status(500).json({ success: false, message: "Failed to set roster" });
+  }
+};
+
+export const importGroupRostersController = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const fn = "importGroupRostersController";
+  try {
+    if (!req.user || !req.user.role_id) {
+      res.status(401).json({ success: false, message: "Unauthorized" });
+      return;
+    }
+
+    const classroomId = Number(req.body.classroomId);
+    const isOwner = await verifyClassroomOwnership(classroomId, req.user.role_id);
+    if (!isOwner) {
+      res.status(403).json({ success: false, message: "Forbidden: not the owner of this classroom" });
+      return;
+    }
+
+    // Normalise and validate the buckets: a positive integer group number and a
+    // list of student ids. Malformed entries are dropped rather than 500ing.
+    const raw = Array.isArray(req.body.buckets) ? req.body.buckets : [];
+    const buckets = raw
+      .map((b: any) => ({
+        groupNumber: Number(b?.groupNumber),
+        studentIds: Array.isArray(b?.studentIds) ? b.studentIds.map(Number).filter(Number.isFinite) : [],
+      }))
+      .filter((b: { groupNumber: number }) => Number.isInteger(b.groupNumber) && b.groupNumber > 0);
+
+    if (buckets.length === 0) {
+      res.status(400).json({ success: false, message: "No valid groups to import" });
+      return;
+    }
+
+    const result = await importGroupRosters(classroomId, buckets);
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    logger.error({ fn, error }, `Error importing group rosters: ${error}`);
+    res.status(500).json({ success: false, message: "Failed to import group rosters" });
   }
 };

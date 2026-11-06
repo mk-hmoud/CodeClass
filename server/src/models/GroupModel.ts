@@ -159,6 +159,92 @@ export const setGroupRoster = async (
   }
 };
 
+// The number embedded in a group name ("Group-3" -> 3, "Lab 3" -> 3), used to
+// match a CSV's lab_group value to an existing group. Mirrors the client rule.
+const groupNumberOf = (name: string): number | null => {
+  const m = name.match(/\d+/);
+  return m ? Number(m[0]) : null;
+};
+
+/**
+ * One-shot roster import: given buckets of {groupNumber, studentIds}, create any
+ * group that doesn't already exist for that number (named "Group-N") and set
+ * each group's roster, all in a single transaction. This removes the old
+ * two-step dance (hand-create groups, then import) -- one CSV builds and fills
+ * every group. Returns which groups were created and the per-group counts.
+ */
+export const importGroupRosters = async (
+  classroomId: number,
+  buckets: { groupNumber: number; studentIds: number[] }[]
+): Promise<{ created: string[]; assignments: { name: string; count: number }[] }> => {
+  const fn = "importGroupRosters";
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const { rows: existing } = await client.query(
+      `SELECT group_id, name FROM lab_groups WHERE classroom_id = $1`,
+      [classroomId]
+    );
+    // groupNumber -> group_id, and group_id -> name, from current groups.
+    const idByNumber = new Map<number, number>();
+    const nameById = new Map<number, string>();
+    for (const g of existing) {
+      nameById.set(g.group_id, g.name);
+      const n = groupNumberOf(g.name);
+      if (n !== null && !idByNumber.has(n)) idByNumber.set(n, g.group_id);
+    }
+
+    const created: string[] = [];
+    const assignments: { name: string; count: number }[] = [];
+
+    const insertEnrollment = `
+      INSERT INTO lab_group_enrollments (group_id, classroom_id, student_id)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (classroom_id, student_id) DO UPDATE SET group_id = EXCLUDED.group_id
+    `;
+
+    for (const bucket of buckets) {
+      let groupId = idByNumber.get(bucket.groupNumber);
+      let name: string;
+      if (groupId === undefined) {
+        name = `Group-${bucket.groupNumber}`;
+        const { rows } = await client.query(
+          `INSERT INTO lab_groups (classroom_id, name) VALUES ($1, $2) RETURNING group_id`,
+          [classroomId, name]
+        );
+        groupId = rows[0].group_id as number;
+        idByNumber.set(bucket.groupNumber, groupId);
+        nameById.set(groupId, name);
+        created.push(name);
+      } else {
+        name = nameById.get(groupId) ?? `Group-${bucket.groupNumber}`;
+      }
+
+      // Full replace of this group's roster (idempotent re-runs). Moving a
+      // student from another group is handled by the ON CONFLICT above.
+      await client.query(`DELETE FROM lab_group_enrollments WHERE group_id = $1`, [groupId]);
+      for (const studentId of bucket.studentIds) {
+        await client.query(insertEnrollment, [groupId, classroomId, studentId]);
+      }
+      assignments.push({ name, count: bucket.studentIds.length });
+    }
+
+    await client.query("COMMIT");
+    logger.info(
+      { fn, classroomId, created: created.length, groups: assignments.length },
+      `Imported rosters for ${assignments.length} group(s), created ${created.length}`
+    );
+    return { created, assignments };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    logger.error({ fn, classroomId, error }, `Error importing group rosters: ${error}`);
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
 export const getStudentGroupInClassroom = async (
   classroomId: number,
   studentId: number

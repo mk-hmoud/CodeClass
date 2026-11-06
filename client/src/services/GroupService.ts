@@ -47,3 +47,28 @@ export const setGroupRoster = async (groupId: number, studentIds: number[]): Pro
     throw error;
   }
 };
+
+export interface GroupRosterBucket {
+  groupNumber: number;
+  studentIds: number[];
+}
+
+export interface ImportRostersResult {
+  created: string[];
+  assignments: { name: string; count: number }[];
+}
+
+// One-shot import: the server creates any missing group ("Group-N") and sets
+// every group's roster in a single transaction.
+export const importGroupRosters = async (
+  classroomId: number,
+  buckets: GroupRosterBucket[]
+): Promise<ImportRostersResult> => {
+  try {
+    const response = await apiClient.post('/groups/import-rosters', { classroomId, buckets });
+    return response.data.data as ImportRostersResult;
+  } catch (error) {
+    console.error("Error importing group rosters:", error);
+    throw error;
+  }
+};

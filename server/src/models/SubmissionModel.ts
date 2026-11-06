@@ -306,9 +306,16 @@ export async function getSubmissionsByAssignment(
   const client = await pool.connect();
   try {
     const { rows: assignmentRows } = await client.query(
-      `SELECT a.problem_id, p.output_type
+      `SELECT pp.problem_id, p.output_type
        FROM assignments a
-       JOIN problems p ON a.problem_id = p.problem_id
+       JOIN LATERAL (
+         SELECT ap.problem_id
+           FROM assignment_problems ap
+          WHERE ap.assignment_id = a.assignment_id
+          ORDER BY ap.position, ap.problem_id
+          LIMIT 1
+       ) pp ON TRUE
+       JOIN problems p ON p.problem_id = pp.problem_id
        WHERE a.assignment_id = $1`,
       [assignmentId]
     );

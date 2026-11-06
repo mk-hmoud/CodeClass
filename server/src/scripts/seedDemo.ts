@@ -233,12 +233,16 @@ async function main() {
     }
 
     const assignmentRes = await client.query(
-      `INSERT INTO assignments (classroom_id, problem_id, title, description, difficulty_level, points, grading_method, plagiarism_detection, publish_date, due_date)
-       VALUES ($1,$2,$3,$4,'Easy',100,'Automatic',false, now(), now() + interval '14 days')
+      `INSERT INTO assignments (classroom_id, title, description, difficulty_level, points, grading_method, plagiarism_detection, publish_date, due_date)
+       VALUES ($1,$2,$3,'Easy',100,'Automatic',false, now(), now() + interval '14 days')
        RETURNING assignment_id`,
-      [classroomId, problemId, 'Two Sum', 'Solve the classic Two Sum problem.']
+      [classroomId, 'Two Sum', 'Solve the classic Two Sum problem.']
     );
     const assignmentId = assignmentRes.rows[0].assignment_id;
+    await client.query(
+      `INSERT INTO assignment_problems (assignment_id, problem_id, points, position) VALUES ($1,$2,100,0)`,
+      [assignmentId, problemId]
+    );
 
     const pythonStarter = `import sys\n\ndef solution(target, nums):\n    # TODO: implement\n    pass\n\ndata = sys.stdin.read().split('\\n')\ntarget = int(data[0])\nnums = list(map(int, data[1].split()))\nprint(*solution(target, nums))\n`;
     await client.query(
@@ -295,12 +299,16 @@ async function main() {
     );
 
     const imageAssignmentRes = await client.query(
-      `INSERT INTO assignments (classroom_id, problem_id, title, description, difficulty_level, points, grading_method, plagiarism_detection, publish_date, due_date, library_id)
-       VALUES ($1,$2,$3,$4,'Medium',50,'Manual',false, now(), now() + interval '14 days', $5)
+      `INSERT INTO assignments (classroom_id, title, description, difficulty_level, points, grading_method, plagiarism_detection, publish_date, due_date, library_id)
+       VALUES ($1,$2,$3,'Medium',50,'Manual',false, now(), now() + interval '14 days', $4)
        RETURNING assignment_id`,
-      [classroomId, imageProblemId, 'Draw a Solid Square', 'Draw a solid square using the provided image library.', libraryId]
+      [classroomId, 'Draw a Solid Square', 'Draw a solid square using the provided image library.', libraryId]
     );
     const imageAssignmentId = imageAssignmentRes.rows[0].assignment_id;
+    await client.query(
+      `INSERT INTO assignment_problems (assignment_id, problem_id, points, position) VALUES ($1,$2,50,0)`,
+      [imageAssignmentId, imageProblemId]
+    );
 
     const cppStarter = `#include "lib.h"\n\nint main() {\n    ColorImage img(128, 128);\n    // TODO: draw a solid square somewhere in the image\n    img.Save("output.png");\n    return 0;\n}\n`;
     await client.query(

@@ -242,7 +242,11 @@ export const getAssignmentTestCases = async (
            tc.is_public      AS "isPublic"
     FROM assignments a
     JOIN problem_test_cases tc
-      ON tc.problem_id = COALESCE($2, a.problem_id)
+      ON tc.problem_id = COALESCE($2, (
+        SELECT ap.problem_id FROM assignment_problems ap
+         WHERE ap.assignment_id = a.assignment_id
+         ORDER BY ap.position, ap.problem_id LIMIT 1
+      ))
     LEFT JOIN group_test_case_overrides gto
       ON gto.test_case_id = tc.test_case_id AND gto.group_id = a.group_id
     LEFT JOIN schema_libraries sl
@@ -261,7 +265,11 @@ export const getProblemOutputTypeForAssignment = async (
   const sql = `
     SELECT p.output_type AS "outputType"
     FROM assignments a
-    JOIN problems p ON p.problem_id = COALESCE($2, a.problem_id)
+    JOIN problems p ON p.problem_id = COALESCE($2, (
+      SELECT ap.problem_id FROM assignment_problems ap
+       WHERE ap.assignment_id = a.assignment_id
+       ORDER BY ap.position, ap.problem_id LIMIT 1
+    ))
     WHERE a.assignment_id = $1
   `;
   const { rows } = await pool.query(sql, [assignmentId, problemId ?? null]);

@@ -168,23 +168,39 @@ export const assignAssignment = async (
   due_date: string | null
 ): Promise<void> => {
   const functionName = "assignAssignment";
+  const client = await pool.connect();
   try {
     logger.info(
       { functionName, classroomId, problemId, due_date },
       `Assigning problem ID ${problemId} to classroom ID ${classroomId}.`
     );
-    const insertQuery = `
-      INSERT INTO assignments (classroom_id, problem_id, due_date)
-      VALUES ($1, $2, $3)
-    `;
-    await pool.query(insertQuery, [classroomId, problemId, due_date]);
+    await client.query("BEGIN");
+    // There is no assignments.problem_id anymore: an assignment holds its
+    // problems in assignment_problems. Create the assignment, then record the
+    // single problem as its (primary) entry.
+    const { rows } = await client.query(
+      `INSERT INTO assignments (classroom_id, due_date, grading_method)
+       VALUES ($1, $2, 'Automatic')
+       RETURNING assignment_id`,
+      [classroomId, due_date]
+    );
+    const assignmentId = rows[0].assignment_id;
+    await client.query(
+      `INSERT INTO assignment_problems (assignment_id, problem_id, position)
+       VALUES ($1, $2, 0)`,
+      [assignmentId, problemId]
+    );
+    await client.query("COMMIT");
     logger.info(
-      { functionName, classroomId, problemId, due_date },
+      { functionName, classroomId, problemId, assignmentId, due_date },
       `Problem ID ${problemId} assigned to classroom ID ${classroomId} successfully.`
     );
   } catch (error) {
+    await client.query("ROLLBACK");
     logger.error({ functionName, classroomId, problemId, error }, `Error assigning assignment: ${error}`);
     throw error;
+  } finally {
+    client.release();
   }
 };
 

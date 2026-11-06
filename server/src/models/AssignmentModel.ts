@@ -4,6 +4,20 @@ import { Assignment, AssignmentCreationData, AssignmentProblem, Problem, TestCas
 import { isGradeVisible } from "../utils/gradeVisibility";
 
 /**
+ * The "primary" problem of an assignment aliased `a`: the first problem by
+ * position. assignments.problem_id (the old single-problem pointer) was removed
+ * -- the primary is now derived from assignment_problems. Use this subquery
+ * wherever the former `a.problem_id` was read.
+ */
+const PRIMARY_PROBLEM_ID_SQL = `(
+  SELECT ap.problem_id
+    FROM assignment_problems ap
+   WHERE ap.assignment_id = a.assignment_id
+   ORDER BY ap.position, ap.problem_id
+   LIMIT 1
+)`;
+
+/**
  * What a student is allowed to see of an assignment aliased `a`: it has
  * published, and it is either ungrouped or scoped to that student's own lab
  * group. `studentParam` is the placeholder holding the student id ("$1", "$2").
@@ -88,7 +102,6 @@ export const createAssignment = async (
     const insertSql = `
       INSERT INTO assignments (
         classroom_id,
-        problem_id,
         title,
         description,
         difficulty_level,
@@ -101,14 +114,13 @@ export const createAssignment = async (
         library_id,
         group_id,
         grade_release_mode
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
       RETURNING assignment_id, title, description
     `;
     const {
       rows: [inserted],
     } = await client.query(insertSql, [
       assignment.classroomId,
-      primaryProblemId,
       assignment.title || null,
       assignment.description || null,
       assignment.difficulty_level || null,
@@ -287,7 +299,7 @@ export const getAssignmentById = async (
       SELECT
        a.assignment_id,
        a.classroom_id,
-       a.problem_id,
+       pp.problem_id,
        a.group_id,
        COALESCE(a.title, p.title)           AS assignment_title,
        COALESCE(a.description, p.description) AS assignment_description,
@@ -311,9 +323,16 @@ export const getAssignmentById = async (
         p.runtime AS "problemRuntime",
         p.build_command AS "buildCommand",
         p.entrypoint AS "entrypoint"
-      FROM assignments_with_status a 
+      FROM assignments_with_status a
+      JOIN LATERAL (
+        SELECT ap.problem_id
+          FROM assignment_problems ap
+         WHERE ap.assignment_id = a.assignment_id
+         ORDER BY ap.position, ap.problem_id
+         LIMIT 1
+      ) pp ON TRUE
       JOIN problems p
-        ON a.problem_id = p.problem_id
+        ON p.problem_id = pp.problem_id
       WHERE a.assignment_id = $1
     `;
 
@@ -624,7 +643,7 @@ export async function getAssignmentsForClassroom(classroomId: number): Promise<A
     SELECT 
       a.assignment_id AS "assignmentId",
       a.classroom_id AS "classroomId",
-      a.problem_id AS "problemId",
+      pp.problem_id AS "problemId",
       a.title,
       a.description,
       a.difficulty_level AS "difficultyLevel",
@@ -676,8 +695,15 @@ export async function getAssignmentsForClassroom(classroomId: number): Promise<A
         JOIN languages l ON alp.language_id = l.language_id
         WHERE alp.assignment_id = a.assignment_id
       ) AS languages
-    FROM assignments_with_status a 
-    JOIN problems p ON a.problem_id = p.problem_id
+    FROM assignments_with_status a
+    JOIN LATERAL (
+      SELECT ap.problem_id
+        FROM assignment_problems ap
+       WHERE ap.assignment_id = a.assignment_id
+       ORDER BY ap.position, ap.problem_id
+       LIMIT 1
+    ) pp ON TRUE
+    JOIN problems p ON p.problem_id = pp.problem_id
     WHERE a.classroom_id = $1;
   `;
   try {
@@ -701,7 +727,7 @@ export async function getAssignmentsForStudentClassroom(
       SELECT 
         a.assignment_id           AS "assignmentId",
         a.classroom_id            AS "classroomId",
-        a.problem_id              AS "problemId",
+        pp.problem_id             AS "problemId",
         a.title,
         a.description,
         a.difficulty_level        AS "difficultyLevel",
@@ -773,7 +799,14 @@ export async function getAssignmentsForStudentClassroom(
         )                          AS languages
 
       FROM assignments_with_status a
-      JOIN problems p ON p.problem_id = a.problem_id
+      JOIN LATERAL (
+        SELECT ap.problem_id
+          FROM assignment_problems ap
+         WHERE ap.assignment_id = a.assignment_id
+         ORDER BY ap.position, ap.problem_id
+         LIMIT 1
+      ) pp ON TRUE
+      JOIN problems p ON p.problem_id = pp.problem_id
      WHERE a.classroom_id = $1
        AND ${studentVisibleAssignmentSql("$2")};
     `;
@@ -875,7 +908,7 @@ export async function getAssignmentRuntime(
 ): Promise<{ problemId: number; runtime: string } | null> {
   const { rows } = await pool.query(
     `SELECT p.problem_id AS "problemId", p.runtime
-       FROM assignments a JOIN problems p ON p.problem_id = COALESCE($2, a.problem_id)
+       FROM assignments a JOIN problems p ON p.problem_id = COALESCE($2, ${PRIMARY_PROBLEM_ID_SQL})
       WHERE a.assignment_id = $1`,
     [assignmentId, problemId ?? null]
   );
@@ -895,7 +928,11 @@ export async function resolveAssignmentProblemId(
 ): Promise<number> {
   if (problemId == null) {
     const { rows } = await pool.query(
-      `SELECT problem_id FROM assignments WHERE assignment_id = $1`,
+      `SELECT ap.problem_id
+         FROM assignment_problems ap
+        WHERE ap.assignment_id = $1
+        ORDER BY ap.position, ap.problem_id
+        LIMIT 1`,
       [assignmentId]
     );
     if (!rows[0]) throw new Error("Assignment not found");

@@ -136,7 +136,6 @@ CREATE TABLE problems (
 CREATE TABLE assignments (
   assignment_id SERIAL PRIMARY KEY,
   classroom_id INT NOT NULL,
-  problem_id INT NOT NULL,
   title VARCHAR(255),
   description TEXT,
   difficulty_level assignment_difficulty_enum,
@@ -149,8 +148,7 @@ CREATE TABLE assignments (
   due_date TIMESTAMPTZ,
   grade_release_mode grade_release_mode_enum NOT NULL DEFAULT 'immediate',
   grades_released_at TIMESTAMPTZ,
-  FOREIGN KEY (classroom_id) REFERENCES classrooms(classroom_id) ON DELETE CASCADE,
-  FOREIGN KEY (problem_id) REFERENCES problems(problem_id) ON DELETE CASCADE
+  FOREIGN KEY (classroom_id) REFERENCES classrooms(classroom_id) ON DELETE CASCADE
 );
 
 CREATE TABLE problem_test_cases (
@@ -282,9 +280,9 @@ CREATE TABLE lab_attendance (
 ALTER TABLE assignments
   ADD COLUMN group_id INT REFERENCES lab_groups(group_id) ON DELETE SET NULL;
 
--- There is deliberately NO uniqueness on (classroom_id, problem_id). An
--- assignment holds an ordered SET of problems (assignment_problems); the legacy
--- assignments.problem_id is only the primary/first-problem pointer, and a
+-- An assignment holds an ordered SET of problems (assignment_problems); there is
+-- no "primary problem" column and no uniqueness on (classroom, problem). The
+-- primary problem is simply the first assignment_problems row by position, and a
 -- problem may appear in any number of assignments in the same classroom.
 
 CREATE TABLE group_test_case_overrides (

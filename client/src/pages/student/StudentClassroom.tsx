@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft, CheckCircle, BookOpen, GraduationCap, Clock,
-  AlertCircle, FileText, Eye, ChevronRight, Zap, Timer,
+  AlertCircle, FileText, Eye, ChevronRight, Zap, Timer, ListChecks,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -37,6 +37,15 @@ const Skeleton = ({ className }: { className?: string }) => (
   <div className={cn("animate-pulse rounded-lg bg-muted", className)} />
 );
 
+// Completed = the student has submitted every problem in the assignment. For a
+// single-problem assignment this is just "submitted". problemCount /
+// submittedProblemCount come from the student list endpoint.
+const assignmentCompleted = (a: Assignment): boolean => {
+  const total = a.problemCount ?? 1;
+  const solved = a.submittedProblemCount ?? (a.submitted ? total : 0);
+  return total > 0 ? solved >= total : !!a.submitted;
+};
+
 // ── Assignment card ───────────────────────────────────────────────────────────
 const AssignmentCard = ({
   assignment,
@@ -47,16 +56,26 @@ const AssignmentCard = ({
   accent: string;
   onClick: () => void;
 }) => {
-  const submitted = !!assignment.submitted;
+  // Progress across the problem set. "completed" = every problem submitted;
+  // "inProgress" = some but not all (only meaningful for multi-problem).
+  const problemCount = assignment.problemCount ?? 1;
+  const isMulti = problemCount > 1;
+  const solved = assignment.submittedProblemCount ?? (assignment.submitted ? problemCount : 0);
+  const completed = assignmentCompleted(assignment);
+  const inProgress = isMulti && solved > 0 && !completed;
+  const engaged = completed || inProgress;
+
   const expired =
-    !submitted && !!assignment.dueDate && hoursLeft(assignment.dueDate.toString()) < 0;
+    !completed && !!assignment.dueDate && hoursLeft(assignment.dueDate.toString()) < 0;
   const urgent =
-    !submitted && !expired && !!assignment.dueDate && hoursLeft(assignment.dueDate.toString()) < 24;
+    !completed && !expired && !!assignment.dueDate && hoursLeft(assignment.dueDate.toString()) < 24;
 
-  const borderColor = submitted ? "hsl(var(--success))" : expired ? "hsl(var(--destructive))" : urgent ? "hsl(var(--warning))" : accent;
+  const borderColor = completed ? "hsl(var(--success))" : inProgress ? accent : expired ? "hsl(var(--destructive))" : urgent ? "hsl(var(--warning))" : accent;
 
-  const statusBadge = submitted ? (
+  const statusBadge = completed ? (
     <Badge variant="success" className="text-[11px]">Completed</Badge>
+  ) : inProgress ? (
+    <Badge className="bg-primary/10 text-primary border-primary/20 border text-[11px]">{solved}/{problemCount} solved</Badge>
   ) : expired ? (
     <Badge className="bg-destructive/15 text-destructive border-destructive/30 border text-[11px]">Expired</Badge>
   ) : urgent ? (
@@ -65,13 +84,15 @@ const AssignmentCard = ({
     <Badge className="bg-primary/10 text-primary border-primary/20 border text-[11px]">Active</Badge>
   );
 
-  const buttonLabel = submitted
+  const buttonLabel = completed
     ? "View Feedback"
+    : inProgress
+    ? "Continue"
     : expired
     ? "View (Late)"
     : "Solve";
 
-  const ButtonIcon = submitted ? FileText : expired ? Eye : ChevronRight;
+  const ButtonIcon = completed ? FileText : expired ? Eye : ChevronRight;
 
   return (
     <motion.div
@@ -85,9 +106,9 @@ const AssignmentCard = ({
         {/* Top row */}
         <div className="flex items-start justify-between gap-2 mb-3">
           <div className="flex items-center gap-2 min-w-0">
-            {submitted && <CheckCircle size={14} className="text-success shrink-0" />}
+            {completed && <CheckCircle size={14} className="text-success shrink-0" />}
             {expired && <AlertCircle size={14} className="text-destructive shrink-0" />}
-            {urgent && !submitted && <Clock size={14} className="text-warning shrink-0" />}
+            {urgent && !completed && <Clock size={14} className="text-warning shrink-0" />}
             <h3 className="font-medium text-sm leading-tight truncate">{assignment.title}</h3>
           </div>
           {statusBadge}
@@ -103,10 +124,18 @@ const AssignmentCard = ({
           </span>
         </div>
 
-        {/* Grade box (submitted) */}
-        {submitted && (
+        {/* Multi-problem progress */}
+        {isMulti && !completed && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
+            <ListChecks size={12} />
+            <span>{solved}/{problemCount} problems submitted</span>
+          </div>
+        )}
+
+        {/* Grade box (shown once the student has engaged with the assignment) */}
+        {engaged && (
           <div className="rounded-lg bg-success/[0.08] border border-success/20 px-3 py-2 flex items-center justify-between mb-3">
-            <span className="text-xs text-success">Grade</span>
+            <span className="text-xs text-success">{completed ? "Grade" : "Grade so far"}</span>
             <span className="text-sm font-bold text-success">
               {assignment.finalScore != null
                 ? `${assignment.finalScore}/${assignment.points}`
@@ -126,7 +155,7 @@ const AssignmentCard = ({
         )}
 
         {/* Time remaining */}
-        {!submitted && !expired && assignment.dueDate && (
+        {!completed && !expired && assignment.dueDate && (
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
             <Clock size={12} />
             {urgent
@@ -250,8 +279,8 @@ const StudentClassroom: React.FC = () => {
 
   const filtered = useMemo(() => {
     const all = classroom?.assignments ?? [];
-    if (filter === "completed") return all.filter(a => a.submitted);
-    if (filter === "pending") return all.filter(a => !a.submitted);
+    if (filter === "completed") return all.filter(assignmentCompleted);
+    if (filter === "pending") return all.filter(a => !assignmentCompleted(a));
     return all;
   }, [classroom, filter]);
 

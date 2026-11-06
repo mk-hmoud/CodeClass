@@ -33,6 +33,10 @@ export interface Assignment {
   status?: "active" | "expired";
   submitted?: boolean;
   finalScore?: number;
+  /** Total problems in the assignment (list views). */
+  problemCount?: number;
+  /** How many of them this student has submitted at least once (list views). */
+  submittedProblemCount?: number;
   grade_release_mode?: "immediate" | "on_deadline" | "manual";
   grades_released_at?: Date;
 }

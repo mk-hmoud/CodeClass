@@ -762,6 +762,25 @@ export async function getAssignmentsForStudentClassroom(
              AND s.final_score IS NOT NULL
         )                          AS "finalScore",
 
+        -- Progress across the problem set: how many problems the assignment has,
+        -- and how many this student has submitted at least once. A legacy
+        -- single-problem submission with a NULL problem_id is mapped to the
+        -- assignment's one problem so it still counts.
+        (
+          SELECT COUNT(*) FROM assignment_problems ap
+           WHERE ap.assignment_id = a.assignment_id
+        )                          AS "problemCount",
+        (
+          SELECT COUNT(DISTINCT COALESCE(s.problem_id, (
+                   SELECT ap2.problem_id FROM assignment_problems ap2
+                    WHERE ap2.assignment_id = a.assignment_id
+                    ORDER BY ap2.position, ap2.problem_id LIMIT 1
+                 )))
+            FROM submissions s
+           WHERE s.assignment_id = a.assignment_id
+             AND s.student_id    = $2
+        )                          AS "submittedProblemCount",
+
         json_build_object(
           'problemId',     p.problem_id,
           'instructorId',  p.instructor_id,

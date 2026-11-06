@@ -305,42 +305,37 @@ export async function getSubmissionsByAssignment(
   
   const client = await pool.connect();
   try {
-    const { rows: assignmentRows } = await client.query(
-      `SELECT pp.problem_id, p.output_type
-       FROM assignments a
-       JOIN LATERAL (
-         SELECT ap.problem_id
-           FROM assignment_problems ap
-          WHERE ap.assignment_id = a.assignment_id
-          ORDER BY ap.position, ap.problem_id
-          LIMIT 1
-       ) pp ON TRUE
-       JOIN problems p ON p.problem_id = pp.problem_id
-       WHERE a.assignment_id = $1`,
+    const { rows: aExists } = await client.query(
+      `SELECT 1 FROM assignments WHERE assignment_id = $1`,
       [assignmentId]
     );
-
-    if (assignmentRows.length === 0) {
+    if (aExists.length === 0) {
       throw new Error(`Assignment with ID ${assignmentId} not found`);
     }
 
-    const problemId = assignmentRows[0].problem_id;
-    const isImageProblem = assignmentRows[0].output_type === 'image';
-    
+    // Test cases for EVERY problem in the assignment, not just the first. A
+    // multi-problem assignment has submissions against several problems, and
+    // submission_results reference each problem's own test_case_ids (globally
+    // unique), so the map has to span the whole problem set or non-first
+    // problems' results lose their input/expected/public flag. output_type is
+    // carried per test case so image detection is per-problem too.
     const { rows: testCaseRows } = await client.query(
-      `SELECT test_case_id, input, expected_output, is_public 
-       FROM problem_test_cases 
-       WHERE problem_id = $1`,
-      [problemId]
+      `SELECT tc.test_case_id, tc.input, tc.expected_output, tc.is_public, p.output_type
+         FROM assignment_problems ap
+         JOIN problem_test_cases tc ON tc.problem_id = ap.problem_id
+         JOIN problems p            ON p.problem_id  = ap.problem_id
+        WHERE ap.assignment_id = $1`,
+      [assignmentId]
     );
-    
-    const testCasesMap = new Map<number, TestCase>();
+
+    const testCasesMap = new Map<number, TestCase & { outputType?: string }>();
     for (const tc of testCaseRows) {
       testCasesMap.set(tc.test_case_id, {
         testCaseId: tc.test_case_id,
         input: tc.input,
         expectedOutput: tc.expected_output,
-        isPublic: tc.is_public
+        isPublic: tc.is_public,
+        outputType: tc.output_type
       });
     }
     
@@ -418,7 +413,7 @@ export async function getSubmissionsByAssignment(
           // branch every image result reconstructs as 'failed' and the
           // instructor's view never renders the produced image, no matter how
           // the run actually went.
-          status: isImageProblem
+          status: testCase?.outputType === 'image'
             ? (r.actual_output ? 'produced' : 'no_output')
             : (r.passed ? 'passed' : (r.error_message ? 'error' : 'failed')),
           errorMessage: r.error_message || undefined,

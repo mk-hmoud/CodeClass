@@ -389,14 +389,22 @@ export class ClassroomStatisticsService {
       );
       const totalSubmissions = parseInt(submissionsResult.rows[0].count, 10);
       
+      // Average/median over each STUDENT's per-assignment total (sum of their
+      // per-problem scores), not raw per-submission scores -- a multi-problem
+      // assignment would otherwise average each problem separately.
       const assignmentScoresResult = await pool.query(
-        `SELECT 
-           AVG(s.final_score) as avg_score,
-           PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY s.final_score) as median_score
-         FROM submissions s
-         JOIN assignments a ON s.assignment_id = a.assignment_id
-         WHERE a.classroom_id = $1
-         AND s.status = 'completed'`,
+        `SELECT
+           AVG(score) as avg_score,
+           PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY score) as median_score
+         FROM (
+           SELECT s.student_id, s.assignment_id, SUM(s.final_score) AS score
+           FROM submissions s
+           JOIN assignments a ON s.assignment_id = a.assignment_id
+           WHERE a.classroom_id = $1
+             AND s.status = 'completed'
+             AND s.final_score IS NOT NULL
+           GROUP BY s.student_id, s.assignment_id
+         ) AS per_student_assignment`,
         [classroomId]
       );
       const avgAssignmentScore = parseFloat(assignmentScoresResult.rows[0].avg_score) || 0;
@@ -431,19 +439,19 @@ export class ClassroomStatisticsService {
       
       const assignmentCompletionResult = await pool.query(
         `WITH student_assignments AS (
-           SELECT 
+           SELECT
              ce.student_id,
              a.assignment_id,
-             MAX(s.final_score) as max_score
+             SUM(s.final_score) as total_score
            FROM classroom_enrollments ce
            CROSS JOIN assignments a
            LEFT JOIN submissions s ON s.assignment_id = a.assignment_id AND s.student_id = ce.student_id
            WHERE ce.classroom_id = $1 AND a.classroom_id = $1
            GROUP BY ce.student_id, a.assignment_id
          )
-         SELECT 
+         SELECT
            COUNT(*) as total_assignments,
-           SUM(CASE WHEN max_score >= 70 THEN 1 ELSE 0 END) as completed_assignments
+           SUM(CASE WHEN total_score >= 70 THEN 1 ELSE 0 END) as completed_assignments
          FROM student_assignments`,
         [classroomId]
       );

@@ -1343,13 +1343,22 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
           'Computed distinct submitters'
         );
 
-        // Score statistics are now handled in a separate function
+        // Score statistics are over each STUDENT's assignment total, not each
+        // raw submission. An assignment is a set of problems: a student has one
+        // retained submission per problem, each scaled to that problem's points,
+        // so their assignment score is the sum. Averaging raw submissions would
+        // average per-problem scores instead. For a single-problem assignment
+        // the sum is over one row, so this is unchanged there.
         const scoreStatsResult = await client.query(`
           SELECT
-            COALESCE(AVG(final_score), 0) as average_score,
-            COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY final_score), 0) as median_score
-          FROM submissions
-          WHERE assignment_id = $1 AND final_score IS NOT NULL
+            COALESCE(AVG(score), 0) as average_score,
+            COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY score), 0) as median_score
+          FROM (
+            SELECT student_id, SUM(final_score) AS score
+            FROM submissions
+            WHERE assignment_id = $1 AND final_score IS NOT NULL
+            GROUP BY student_id
+          ) AS per_student
         `, [assignmentId]);
 
         const averageScore = scoreStatsResult.rows[0].average_score;
@@ -1360,9 +1369,13 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
         for (const bucket of SCORE_BUCKETS) {
           const bucketResult = await client.query(`
             SELECT COUNT(*) as count
-            FROM submissions
-            WHERE assignment_id = $1 AND final_score IS NOT NULL
-              AND final_score >= $2 AND final_score <= $3
+            FROM (
+              SELECT student_id, SUM(final_score) AS score
+              FROM submissions
+              WHERE assignment_id = $1 AND final_score IS NOT NULL
+              GROUP BY student_id
+            ) AS per_student
+            WHERE score >= $2 AND score <= $3
           `, [assignmentId, bucket.start, bucket.end]);
 
           const count = parseInt(bucketResult.rows[0].count, 10);
@@ -1733,12 +1746,18 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
         'Querying score statistics from submissions'
       );
   
+      // Per-student assignment total (sum of per-problem scores), not raw
+      // per-submission scores -- see the matching note in computeStatistics.
       const scoreStatsResult = await pool.query(`
-        SELECT 
-          COALESCE(AVG(final_score), 0) as average_score,
-          COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY final_score), 0) as median_score
-        FROM submissions 
-        WHERE assignment_id = $1 AND final_score IS NOT NULL
+        SELECT
+          COALESCE(AVG(score), 0) as average_score,
+          COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY score), 0) as median_score
+        FROM (
+          SELECT student_id, SUM(final_score) AS score
+          FROM submissions
+          WHERE assignment_id = $1 AND final_score IS NOT NULL
+          GROUP BY student_id
+        ) AS per_student
       `, [assignmentId]);
   
       const averageScore = scoreStatsResult.rows[0].average_score;
@@ -1775,9 +1794,13 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
   
         const bucketResult = await pool.query(`
           SELECT COUNT(*) as count
-          FROM submissions
-          WHERE assignment_id = $1 AND final_score IS NOT NULL 
-            AND final_score >= $2 AND final_score <= $3
+          FROM (
+            SELECT student_id, SUM(final_score) AS score
+            FROM submissions
+            WHERE assignment_id = $1 AND final_score IS NOT NULL
+            GROUP BY student_id
+          ) AS per_student
+          WHERE score >= $2 AND score <= $3
         `, [assignmentId, bucket.start, bucket.end]);
   
         const count = parseInt(bucketResult.rows[0].count, 10);

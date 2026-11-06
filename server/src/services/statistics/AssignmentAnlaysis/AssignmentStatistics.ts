@@ -1401,8 +1401,12 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
             PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY submission_count) as median_attempts,
             MAX(submission_count) as max_attempts
           FROM (
+            -- Attempts come from submission_attempts, the real ledger (one row
+            -- per attempt, across every problem), NOT submissions -- which keeps
+            -- only the latest submission per problem and so would report at most
+            -- one "attempt" per problem.
             SELECT student_id, COUNT(*) as submission_count
-            FROM submissions
+            FROM submission_attempts
             WHERE assignment_id = $1
             GROUP BY student_id
           ) as student_attempts

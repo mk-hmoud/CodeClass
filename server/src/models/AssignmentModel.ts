@@ -749,13 +749,17 @@ export async function getAssignmentsForStudentClassroom(
              AND sa.student_id    = $2
         )                          AS "submitted",
 
+        -- The assignment score is the sum of the student's per-problem scores
+        -- (one retained submission per problem, each already scaled to that
+        -- problem's points), not just the latest submission. NULL when the
+        -- student has no graded submission yet, so "not attempted" stays
+        -- distinct from a genuine zero.
         (
-          SELECT s.final_score
+          SELECT SUM(s.final_score)
             FROM submissions s
            WHERE s.assignment_id = a.assignment_id
              AND s.student_id    = $2
-           ORDER BY s.submitted_at DESC
-           LIMIT 1
+             AND s.final_score IS NOT NULL
         )                          AS "finalScore",
 
         json_build_object(

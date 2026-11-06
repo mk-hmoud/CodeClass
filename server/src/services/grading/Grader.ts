@@ -34,7 +34,21 @@ export const calculateGrade = async (
       throw new Error(`Assignment ${assignmentId} not found`);
     }
     
-    const maxPoints = assignment.points || 100;
+    // Score against THIS problem's share of the points, not the whole
+    // assignment's total. An assignment is a set of problems, each with its own
+    // assignment_problems.points; a submission is for one problem. For a
+    // single-problem assignment that per-problem value equals assignment.points,
+    // so this is a no-op there. Fall back to the assignment total only for a
+    // legacy submission with no problem_id.
+    const { rows: ppRows } = await pool.query(
+      `SELECT ap.points
+         FROM submissions s
+         JOIN assignment_problems ap
+           ON ap.assignment_id = s.assignment_id AND ap.problem_id = s.problem_id
+        WHERE s.submission_id = $1`,
+      [submissionId]
+    );
+    const maxPoints = ppRows[0]?.points ?? assignment.points ?? 100;
     logger.info(
       { fn, assignmentId, grading_method: assignment.grading_method, maxPoints },
       "Loaded assignment for grading"
@@ -317,14 +331,17 @@ export async function updateManualGrade({
     await client.query('BEGIN');
 
     const subRes = await client.query(`
-      SELECT 
-        s.submission_id, 
-        s.assignment_id, 
-        s.auto_score, 
-        a.grading_method, 
-        a.points
+      SELECT
+        s.submission_id,
+        s.assignment_id,
+        s.auto_score,
+        a.grading_method,
+        a.points,
+        ap.points AS problem_points
       FROM submissions s
       JOIN assignments a ON s.assignment_id = a.assignment_id
+      LEFT JOIN assignment_problems ap
+        ON ap.assignment_id = s.assignment_id AND ap.problem_id = s.problem_id
       WHERE s.submission_id = $1
       FOR UPDATE
     `, [submissionId]);
@@ -336,7 +353,9 @@ export async function updateManualGrade({
     const row = subRes.rows[0];
     const assignmentId = row.assignment_id;
     const grading_method = row.grading_method;
-    const maxPoints = row.points || 100;
+    // Bound the manual score by THIS problem's points (its share of the
+    // assignment), falling back to the assignment total for legacy rows.
+    const maxPoints = row.problem_points ?? row.points ?? 100;
     
     const auto_score = row.auto_score !== null ? parseFloat(row.auto_score) : null;
     

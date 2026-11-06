@@ -150,8 +150,7 @@ CREATE TABLE assignments (
   grade_release_mode grade_release_mode_enum NOT NULL DEFAULT 'immediate',
   grades_released_at TIMESTAMPTZ,
   FOREIGN KEY (classroom_id) REFERENCES classrooms(classroom_id) ON DELETE CASCADE,
-  FOREIGN KEY (problem_id) REFERENCES problems(problem_id) ON DELETE CASCADE,
-  UNIQUE (classroom_id, problem_id)
+  FOREIGN KEY (problem_id) REFERENCES problems(problem_id) ON DELETE CASCADE
 );
 
 CREATE TABLE problem_test_cases (
@@ -283,41 +282,10 @@ CREATE TABLE lab_attendance (
 ALTER TABLE assignments
   ADD COLUMN group_id INT REFERENCES lab_groups(group_id) ON DELETE SET NULL;
 
--- The original inline UNIQUE(classroom_id, problem_id) constraint (from the initial
--- CREATE TABLE above) does not include group_id, so it blocks ANY second assignment
--- for the same (classroom, problem) pair regardless of group -- including the
--- per-group variant case this feature is meant to allow. Replace it with two partial
--- unique indexes: one preserving the original "one assignment per problem" rule for
--- group-less assignments, one allowing one per (problem, group) for group-linked ones.
--- The constraint name is looked up rather than hardcoded since Postgres's default
--- auto-generated name isn't guaranteed and this needs to work whether applied to a
--- fresh install or an already-deployed database.
-DO $$
-DECLARE
-  cname text;
-BEGIN
-  SELECT conname INTO cname
-  FROM pg_constraint
-  WHERE conrelid = 'assignments'::regclass
-    AND contype = 'u'
-    AND conkey = (
-      SELECT array_agg(attnum ORDER BY attnum)
-      FROM pg_attribute
-      WHERE attrelid = 'assignments'::regclass
-        AND attname IN ('classroom_id', 'problem_id')
-    );
-  IF cname IS NOT NULL THEN
-    EXECUTE format('ALTER TABLE assignments DROP CONSTRAINT %I', cname);
-  END IF;
-END $$;
-
-CREATE UNIQUE INDEX assignments_classroom_problem_no_group_uq
-  ON assignments (classroom_id, problem_id)
-  WHERE group_id IS NULL;
-
-CREATE UNIQUE INDEX assignments_classroom_problem_group_uq
-  ON assignments (classroom_id, problem_id, group_id)
-  WHERE group_id IS NOT NULL;
+-- There is deliberately NO uniqueness on (classroom_id, problem_id). An
+-- assignment holds an ordered SET of problems (assignment_problems); the legacy
+-- assignments.problem_id is only the primary/first-problem pointer, and a
+-- problem may appear in any number of assignments in the same classroom.
 
 CREATE TABLE group_test_case_overrides (
   override_id SERIAL PRIMARY KEY,

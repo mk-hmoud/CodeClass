@@ -25,18 +25,15 @@ export const createAssignmentController = async (req: Request, res: Response): P
     logger.info({ fn: functionName, assignmentId: result.assignmentId }, `Assignment created with ID: ${result.assignmentId}`);
     res.status(201).json({ success: true, data: result });
   } catch (error) {
-    // 23505 = the partial unique index on (classroom_id, problem_id[, group_id]).
-    // This fires when the same problem is assigned twice to the same class
-    // without distinct lab groups. It is the designed limit, not a crash, so
-    // explain the way out rather than returning an opaque 500.
+    // 23505 = a unique-constraint violation. A problem may now be reused across
+    // assignments in the same classroom, so the old (classroom, problem) case is
+    // gone; a remaining 23505 means a genuine duplicate (e.g. the same language
+    // listed twice for one problem). Surface it as a 409 rather than a 500.
     if (typeof error === 'object' && error !== null && (error as { code?: string }).code === '23505') {
-      logger.info({ fn: functionName }, 'Duplicate assignment for this classroom/problem/group');
+      logger.info({ fn: functionName }, 'Duplicate key creating assignment');
       res.status(409).json({
         success: false,
-        message:
-          'This problem is already assigned to this class. To give it to a ' +
-          'second lab group (e.g. a different day), assign it to that group ' +
-          'instead of leaving the group unset.',
+        message: 'This assignment contains a duplicate entry. Please check for a repeated problem or language and try again.',
       });
       return;
     }

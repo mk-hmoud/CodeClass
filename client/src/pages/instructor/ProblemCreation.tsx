@@ -42,6 +42,7 @@ import {
   getAiStatus,
   suggestTestCases as requestAiTestCases,
   SuggestedTestCase,
+  generateProblemDraft as requestAiProblem,
 } from "@/services/ProblemService";
 import SystemsAuthoring, { SystemsAuthoringHandle } from "./SystemsAuthoring";
 import { runCode, getRunStatus } from "@/services/JudgeService";
@@ -319,6 +320,68 @@ const ProblemCreation = () => {
     setAiOpen(false);
   };
 
+  // ── AI problem drafting (title + description from a plain-language brief) ──
+  const [draftOpen, setDraftOpen] = useState(false);
+  const [draftBrief, setDraftBrief] = useState("");
+  const [draftLoading, setDraftLoading] = useState(false);
+  const [draftError, setDraftError] = useState<string | null>(null);
+  // The editable draft the instructor reviews before it fills the form.
+  const [draft, setDraft] = useState<{
+    title: string;
+    description: string;
+    category?: string;
+    difficulty?: string;
+  } | null>(null);
+
+  const openDraftDialog = () => {
+    setDraftError(null);
+    setDraft(null);
+    setDraftBrief("");
+    setDraftOpen(true);
+  };
+
+  const generateDraft = async () => {
+    if (!draftBrief.trim()) {
+      setDraftError("Describe the problem you want first.");
+      return;
+    }
+    setDraftLoading(true);
+    setDraftError(null);
+    try {
+      const result = await requestAiProblem({
+        brief: draftBrief,
+        outputType: uiOutputType,
+      });
+      setDraft({
+        title: result.title,
+        description: result.description,
+        category: result.category,
+        difficulty: result.difficulty,
+      });
+    } catch (err) {
+      const e = err as { response?: { status?: number; data?: { message?: string } } };
+      setDraftError(
+        e.response?.data?.message ||
+          (e.response?.status === 503
+            ? "AI drafting isn't configured on the server yet."
+            : "Couldn't reach the AI provider. Please try again.")
+      );
+    } finally {
+      setDraftLoading(false);
+    }
+  };
+
+  const acceptDraft = () => {
+    if (!draft) return;
+    form.setValue("title", draft.title, { shouldValidate: true, shouldDirty: true });
+    form.setValue("description", draft.description, { shouldValidate: true, shouldDirty: true });
+    if (draft.category && categories.includes(draft.category)) {
+      form.setValue("category", draft.category, { shouldDirty: true });
+    }
+    toast.success("Draft applied — review and edit before saving");
+    setDraftOpen(false);
+  };
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -490,10 +553,25 @@ const ProblemCreation = () => {
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          <div className="flex items-center gap-2">
-            <Label className="text-sm">Problem kind:</Label>
-            <Button type="button" size="sm" variant={!isSystems ? "default" : "outline"} onClick={() => setIsSystems(false)}>Standard</Button>
-            <Button type="button" size="sm" variant={isSystems ? "default" : "outline"} onClick={() => setIsSystems(true)}>Systems (C)</Button>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Label className="text-sm">Problem kind:</Label>
+              <Button type="button" size="sm" variant={!isSystems ? "default" : "outline"} onClick={() => setIsSystems(false)}>Standard</Button>
+              <Button type="button" size="sm" variant={isSystems ? "default" : "outline"} onClick={() => setIsSystems(true)}>Systems (C)</Button>
+            </div>
+            {aiEnabled && !isSystems && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={openDraftDialog}
+                className="flex items-center gap-1 text-primary"
+                title="Describe the problem and let AI draft the title and description"
+              >
+                <Sparkles size={14} />
+                Draft with AI
+              </Button>
+            )}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-6">
@@ -524,7 +602,7 @@ const ProblemCreation = () => {
                     <FormLabel>Category</FormLabel>
                     <Select
                       onValueChange={field.onChange}
-                      defaultValue={field.value}
+                      value={field.value}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -979,6 +1057,97 @@ const ProblemCreation = () => {
               <SystemsAuthoring ref={systemsRef} />
             </div>
           )}
+
+          <Dialog open={draftOpen} onOpenChange={(open) => !open && !draftLoading && setDraftOpen(false)}>
+            <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Sparkles size={16} className="text-primary" />
+                  Draft a problem with AI
+                </DialogTitle>
+                <DialogDescription>
+                  Explain the problem you want in plain language. The AI drafts a title and a
+                  structured description — review and edit before applying; nothing is saved
+                  until you create the problem.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 py-2">
+                <div>
+                  <Label htmlFor="ai-brief" className="text-sm">What should the problem be about?</Label>
+                  <Textarea
+                    id="ai-brief"
+                    value={draftBrief}
+                    onChange={(e) => setDraftBrief(e.target.value)}
+                    placeholder={
+                      'e.g. "Given an array of integers and a target, return the indices of the two numbers that add up to the target. Read the target on the first line and the space-separated array on the second. Medium difficulty."'
+                    }
+                    className="mt-2 min-h-[120px]"
+                    disabled={draftLoading}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Uses the selected problem type ({uiOutputType}) to shape the input/output conventions.
+                  </p>
+                </div>
+
+                {draftError && <p className="text-sm text-destructive">{draftError}</p>}
+
+                {draft && (
+                  <div className="space-y-3 rounded-lg border border-border p-3 bg-muted/20">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-muted-foreground">Draft — edit as needed</span>
+                      {draft.difficulty && (
+                        <span className="text-[10px] uppercase tracking-wide bg-muted px-1.5 py-0.5 rounded">
+                          {draft.difficulty}
+                          {draft.category ? ` · ${draft.category}` : ""}
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <Label htmlFor="ai-draft-title" className="text-xs">Title</Label>
+                      <Input
+                        id="ai-draft-title"
+                        value={draft.title}
+                        onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="ai-draft-desc" className="text-xs">Description</Label>
+                      <Textarea
+                        id="ai-draft-desc"
+                        value={draft.description}
+                        onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+                        className="mt-1 min-h-[240px] font-mono text-xs"
+                      />
+                    </div>
+                    {(form.getValues().title?.trim() || form.getValues().description?.trim()) && (
+                      <p className="text-xs text-amber-600 dark:text-amber-500">
+                        Applying will replace the title and description already in the form.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter className="gap-2">
+                {draft ? (
+                  <>
+                    <Button type="button" variant="outline" onClick={generateDraft} disabled={draftLoading}>
+                      {draftLoading ? "Regenerating…" : "Regenerate"}
+                    </Button>
+                    <Button type="button" onClick={acceptDraft} disabled={!draft.title.trim() || !draft.description.trim()}>
+                      Apply to form
+                    </Button>
+                  </>
+                ) : (
+                  <Button type="button" onClick={generateDraft} disabled={draftLoading || !draftBrief.trim()}>
+                    {draftLoading ? "Generating…" : "Generate"}
+                  </Button>
+                )}
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           <Dialog open={aiOpen} onOpenChange={setAiOpen}>
             <DialogContent className="max-w-2xl">

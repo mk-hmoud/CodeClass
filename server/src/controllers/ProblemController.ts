@@ -11,6 +11,7 @@ import {
 import { ProblemCreationData } from "../types";
 import {
   suggestTestCases,
+  generateProblemDraft,
   isAiConfigured,
   AiNotConfiguredError,
 } from "../services/ai/testCaseSuggester";
@@ -224,6 +225,55 @@ export const suggestTestCasesController = async (
     res.status(502).json({
       success: false,
       message: "The AI provider could not generate suggestions right now. Please try again.",
+    });
+  }
+};
+
+export const generateProblemController = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const functionName = "generateProblemController";
+  try {
+    if (!req.user || !req.user.role_id) {
+      res.status(401).json({ success: false, message: "Unauthorized: Instructor not identified" });
+      return;
+    }
+
+    const { brief, outputType } = req.body;
+    if (!brief?.trim()) {
+      res.status(400).json({
+        success: false,
+        message: "Describe the problem you want so the AI has something to work from.",
+      });
+      return;
+    }
+
+    logger.info({ fn: functionName }, "Received request to draft a problem from a brief.");
+
+    const draft = await generateProblemDraft({ brief, outputType });
+    if (!draft) {
+      res.status(502).json({
+        success: false,
+        message: "The AI didn't return a usable problem. Try again, or add detail to your description.",
+      });
+      return;
+    }
+
+    res.status(200).json({ success: true, data: draft });
+  } catch (error) {
+    if (error instanceof AiNotConfiguredError) {
+      logger.warn({ fn: functionName }, "AI drafting requested but not configured.");
+      res.status(503).json({
+        success: false,
+        message: "AI drafting isn't set up on this server yet. Add the provider key to enable it.",
+      });
+      return;
+    }
+    logger.error({ fn: functionName, error }, `Error drafting problem: ${error}`);
+    res.status(502).json({
+      success: false,
+      message: "The AI provider could not draft a problem right now. Please try again.",
     });
   }
 };

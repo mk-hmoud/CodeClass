@@ -18,7 +18,6 @@ export interface Assignment {
   problems?: AssignmentProblem[];
   title: string;
   description: string;
-  difficulty_level: "Easy" | "Medium" | "Hard";
   points?: number;
   grading_method: "Manual" | "Automatic" | "Hybrid";
   max_submissions?: number;
@@ -58,7 +57,6 @@ export interface AssignmentCreationData {
   }>;
   title?: string;
   description?: string;
-  difficulty_level: "Easy" | "Medium" | "Hard";
   points?: number;
   grading_method: "Manual" | "Automatic" | "Hybrid";
   max_submissions?: number;

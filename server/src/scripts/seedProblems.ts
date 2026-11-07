@@ -6,7 +6,6 @@ const problems = [
   {
     title: 'Two Sum',
     description: 'Write a program that takes a target sum followed by a space-separated list of integers. Find the indices of the two numbers such that they add up to the target. Output the indices sorted, separated by a space. Assume there is exactly one solution.',
-    category: 'Algorithms',
     prerequisites: 'Arrays, Loops',
     learning_outcomes: 'Using Hash Maps for O(n) lookup or basic nested loops for O(n^2).',
     tags: 'Array, Hash Table',
@@ -19,7 +18,6 @@ const problems = [
   {
     title: 'Valid Palindrome',
     description: 'Write a program that takes a single string. Print "true" if it is a palindrome (reads the same forwards and backwards, ignoring non-alphanumeric characters and case), and "false" otherwise.',
-    category: 'Fundamentals',
     prerequisites: 'Strings, Loops',
     learning_outcomes: 'String manipulation, two pointers approach.',
     tags: 'String, Two Pointers',
@@ -32,7 +30,6 @@ const problems = [
   {
     title: 'Nth Fibonacci',
     description: 'Write a program that takes a single integer N and prints the Nth Fibonacci number. The Fibonacci sequence starts with F(0) = 0, F(1) = 1, and F(N) = F(N-1) + F(N-2).',
-    category: 'Algorithms',
     prerequisites: 'Recursion or loops',
     learning_outcomes: 'Understanding recursion, memoization or dynamic programming.',
     tags: 'Math, DP, Recursion',
@@ -46,7 +43,6 @@ const problems = [
   {
     title: 'FizzBuzz',
     description: 'Write a program that takes an integer N. For numbers from 1 to N, print "Fizz" if the number is divisible by 3, "Buzz" if divisible by 5, "FizzBuzz" if divisible by both, and the number itself otherwise. Print each on a new line.',
-    category: 'Fundamentals',
     prerequisites: 'Loops, Conditionals',
     learning_outcomes: 'Using basic control flow logic like if/else.',
     tags: 'Math, Strings',
@@ -87,16 +83,15 @@ async function seedProblems() {
     
     for (const prob of problems) {
       const pRes = await client.query(`
-        INSERT INTO problems (instructor_id, title, description, category, prerequisites, learning_outcomes, tags)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO problems (instructor_id, title, description, prerequisites, learning_outcomes, tags)
+        VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING problem_id
       `, [
-        instructorId, 
-        prob.title, 
-        prob.description, 
-        prob.category, 
-        prob.prerequisites, 
-        prob.learning_outcomes, 
+        instructorId,
+        prob.title,
+        prob.description,
+        prob.prerequisites,
+        prob.learning_outcomes,
         prob.tags
       ]);
       

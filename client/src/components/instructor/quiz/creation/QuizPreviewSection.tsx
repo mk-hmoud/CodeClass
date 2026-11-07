@@ -47,7 +47,6 @@ const QuizPreviewSection: React.FC<QuizPreviewSectionProps> = ({ form, selectedP
               <div key={q.problemId} className="p-4 bg-muted/40 rounded-md border">
                 <div className="flex justify-between items-start">
                   <span className="font-medium">Question {i + 1}: {problemDetails?.title}</span>
-                  <Badge variant="outline">{problemDetails?.category}</Badge>
                 </div>
                 <div className="mt-2 flex items-center gap-4 text-sm text-muted-foreground">
                   <span>{q.points} points</span>

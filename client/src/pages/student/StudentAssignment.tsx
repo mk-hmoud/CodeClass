@@ -13,7 +13,6 @@ import { getAssignmentById, getAssignmentPreview, getRemainingAttempts } from "@
 import { toast } from "sonner";
 import { Assignment } from "@/types/Assignment";
 import { LANGUAGE_LABELS, normalizeAssignment } from "@/lib/assignmentUtils";
-import { DIFFICULTY_META } from "@/lib/difficultyMeta";
 
 const ACCENTS = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ef4444", "#06b6d4", "#6366f1", "#f97316"];
 
@@ -98,8 +97,6 @@ const StudentAssignment = ({ preview = false }: { preview?: boolean } = {}) => {
   const tagList = splitList(p?.tags, ",");
   const prereqList = splitList(p?.prerequisites);
   const outcomeList = splitList(p?.learning_outcomes);
-  const diff = assignment.difficulty_level;
-  const diffMeta = diff ? DIFFICULTY_META[diff] ?? DIFFICULTY_META.Medium : null;
   const accent = ACCENTS[parseInt(classroomId ?? "0", 10) % ACCENTS.length];
 
   const problems = assignment.problems ?? [];
@@ -148,14 +145,6 @@ const StudentAssignment = ({ preview = false }: { preview?: boolean } = {}) => {
             <div>
               <div className="flex items-center gap-3 mb-1">
                 <h1 className="text-2xl font-bold">{assignment.title}</h1>
-                {diffMeta && diff && (
-                  <Badge
-                    className="text-xs border"
-                    style={{ backgroundColor: diffMeta.bg, color: diffMeta.color, borderColor: diffMeta.border }}
-                  >
-                    {diff}
-                  </Badge>
-                )}
               </div>
               <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1.5">
@@ -264,16 +253,6 @@ const StudentAssignment = ({ preview = false }: { preview?: boolean } = {}) => {
                 </div>
               )}
 
-              {!isMulti && p?.category && (
-                <div className="flex items-start gap-2.5 text-xs">
-                  <BookOpen size={13} className="mt-0.5 shrink-0 text-muted-foreground" />
-                  <div>
-                    <p className="text-muted-foreground mb-1">Category</p>
-                    <Badge variant="outline" className="text-[11px] border-primary/30 text-primary bg-primary/8">{p.category}</Badge>
-                  </div>
-                </div>
-              )}
-
               {!isMulti && tagList.length > 0 && (
                 <div className="flex items-start gap-2.5 text-xs">
                   <Tag size={13} className="mt-0.5 shrink-0 text-muted-foreground" />
@@ -366,9 +345,6 @@ const StudentAssignment = ({ preview = false }: { preview?: boolean } = {}) => {
                           </span>
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium truncate">{ap.problem.title}</div>
-                            {ap.problem.category && (
-                              <div className="text-xs text-muted-foreground mt-0.5">{ap.problem.category}</div>
-                            )}
                           </div>
                           <span className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
                             <Zap size={12} /><span className="font-semibold text-foreground">{ap.points}</span> pts

@@ -14,15 +14,14 @@ export const createProblem = async (
     await client.query("BEGIN");
 
     const insertProblemQuery = `
-      INSERT INTO problems (instructor_id, title, description, category, prerequisites, learning_outcomes, tags, output_type, runtime, build_command, entrypoint)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      INSERT INTO problems (instructor_id, title, description, prerequisites, learning_outcomes, tags, output_type, runtime, build_command, entrypoint)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING problem_id
     `;
     const result = await client.query(insertProblemQuery, [
       data.instructorId,
       data.title,
       data.description,
-      data.category || null,
       data.prerequisites || null,
       data.learning_outcomes || null,
       data.tags || null,
@@ -95,7 +94,6 @@ export const getProblemById = async (
       instructorId: row.instructor_id,
       title: row.title,
       description: row.description,
-      category: row.category,
       prerequisites: row.prerequisites,
       learning_outcomes: row.learning_outcomes,
       tags: row.tags,
@@ -162,7 +160,6 @@ export const getProblemsByInstructor = async (
       instructorId: row.instructor_id,
       title: row.title,
       description: row.description,
-      category: row.category,
       prerequisites: row.prerequisites,
       learning_outcomes: row.learning_outcomes,
       tags: row.tags,
@@ -188,17 +185,15 @@ export const updateProblem = async (
       SET
         title = $1,
         description = $2,
-        category = $3,
-        prerequisites = $4,
-        learning_outcomes = $5,
-        tags = $6,
-        output_type = $7
+        prerequisites = $3,
+        learning_outcomes = $4,
+        tags = $5,
+        output_type = $6
       WHERE
-        problem_id = $8 RETURNING *`;
+        problem_id = $7 RETURNING *`;
     const result = await pool.query(query, [
       data.title,
       data.description,
-      data.category,
       data.prerequisites,
       data.learning_outcomes,
       data.tags,

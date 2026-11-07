@@ -49,12 +49,11 @@ const ProblemCard: React.FC<ProblemCardProps> = ({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Badge variant="outline" className="text-[10px]">{problem.category || "Algorithms"}</Badge>
-          {problem.runtime === "systems" && (
+        {problem.runtime === "systems" && (
+          <div className="flex flex-wrap items-center gap-1.5">
             <Badge variant="outline" className="text-[10px] gap-1"><Terminal size={10} />systems</Badge>
-          )}
-        </div>
+          </div>
+        )}
 
         <p className="text-xs text-muted-foreground line-clamp-2 mt-auto">{problem.description}</p>
       </CardContent>

@@ -131,8 +131,7 @@ export const getQuizById = async (quizId: number) => {
       qp.points,
       qp.problem_order   AS "problemOrder",
       p.title            AS "problemTitle",
-      p.description      AS "problemDescription",
-      p.category
+      p.description      AS "problemDescription"
     FROM quiz_problems qp
     JOIN problems p ON p.problem_id = qp.problem_id
     WHERE qp.quiz_id = $1

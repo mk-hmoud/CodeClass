@@ -3,7 +3,6 @@ import { Badge } from "@/components/ui/badge";
 import { Assignment } from "../../../../types/Assignment";
 import { LANGUAGE_LABELS } from "@/lib/assignmentUtils";
 import { Code, ShieldCheck, BarChart2 } from "lucide-react";
-import { DIFFICULTY_META } from "@/lib/difficultyMeta";
 
 interface OverviewTabProps {
   assignment: Assignment;
@@ -12,23 +11,12 @@ interface OverviewTabProps {
 }
 
 const OverviewTab: React.FC<OverviewTabProps> = ({ assignment }) => {
-  const diff = assignment.difficulty_level;
-  const diffMeta = diff ? DIFFICULTY_META[diff] : undefined;
-
   return (
     <div className="space-y-4">
       {/* Main info */}
       <div className="bg-card border border-border rounded-xl overflow-hidden">
         <div className="px-5 py-4 border-b border-border flex items-center justify-between">
           <h2 className="font-semibold text-sm">Assignment Overview</h2>
-          {diff && diffMeta && (
-            <Badge
-              className="text-xs border"
-              style={{ backgroundColor: diffMeta.bg, color: diffMeta.color, borderColor: diffMeta.border }}
-            >
-              {diff}
-            </Badge>
-          )}
         </div>
 
         <div className="p-5 space-y-5">

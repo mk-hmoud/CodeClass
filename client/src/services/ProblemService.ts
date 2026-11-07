@@ -66,7 +66,6 @@ export const getAiStatus = async (): Promise<boolean> => {
 export const suggestTestCases = async (params: {
   title: string;
   description: string;
-  category?: string;
   outputType?: string;
   count?: number;
   existingInputs?: string[];
@@ -93,8 +92,6 @@ export interface SystemsTestDraft {
 export interface GeneratedProblemDraft {
   title: string;
   description: string;
-  category?: string;
-  difficulty?: string;
   testCases?: SuggestedTestCase[];
   systems?: {
     buildCommand: string;

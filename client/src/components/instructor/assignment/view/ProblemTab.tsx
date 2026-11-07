@@ -36,11 +36,6 @@ const ProblemTab: React.FC<ProblemTabProps> = ({ assignment }) => {
       <div className="p-5 space-y-6">
         <div>
           <h2 className="text-xl font-bold mb-1">{p.title}</h2>
-          {p.category && (
-            <Badge variant="outline" className="text-[11px] border-primary/30 text-primary bg-primary/8">
-              {p.category}
-            </Badge>
-          )}
         </div>
 
         <Section icon={FileText} title="Description">

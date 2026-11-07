@@ -43,7 +43,6 @@ export interface Problem {
   instructorId?: number;
   title: string;
   description: string;
-  category?: "Fundamentals" | "Algorithms" | "Bug fixes" | "Refactoring" | "Puzzles";
   prerequisites?: string;
   learning_outcomes?: string;
   tags?: string;
@@ -60,7 +59,6 @@ export interface ProblemCreationData {
   instructorId: number;
   title: string;
   description: string;
-  category?: "Fundamentals" | "Algorithms" | "Bug fixes" | "Refactoring" | "Puzzles";
   prerequisites?: string;
   learning_outcomes?: string;
   tags?: string;
@@ -184,7 +182,6 @@ export interface Assignment {
   problems?: AssignmentProblem[];
   title: string;
   description: string;
-  difficulty_level?: "Easy" | "Medium" | "Hard";
   points?: number;
   grading_method: "Manual" | "Automatic" | "Hybrid";
   max_submissions?: number;
@@ -226,7 +223,6 @@ export interface AssignmentCreationData{
   title: string;
   description: string;
   points?: number;
-  difficulty_level?: "Easy" | "Medium" | "Hard";
   grading_method: "Manual" | "Automatic" | "Hybrid";
   max_submissions?: number;
   publish_date?: Date;

@@ -33,20 +33,13 @@ const ProblemsSection = ({ activeTab }: ProblemsSectionProps) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState<string | null>(null);
   const [runtime, setRuntime] = useState<string | null>(null);
 
-  // Categories actually present, so the filter only offers what exists.
-  const categories = useMemo(
-    () => Array.from(new Set(problems.map((p) => p.category).filter(Boolean))) as string[],
-    [problems]
-  );
   const hasSystems = useMemo(() => problems.some((p) => p.runtime === "systems"), [problems]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return problems.filter((p) => {
-      if (category && p.category !== category) return false;
       if (runtime && (p.runtime ?? "standard") !== runtime) return false;
       if (!q) return true;
       return (
@@ -55,7 +48,7 @@ const ProblemsSection = ({ activeTab }: ProblemsSectionProps) => {
         (p.tags ?? "").toLowerCase().includes(q)
       );
     });
-  }, [problems, query, category, runtime]);
+  }, [problems, query, runtime]);
 
   const toggleProblemsSection = () => {
     setShowProblems(!showProblems);
@@ -142,14 +135,6 @@ const ProblemsSection = ({ activeTab }: ProblemsSectionProps) => {
               />
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
-              {categories.length > 0 && (
-                <>
-                  <Chip active={category === null} onClick={() => setCategory(null)}>All</Chip>
-                  {categories.map((c) => (
-                    <Chip key={c} active={category === c} onClick={() => setCategory(category === c ? null : c)}>{c}</Chip>
-                  ))}
-                </>
-              )}
               {hasSystems && (
                 <Chip active={runtime === "systems"} onClick={() => setRuntime(runtime === "systems" ? null : "systems")}>systems</Chip>
               )}

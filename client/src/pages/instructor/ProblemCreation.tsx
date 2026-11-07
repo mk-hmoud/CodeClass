@@ -55,18 +55,10 @@ import { downloadBlob } from "@/services/ExportService";
 
 const POLL_INTERVAL = 1000;
 
-const categories = [
-  "Fundamentals",
-  "Algorithms",
-  "Bug fixes",
-  "Refactoring",
-  "Puzzles",
-];
 
 const formSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().min(1, "Description is required"),
-  category: z.string().optional(),
   prerequisites: z.string().optional(),
   learning_outcomes: z.string().optional(),
   tags: z.string().optional(),
@@ -262,7 +254,7 @@ const ProblemCreation = () => {
   };
 
   const generateAiSuggestions = async () => {
-    const { title, description, category } = form.getValues();
+    const { title, description } = form.getValues();
     if (!title?.trim() || !description?.trim()) {
       setAiError("Add a problem title and description first — the AI works from them.");
       return;
@@ -276,7 +268,6 @@ const ProblemCreation = () => {
       const suggestions = await requestAiTestCases({
         title,
         description,
-        category,
         outputType: uiOutputType,
         count: aiCount,
         existingInputs,
@@ -371,9 +362,6 @@ const ProblemCreation = () => {
     if (!draft) return;
     form.setValue("title", draft.title, { shouldValidate: true, shouldDirty: true });
     form.setValue("description", draft.description, { shouldValidate: true, shouldDirty: true });
-    if (draft.category && categories.includes(draft.category)) {
-      form.setValue("category", draft.category, { shouldDirty: true });
-    }
 
     if (isSystems && draft.systems) {
       systemsRef.current?.applyDraft(draft.systems);
@@ -398,7 +386,6 @@ const ProblemCreation = () => {
     defaultValues: {
       title: "",
       description: "",
-      category: "Fundamentals",
       prerequisites: "",
       learning_outcomes: "",
       tags: "",
@@ -417,7 +404,6 @@ const ProblemCreation = () => {
         await createProblem({
           title: data.title,
           description: data.description,
-          category: data.category,
           prerequisites: data.prerequisites,
           learning_outcomes: data.learning_outcomes,
           tags: data.tags,
@@ -604,37 +590,6 @@ const ProblemCreation = () => {
                         {...field}
                       />
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="category"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Category</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      value={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a category" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {categories.map((category) => (
-                          <SelectItem key={category} value={category}>
-                            {category}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      Choose the category that best fits this problem.
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1124,12 +1079,6 @@ const ProblemCreation = () => {
                   <div className="space-y-3 rounded-lg border border-border p-3 bg-muted/20">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-medium text-muted-foreground">Draft — edit as needed</span>
-                      {draft.difficulty && (
-                        <span className="text-[10px] uppercase tracking-wide bg-muted px-1.5 py-0.5 rounded">
-                          {draft.difficulty}
-                          {draft.category ? ` · ${draft.category}` : ""}
-                        </span>
-                      )}
                     </div>
                     <div>
                       <Label htmlFor="ai-draft-title" className="text-xs">Title</Label>

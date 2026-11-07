@@ -64,9 +64,6 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
               <div className="text-muted-foreground">Description:</div>
               <div>{formData.description ? "Custom description" : "Using problem description"}</div>
 
-              <div className="text-muted-foreground">Difficulty:</div>
-              <div>{formData.difficulty_level}</div>
-
               <div className="text-muted-foreground">Grading Method:</div>
               <div>{formData.grading_method}</div>
             </div>

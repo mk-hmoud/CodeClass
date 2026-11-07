@@ -33,7 +33,6 @@ export class AiNotConfiguredError extends Error {
 export interface SuggestTestCasesInput {
   title: string;
   description: string;
-  category?: string;
   /** "text" | "image" | "sql" — shapes the field semantics in the prompt. */
   outputType?: string;
   /** How many cases to ask for (clamped 1..12). */
@@ -80,7 +79,6 @@ const buildSystemPrompt = (outputType: string): string => {
 const buildUserPrompt = (params: SuggestTestCasesInput, count: number): string => {
   const parts = [
     `Problem title: ${params.title}`,
-    params.category ? `Category: ${params.category}` : "",
     "",
     "Problem description:",
     params.description,
@@ -223,8 +221,6 @@ export interface SystemsTestDraft {
 export interface GeneratedProblemDraft {
   title: string;
   description: string;
-  category?: string;
-  difficulty?: string; // "Easy" | "Medium" | "Hard"
   /** Standard problems: test cases generated alongside the description. */
   testCases?: SuggestedTestCase[];
   /** Systems problems: build command, entrypoint, files and systems tests. */
@@ -235,10 +231,6 @@ export interface GeneratedProblemDraft {
     testCases: SystemsTestDraft[];
   };
 }
-
-/** The category values the creation form offers; the model is asked to pick one
- *  and anything else is dropped so the form's Select stays valid. */
-const DRAFT_CATEGORIES = ["Fundamentals", "Algorithms", "Bug fixes", "Refactoring", "Puzzles"];
 
 const buildDraftSystemPrompt = (outputType: string): string => {
   const base =
@@ -276,9 +268,7 @@ const buildDraftUserPrompt = (brief: string, count: number, includeTestCases: bo
     brief.trim(),
     "",
     "Produce the problem. Respond with ONLY a JSON object with these fields: " +
-      '"title" (string), "description" (string, Markdown shown directly to students), ' +
-      `"category" (one of: ${DRAFT_CATEGORIES.join(", ")}), ` +
-      '"difficulty" (one of: Easy, Medium, Hard)',
+      '"title" (string), "description" (string, Markdown shown directly to students)',
   ];
   if (includeTestCases) {
     parts.push(
@@ -303,13 +293,10 @@ const buildSystemsDraftSystemPrompt = (): string =>
   "make and coreutils only — no external libraries or network.";
 
 const buildSystemsDraftUserPrompt = (brief: string, count: number): string => {
-  const categoryList = DRAFT_CATEGORIES.join(", ");
   const schema = [
     "Respond with ONLY a JSON object with these fields:",
     "- title: string",
     "- description: Markdown shown to students",
-    `- category: one of ${categoryList}`,
-    "- difficulty: one of Easy, Medium, Hard",
     "- buildCommand: string, e.g. gcc main.c -pthread -o app",
     "- entrypoint: string, the binary to run, e.g. ./app",
     "- files: array of { path, content, role } where role is template, readonly or hidden. " +
@@ -330,15 +317,11 @@ const buildSystemsDraftUserPrompt = (brief: string, count: number): string => {
 
 const coerceDraftBase = (
   o: Record<string, unknown>
-): { title: string; description: string; category?: string; difficulty?: string } | null => {
+): { title: string; description: string } | null => {
   const title = o.title == null ? "" : String(o.title).trim();
   const description = o.description == null ? "" : String(o.description).trim();
   if (!title || !description) return null;
-  const category =
-    typeof o.category === "string" && DRAFT_CATEGORIES.includes(o.category) ? o.category : undefined;
-  const difficultyRaw = typeof o.difficulty === "string" ? o.difficulty.trim() : "";
-  const difficulty = ["Easy", "Medium", "Hard"].includes(difficultyRaw) ? difficultyRaw : undefined;
-  return { title, description, category, difficulty };
+  return { title, description };
 };
 
 const coerceSystems = (o: Record<string, unknown>, count: number): GeneratedProblemDraft["systems"] => {
@@ -377,9 +360,9 @@ const coerceSystems = (o: Record<string, unknown>, count: number): GeneratedProb
 };
 
 /**
- * Draft a full problem (title + structured description, suggested category/
- * difficulty, and — depending on kind — matching standard test cases, or the
- * systems build/entrypoint/files/tests) from a plain-language brief. Returns
+ * Draft a full problem (title + structured description, and — depending on
+ * kind — matching standard test cases, or the systems build/entrypoint/files/
+ * tests) from a plain-language brief. Returns
  * null when the model gives nothing usable; the caller reviews it before saving.
  */
 export const generateProblemDraft = async (

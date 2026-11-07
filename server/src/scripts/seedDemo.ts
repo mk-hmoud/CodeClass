@@ -204,13 +204,12 @@ async function main() {
     // ── Text assignment: Two Sum, automatically graded, already submitted ──
     logger.info('Creating text assignment (Two Sum, Automatic grading)...');
     const problemRes = await client.query(
-      `INSERT INTO problems (instructor_id, title, description, category, prerequisites, learning_outcomes, tags, output_type)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,'text') RETURNING problem_id`,
+      `INSERT INTO problems (instructor_id, title, description, prerequisites, learning_outcomes, tags, output_type)
+       VALUES ($1,$2,$3,$4,$5,$6,'text') RETURNING problem_id`,
       [
         instructorId,
         'Two Sum',
         'Write a program that takes a target sum followed by a space-separated list of integers. Find the indices of the two numbers such that they add up to the target. Output the indices sorted, separated by a space. Assume there is exactly one solution.',
-        'Algorithms',
         'Arrays, Loops',
         'Using hash maps for O(n) lookup, or basic nested loops for O(n^2).',
         'Array, Hash Table',
@@ -233,8 +232,8 @@ async function main() {
     }
 
     const assignmentRes = await client.query(
-      `INSERT INTO assignments (classroom_id, title, description, difficulty_level, points, grading_method, publish_date, due_date)
-       VALUES ($1,$2,$3,'Easy',100,'Automatic', now(), now() + interval '14 days')
+      `INSERT INTO assignments (classroom_id, title, description, points, grading_method, publish_date, due_date)
+       VALUES ($1,$2,$3,100,'Automatic', now(), now() + interval '14 days')
        RETURNING assignment_id`,
       [classroomId, 'Two Sum', 'Solve the classic Two Sum problem.']
     );
@@ -269,13 +268,12 @@ async function main() {
     // ── Image assignment: manually graded, pending review ──
     logger.info('Creating image-output assignment (Computer Graphics style, Manual grading)...');
     const imageProblemRes = await client.query(
-      `INSERT INTO problems (instructor_id, title, description, category, prerequisites, learning_outcomes, tags, output_type)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,'image') RETURNING problem_id`,
+      `INSERT INTO problems (instructor_id, title, description, prerequisites, learning_outcomes, tags, output_type)
+       VALUES ($1,$2,$3,$4,$5,$6,'image') RETURNING problem_id`,
       [
         instructorId,
         'Draw a Solid Square',
         'Using the provided image library, create a 128x128 image and draw a solid colored square in the top-left corner. Save it as output.png. There is no automated pass/fail for this problem -- your instructor reviews the produced image directly.',
-        'Puzzles',
         'Basic C++, arrays',
         'Working with pixel buffers and an image-writing library.',
         'Graphics, C++',
@@ -299,8 +297,8 @@ async function main() {
     );
 
     const imageAssignmentRes = await client.query(
-      `INSERT INTO assignments (classroom_id, title, description, difficulty_level, points, grading_method, publish_date, due_date, library_id)
-       VALUES ($1,$2,$3,'Medium',50,'Manual', now(), now() + interval '14 days', $4)
+      `INSERT INTO assignments (classroom_id, title, description, points, grading_method, publish_date, due_date, library_id)
+       VALUES ($1,$2,$3,50,'Manual', now(), now() + interval '14 days', $4)
        RETURNING assignment_id`,
       [classroomId, 'Draw a Solid Square', 'Draw a solid square using the provided image library.', libraryId]
     );

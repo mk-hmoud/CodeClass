@@ -1,17 +1,3 @@
-CREATE TYPE problem_category_enum AS ENUM (
-  'Fundamentals',
-  'Algorithms',
-  'Bug fixes',
-  'Refactoring',
-  'Puzzles'
-);
-
-CREATE TYPE assignment_difficulty_enum AS ENUM (
-  'Easy',
-  'Medium',
-  'Hard'
-);
-
 CREATE TYPE grading_method_enum AS ENUM (
   'Manual',
   'Automatic',
@@ -125,7 +111,6 @@ CREATE TABLE problems (
   instructor_id INT NOT NULL,
   title VARCHAR(255) NOT NULL,
   description TEXT NOT NULL,
-  category problem_category_enum,
   prerequisites TEXT,
   learning_outcomes TEXT,
   tags TEXT,
@@ -138,7 +123,6 @@ CREATE TABLE assignments (
   classroom_id INT NOT NULL,
   title VARCHAR(255),
   description TEXT,
-  difficulty_level assignment_difficulty_enum,
   points INT,
   grading_method grading_method_enum NOT NULL,
   max_submissions INT,

@@ -75,7 +75,6 @@ const QuizCreationPage: React.FC = () => {
       (existingQuiz.problems ?? []).map((p: any) => ({
         problemId: p.problemId,
         title: p.problemTitle,
-        category: p.category,
         instructor: "",
         description: "",
         createdAt: new Date(),

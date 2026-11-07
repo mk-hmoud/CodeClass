@@ -22,7 +22,6 @@ import {
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { Problem } from "@/types/Problem";
 import { TestCase } from "@/types/TestCase";
-import { PROBLEM_CATEGORY_OPTIONS } from "@/constants/problem";
 
 interface ProblemDetailDialogProps {
   open: boolean;
@@ -198,30 +197,6 @@ const ProblemDetailDialog = ({
                     />
                   ) : (
                     <div className="mt-2">{editedProblem.title}</div>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="problem-category">Category</Label>
-                  {isEditing ? (
-                    <Select
-                      value={editedProblem.category}
-                      onValueChange={(value) => handleChange("category", value)}
-                    >
-                      <SelectTrigger id="problem-category" className="mt-2">
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PROBLEM_CATEGORY_OPTIONS.map((category) => (
-                          <SelectItem key={category} value={category}>
-                            {category}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <div className="mt-2">
-                      {editedProblem.category || "Algorithm"}
-                    </div>
                   )}
                 </div>
                 <div className="col-span-2">

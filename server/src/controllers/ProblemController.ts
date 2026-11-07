@@ -40,7 +40,6 @@ export const createProblemController = async (
       instructorId: req.user.role_id,
       title: req.body.title,
       description: req.body.description,
-      category: req.body.category,
       prerequisites: req.body.prerequisites,
       learning_outcomes: req.body.learning_outcomes,
       tags: req.body.tags,
@@ -185,7 +184,7 @@ export const suggestTestCasesController = async (
       return;
     }
 
-    const { title, description, category, outputType, count, existingInputs } =
+    const { title, description, outputType, count, existingInputs } =
       req.body;
 
     if (!title?.trim() || !description?.trim()) {
@@ -201,7 +200,6 @@ export const suggestTestCasesController = async (
     const suggestions = await suggestTestCases({
       title,
       description,
-      category,
       outputType,
       count,
       existingInputs: Array.isArray(existingInputs) ? existingInputs : undefined,

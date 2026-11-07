@@ -39,7 +39,6 @@ export const formSchema = z.object({
   groupId: z.string().optional(),
   title: z.string().optional(),
   description: z.string().optional(),
-  difficulty_level: z.enum(['Easy', 'Medium', 'Hard']),
   points: z.coerce.number().optional(),
   grading_method: z.enum(['Manual', 'Automatic', 'Hybrid']),
   grade_release_mode: z.enum(['immediate', 'on_deadline', 'manual']).default('immediate'),

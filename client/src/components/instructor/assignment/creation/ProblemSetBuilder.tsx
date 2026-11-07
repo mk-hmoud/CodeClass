@@ -160,7 +160,7 @@ const ProblemSetBuilder: React.FC<Props> = ({ value, onChange, languages, hasGro
             <DialogTitle>Add problems</DialogTitle>
           </DialogHeader>
           <Command className="border border-border rounded-lg">
-            <CommandInput placeholder="Search problems by title, category or tag…" />
+            <CommandInput placeholder="Search problems by title or tag…" />
             <CommandList className="max-h-[60vh]">
               <CommandEmpty>No problems found.</CommandEmpty>
               <CommandGroup>
@@ -170,7 +170,7 @@ const ProblemSetBuilder: React.FC<Props> = ({ value, onChange, languages, hasGro
                   return (
                     <CommandItem
                       key={p.problemId}
-                      value={`${p.title} ${p.category ?? ""} ${p.tags ?? ""} ${p.runtime ?? ""}`}
+                      value={`${p.title} ${p.tags ?? ""} ${p.runtime ?? ""}`}
                       disabled={already}
                       onSelect={() => {
                         if (already) return;
@@ -189,7 +189,6 @@ const ProblemSetBuilder: React.FC<Props> = ({ value, onChange, languages, hasGro
                         <span className="flex items-center gap-2">
                           <span className="font-medium truncate">{p.title}</span>
                           {isSystems(p) && <Badge variant="outline" className="text-[10px] shrink-0">systems</Badge>}
-                          {p.category && <Badge variant="outline" className="text-[10px] shrink-0">{p.category}</Badge>}
                           {already && <span className="text-[10px] text-muted-foreground shrink-0">added</span>}
                         </span>
                         {p.description && (
@@ -261,7 +260,7 @@ const ProblemRow: React.FC<RowProps> = ({
           <div className="text-sm font-medium truncate">{item.problem.title}</div>
           <div className="flex items-center gap-2 mt-1.5">
             <Badge variant="outline" className="text-[10px]">
-              {systems ? <><Terminal size={10} className="mr-1" />systems</> : <><FileCode2 size={10} className="mr-1" />{item.problem.category ?? "standard"}</>}
+              {systems ? <><Terminal size={10} className="mr-1" />systems</> : <><FileCode2 size={10} className="mr-1" />standard</>}
             </Badge>
             {!systems && item.languages.length > 0 && (
               <span className="text-[10px] text-muted-foreground truncate">

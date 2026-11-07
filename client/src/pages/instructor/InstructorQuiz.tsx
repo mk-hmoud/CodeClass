@@ -151,7 +151,6 @@ const InstructorQuiz: React.FC = () => {
                     {i + 1}. {p.problemTitle}
                   </span>
                   <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                    {p.category && <Badge variant="outline" className="text-[11px]">{p.category}</Badge>}
                     <span className="font-mono text-xs">{p.points} pts</span>
                   </div>
                 </div>

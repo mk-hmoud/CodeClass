@@ -23,7 +23,6 @@ import ExportTab from "@/components/instructor/assignment/view/ExportTab";
 import { getAssignmentById, releaseGrades } from "@/services/AssignmentService";
 import { Assignment } from "@/types/Assignment";
 import { FullSubmission, GradedSubmission } from "@/types/Submission";
-import { DIFFICULTY_META } from "@/lib/difficultyMeta";
 import { toast } from "sonner";
 
 const fmtDate = (d?: Date | string | number | null) => {
@@ -136,8 +135,6 @@ const InstructorAssignment: React.FC = () => {
     );
   }
 
-  const diff = assignment.difficulty_level;
-  const diffMeta = diff ? DIFFICULTY_META[diff] : undefined;
   const isExpired = assignment.dueDate && new Date(assignment.dueDate) < new Date();
 
   return (
@@ -162,14 +159,6 @@ const InstructorAssignment: React.FC = () => {
               <div>
                 <div className="flex items-center gap-3 mb-2">
                   <h1 className="text-2xl font-bold">{assignment.title}</h1>
-                  {diff && diffMeta && (
-                    <Badge
-                      className="text-xs border"
-                      style={{ backgroundColor: diffMeta.bg, color: diffMeta.color, borderColor: diffMeta.border }}
-                    >
-                      {diff}
-                    </Badge>
-                  )}
                   {isExpired && (
                     <Badge variant="outline" className="text-xs text-muted-foreground border-border">Expired</Badge>
                   )}

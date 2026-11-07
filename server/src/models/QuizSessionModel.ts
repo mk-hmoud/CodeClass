@@ -95,7 +95,6 @@ async function getSessionProblems(quizId: number, sessionId: number, shuffle: bo
        qp.problem_order   AS "problemOrder",
        p.title,
        p.description,
-       p.category,
        (SELECT COUNT(*) FROM problem_test_cases tc WHERE tc.problem_id = qp.problem_id AND tc.is_public = true)::int AS "publicTestCount"
      FROM quiz_problems qp
      JOIN problems p ON p.problem_id = qp.problem_id

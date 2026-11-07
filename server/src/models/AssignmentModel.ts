@@ -104,7 +104,6 @@ export const createAssignment = async (
         classroom_id,
         title,
         description,
-        difficulty_level,
         points,
         grading_method,
         max_submissions,
@@ -113,7 +112,7 @@ export const createAssignment = async (
         library_id,
         group_id,
         grade_release_mode
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
       RETURNING assignment_id, title, description
     `;
     const {
@@ -122,7 +121,6 @@ export const createAssignment = async (
       assignment.classroomId,
       assignment.title || null,
       assignment.description || null,
-      assignment.difficulty_level || null,
       assignment.points ?? null,
       assignment.grading_method,
       assignment.max_submissions ?? null,
@@ -301,7 +299,6 @@ export const getAssignmentById = async (
        a.group_id,
        COALESCE(a.title, p.title)           AS assignment_title,
        COALESCE(a.description, p.description) AS assignment_description,
-       a.difficulty_level,
        a.points,
        a.grading_method,
        a.max_submissions,
@@ -311,7 +308,6 @@ export const getAssignmentById = async (
        a.status,
        p.title           AS problem_title,
        p.description     AS problem_description,
-        p.category,
         COALESCE(p.prerequisites, '')   AS prerequisites,
         COALESCE(p.learning_outcomes,'') AS learning_outcomes,
         COALESCE(p.tags, '')            AS tags,
@@ -407,7 +403,7 @@ export const getAssignmentById = async (
     const apRes = await pool.query(
       `SELECT
          ap.problem_id, ap.points, ap.position,
-         p.title, p.description, p.category,
+         p.title, p.description,
          COALESCE(p.prerequisites, '')    AS prerequisites,
          COALESCE(p.learning_outcomes,'') AS learning_outcomes,
          COALESCE(p.tags, '')             AS tags,
@@ -432,7 +428,6 @@ export const getAssignmentById = async (
           problemId: pr.problem_id,
           title: pr.title,
           description: pr.description,
-          category: pr.category ?? undefined,
           prerequisites: pr.prerequisites ?? undefined,
           learning_outcomes: pr.learning_outcomes ?? undefined,
           tags: pr.tags ?? undefined,
@@ -452,11 +447,6 @@ export const getAssignmentById = async (
       classroomId: row.classroom_id,
       title: row.assignment_title,
       description: row.assignment_description,
-      difficulty_level: row.difficulty_level as
-        | "Easy"
-        | "Medium"
-        | "Hard"
-        | undefined,
       points: row.points ?? undefined,
       grading_method: row.grading_method as "Manual" | "Automatic" | "Hybrid",
       max_submissions: row.max_submissions?? undefined,
@@ -472,7 +462,6 @@ export const getAssignmentById = async (
         problemId: row.problem_id,
         title: row.problem_title,
         description: row.problem_description,
-        category: row.category ?? undefined,
         prerequisites: row.prerequisites ?? undefined,
         learning_outcomes: row.learning_outcomes ?? undefined,
         tags: row.tags ?? undefined,
@@ -641,7 +630,6 @@ export async function getAssignmentsForClassroom(classroomId: number): Promise<A
       pp.problem_id AS "problemId",
       a.title,
       a.description,
-      a.difficulty_level AS "difficultyLevel",
       a.points,
       a.grading_method AS "gradingMethod",
       a.max_submissions AS "submissionAttempts",
@@ -654,7 +642,6 @@ export async function getAssignmentsForClassroom(classroomId: number): Promise<A
         'instructorId', p.instructor_id,
         'title', p.title,
         'description', p.description,
-        'category', p.category,
         'prerequisites', p.prerequisites,
         'learning_outcomes', p.learning_outcomes,
         'tags', p.tags,
@@ -724,7 +711,6 @@ export async function getAssignmentsForStudentClassroom(
         pp.problem_id             AS "problemId",
         a.title,
         a.description,
-        a.difficulty_level        AS "difficultyLevel",
         a.points,
         a.grading_method          AS "gradingMethod",
         a.max_submissions         AS "submissionAttempts",
@@ -779,7 +765,6 @@ export async function getAssignmentsForStudentClassroom(
           'instructorId',  p.instructor_id,
           'title',         p.title,
           'description',   p.description,
-          'category',      p.category,
           'prerequisites', p.prerequisites,
           'learning_outcomes', p.learning_outcomes,
           'tags',          p.tags,
@@ -866,8 +851,6 @@ export const getAssignments = async (instructorId: number): Promise<Assignment[]
         to_char(a.updated_at, 'YYYY-MM-DD"T"HH24:MI:SSZ') AS updated_at,
         a.status AS status,
         json_build_object(
-          'category', am.category,
-          'difficulty_level', am.difficulty_level,
           'points', am.points,
           'prerequisites', am.prerequisites,
           'learning_outcomes', am.learning_outcomes,
@@ -1099,7 +1082,6 @@ export const getUpcomingDeadlines = async (
         a.title,
         a.due_date,
         a.points,
-        a.difficulty_level,
         a.max_submissions,
         c.classroom_name AS course
       FROM assignments a
@@ -1135,7 +1117,6 @@ export const getUpcomingDeadlines = async (
       dueDate:    row.due_date,
       status:     "Not Started",
       points:     row.points,
-      difficulty: row.difficulty_level,
     }));
 
     logger.info(

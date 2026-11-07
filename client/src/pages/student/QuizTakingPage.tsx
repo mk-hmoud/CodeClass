@@ -48,7 +48,6 @@ interface Problem {
   problemId: number;
   title: string;
   description: string;
-  category: string;
   points: number;
   problemOrder: number;
   publicTestCount: number;
@@ -468,7 +467,6 @@ const QuizTakingPage: React.FC = () => {
                   <div>
                     <div className="flex items-center gap-3 mb-1">
                       <h2 className="text-xl font-bold">{activeProblem.title}</h2>
-                      <Badge variant="outline">{activeProblem.category}</Badge>
                     </div>
                     <p className="text-sm text-muted-foreground mb-4">
                       {activeProblem.points} points · {activeProblem.publicTestCount} public test{activeProblem.publicTestCount !== 1 ? "s" : ""}

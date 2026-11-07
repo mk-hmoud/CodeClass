@@ -75,18 +75,44 @@ export const suggestTestCases = async (params: {
   return response.data.data as SuggestedTestCase[];
 };
 
+export interface SystemsFileDraft {
+  path: string;
+  content: string;
+  role: 'template' | 'readonly' | 'hidden';
+}
+
+export interface SystemsTestDraft {
+  stdin: string;
+  env: string;
+  expectedOutput: string;
+  isPublic: boolean;
+  compare: 'exact' | 'unordered';
+  rationale?: string;
+}
+
 export interface GeneratedProblemDraft {
   title: string;
   description: string;
   category?: string;
   difficulty?: string;
+  testCases?: SuggestedTestCase[];
+  systems?: {
+    buildCommand: string;
+    entrypoint: string;
+    files: SystemsFileDraft[];
+    testCases: SystemsTestDraft[];
+  };
 }
 
-/** Draft a full problem (title + structured description) from a plain-language
- *  brief. The caller shows it for editing before anything is saved. */
+/** Draft a full problem from a plain-language brief: title + structured
+ *  description, plus (standard) matching test cases or (systems) the build
+ *  command, entrypoint, files and tests. The caller reviews before saving. */
 export const generateProblemDraft = async (params: {
   brief: string;
   outputType?: string;
+  kind?: 'standard' | 'systems';
+  includeTestCases?: boolean;
+  testCaseCount?: number;
 }): Promise<GeneratedProblemDraft> => {
   const response = await apiClient.post('/problems/ai/generate-problem', params);
   return response.data.data as GeneratedProblemDraft;

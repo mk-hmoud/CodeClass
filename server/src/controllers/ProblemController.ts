@@ -240,7 +240,7 @@ export const generateProblemController = async (
       return;
     }
 
-    const { brief, outputType } = req.body;
+    const { brief, outputType, kind, includeTestCases, testCaseCount } = req.body;
     if (!brief?.trim()) {
       res.status(400).json({
         success: false,
@@ -251,7 +251,13 @@ export const generateProblemController = async (
 
     logger.info({ fn: functionName }, "Received request to draft a problem from a brief.");
 
-    const draft = await generateProblemDraft({ brief, outputType });
+    const draft = await generateProblemDraft({
+      brief,
+      outputType,
+      kind: kind === "systems" ? "systems" : "standard",
+      includeTestCases: includeTestCases === true,
+      testCaseCount: typeof testCaseCount === "number" ? testCaseCount : undefined,
+    });
     if (!draft) {
       res.status(502).json({
         success: false,

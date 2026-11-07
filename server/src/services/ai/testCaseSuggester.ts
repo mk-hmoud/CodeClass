@@ -196,6 +196,28 @@ export interface GenerateProblemInput {
   brief: string;
   /** "text" | "sql" | "image" — shapes the description conventions. */
   outputType?: string;
+  /** "standard" (default) or "systems" (C exercise with build + files). */
+  kind?: "standard" | "systems";
+  /** Standard only: also return test cases consistent with the description. */
+  includeTestCases?: boolean;
+  /** How many test cases to generate when asked (clamped 1..12). */
+  testCaseCount?: number;
+}
+
+export interface SystemsFileDraft {
+  path: string;
+  content: string;
+  role: "template" | "readonly" | "hidden";
+}
+
+export interface SystemsTestDraft {
+  stdin: string;
+  /** KEY=VALUE per line, matching the authoring form's env textarea. */
+  env: string;
+  expectedOutput: string;
+  isPublic: boolean;
+  compare: "exact" | "unordered";
+  rationale?: string;
 }
 
 export interface GeneratedProblemDraft {
@@ -203,6 +225,15 @@ export interface GeneratedProblemDraft {
   description: string;
   category?: string;
   difficulty?: string; // "Easy" | "Medium" | "Hard"
+  /** Standard problems: test cases generated alongside the description. */
+  testCases?: SuggestedTestCase[];
+  /** Systems problems: build command, entrypoint, files and systems tests. */
+  systems?: {
+    buildCommand: string;
+    entrypoint: string;
+    files: SystemsFileDraft[];
+    testCases: SystemsTestDraft[];
+  };
 }
 
 /** The category values the creation form offers; the model is asked to pick one
@@ -238,56 +269,154 @@ const buildDraftSystemPrompt = (outputType: string): string => {
   return base;
 };
 
-const buildDraftUserPrompt = (brief: string): string =>
-  [
+const buildDraftUserPrompt = (brief: string, count: number, includeTestCases: boolean): string => {
+  const parts = [
     "The instructor describes the problem they want:",
     "",
     brief.trim(),
     "",
-    "Produce the problem. Respond with ONLY a JSON object of the form " +
-      '{"title": string, "description": string, "category": string, "difficulty": string}. ' +
-      `"category" must be one of: ${DRAFT_CATEGORIES.join(", ")}. ` +
-      '"difficulty" must be one of: Easy, Medium, Hard. ' +
-      '"description" is Markdown shown directly to students.',
-  ].join("\n");
+    "Produce the problem. Respond with ONLY a JSON object with these fields: " +
+      '"title" (string), "description" (string, Markdown shown directly to students), ' +
+      `"category" (one of: ${DRAFT_CATEGORIES.join(", ")}), ` +
+      '"difficulty" (one of: Easy, Medium, Hard)',
+  ];
+  if (includeTestCases) {
+    parts.push(
+      `, and "testCases" (an array of ${count} objects {"input": string, ` +
+        '"expectedOutput": string, "isPublic": boolean, "rationale": string}). ' +
+        "The test cases MUST be consistent with the worked example and constraints in " +
+        "the description: `input` is stdin, `expectedOutput` is exact stdout. Mark one " +
+        "or two simple cases isPublic:true and the rest false."
+    );
+  } else {
+    parts.push(".");
+  }
+  return parts.join("");
+};
 
-const coerceDraft = (raw: unknown): GeneratedProblemDraft | null => {
-  if (!raw || typeof raw !== "object") return null;
-  const o = raw as Record<string, unknown>;
+const buildSystemsDraftSystemPrompt = (): string =>
+  "You are an experienced systems-programming instructor authoring a C/C++ exercise " +
+  "from a colleague's brief. The student edits C source and the judge compiles and runs " +
+  "it. Produce a clear, self-contained, solvable problem. The `description` is Markdown " +
+  "structured as: a problem statement; what to implement; how it is built and run; a " +
+  "`Constraints` section; and a worked `Example`. Everything must compile with gcc/g++, " +
+  "make and coreutils only — no external libraries or network.";
+
+const buildSystemsDraftUserPrompt = (brief: string, count: number): string => {
+  const categoryList = DRAFT_CATEGORIES.join(", ");
+  const schema = [
+    "Respond with ONLY a JSON object with these fields:",
+    "- title: string",
+    "- description: Markdown shown to students",
+    `- category: one of ${categoryList}`,
+    "- difficulty: one of Easy, Medium, Hard",
+    "- buildCommand: string, e.g. gcc main.c -pthread -o app",
+    "- entrypoint: string, the binary to run, e.g. ./app",
+    "- files: array of { path, content, role } where role is template, readonly or hidden. " +
+      "Include at least one template file (the student edits it) with a sensible compilable skeleton. " +
+      "readonly = provided and shown but locked; hidden = provided at build time, never shown.",
+    `- testCases: array of ${count} objects { stdin, env, expectedOutput, isPublic, compare, rationale }. ` +
+      "env is KEY=VALUE pairs one per line (empty string if none); expectedOutput is the exact stdout " +
+      "the correct program prints; compare is exact or unordered. Mark one or two simple cases isPublic true.",
+  ].join("\n");
+  return [
+    "The instructor describes the systems problem they want:",
+    "",
+    brief.trim(),
+    "",
+    schema,
+  ].join("\n");
+};
+
+const coerceDraftBase = (
+  o: Record<string, unknown>
+): { title: string; description: string; category?: string; difficulty?: string } | null => {
   const title = o.title == null ? "" : String(o.title).trim();
   const description = o.description == null ? "" : String(o.description).trim();
   if (!title || !description) return null;
-
   const category =
-    typeof o.category === "string" && DRAFT_CATEGORIES.includes(o.category)
-      ? o.category
-      : undefined;
+    typeof o.category === "string" && DRAFT_CATEGORIES.includes(o.category) ? o.category : undefined;
   const difficultyRaw = typeof o.difficulty === "string" ? o.difficulty.trim() : "";
-  const difficulty = ["Easy", "Medium", "Hard"].includes(difficultyRaw)
-    ? difficultyRaw
-    : undefined;
-
+  const difficulty = ["Easy", "Medium", "Hard"].includes(difficultyRaw) ? difficultyRaw : undefined;
   return { title, description, category, difficulty };
 };
 
+const coerceSystems = (o: Record<string, unknown>, count: number): GeneratedProblemDraft["systems"] => {
+  const filesRaw = Array.isArray(o.files) ? o.files : [];
+  const files: SystemsFileDraft[] = filesRaw
+    .filter((f): f is Record<string, unknown> => typeof f === "object" && f !== null)
+    .map((f) => {
+      const role = f.role === "readonly" || f.role === "hidden" ? f.role : "template";
+      return {
+        path: f.path == null ? "" : String(f.path).trim(),
+        content: f.content == null ? "" : String(f.content),
+        role: role as SystemsFileDraft["role"],
+      };
+    })
+    .filter((f) => f.path);
+
+  const testsRaw = Array.isArray(o.testCases) ? o.testCases : [];
+  const testCases: SystemsTestDraft[] = testsRaw
+    .filter((t): t is Record<string, unknown> => typeof t === "object" && t !== null)
+    .slice(0, count)
+    .map((t) => ({
+      stdin: t.stdin == null ? "" : String(t.stdin),
+      env: t.env == null ? "" : String(t.env),
+      expectedOutput: t.expectedOutput == null ? "" : String(t.expectedOutput),
+      isPublic: t.isPublic === true,
+      compare: t.compare === "unordered" ? "unordered" : "exact",
+      rationale: t.rationale == null ? undefined : String(t.rationale),
+    }));
+
+  return {
+    buildCommand: o.buildCommand == null ? "" : String(o.buildCommand).trim(),
+    entrypoint: o.entrypoint == null ? "" : String(o.entrypoint).trim(),
+    files,
+    testCases,
+  };
+};
+
 /**
- * Draft a full problem (title + structured description, plus a suggested
- * category/difficulty) from a plain-language brief. Returns null when the model
- * gives nothing usable; the caller shows it for editing before anything is saved.
+ * Draft a full problem (title + structured description, suggested category/
+ * difficulty, and — depending on kind — matching standard test cases, or the
+ * systems build/entrypoint/files/tests) from a plain-language brief. Returns
+ * null when the model gives nothing usable; the caller reviews it before saving.
  */
 export const generateProblemDraft = async (
   params: GenerateProblemInput
 ): Promise<GeneratedProblemDraft | null> => {
+  const count = Math.min(Math.max(params.testCaseCount ?? 5, 1), 12);
+
+  if (params.kind === "systems") {
+    const content = await callChatJson(
+      buildSystemsDraftSystemPrompt(),
+      buildSystemsDraftUserPrompt(params.brief, count),
+      0.5
+    );
+    const parsed = safeParseJson(content);
+    if (parsed === null || typeof parsed !== "object") {
+      logger.warn({ fn: "generateProblemDraft" }, "AI returned empty or non-JSON content (systems)");
+      return null;
+    }
+    const base = coerceDraftBase(parsed as Record<string, unknown>);
+    if (!base) return null;
+    return { ...base, systems: coerceSystems(parsed as Record<string, unknown>, count) };
+  }
+
   const outputType = params.outputType ?? "text";
+  const includeTestCases = params.includeTestCases === true;
   const content = await callChatJson(
     buildDraftSystemPrompt(outputType),
-    buildDraftUserPrompt(params.brief),
+    buildDraftUserPrompt(params.brief, count, includeTestCases),
     0.5
   );
   const parsed = safeParseJson(content);
-  if (parsed === null) {
+  if (parsed === null || typeof parsed !== "object") {
     logger.warn({ fn: "generateProblemDraft" }, "AI returned empty or non-JSON content");
     return null;
   }
-  return coerceDraft(parsed);
+  const base = coerceDraftBase(parsed as Record<string, unknown>);
+  if (!base) return null;
+  const testCases = includeTestCases ? coerceCases(parsed).slice(0, count) : undefined;
+  return { ...base, testCases };
 };

@@ -43,6 +43,7 @@ import {
   suggestTestCases as requestAiTestCases,
   SuggestedTestCase,
   generateProblemDraft as requestAiProblem,
+  GeneratedProblemDraft,
 } from "@/services/ProblemService";
 import SystemsAuthoring, { SystemsAuthoringHandle } from "./SystemsAuthoring";
 import { runCode, getRunStatus } from "@/services/JudgeService";
@@ -325,13 +326,9 @@ const ProblemCreation = () => {
   const [draftBrief, setDraftBrief] = useState("");
   const [draftLoading, setDraftLoading] = useState(false);
   const [draftError, setDraftError] = useState<string | null>(null);
+  const [draftWithTests, setDraftWithTests] = useState(true);
   // The editable draft the instructor reviews before it fills the form.
-  const [draft, setDraft] = useState<{
-    title: string;
-    description: string;
-    category?: string;
-    difficulty?: string;
-  } | null>(null);
+  const [draft, setDraft] = useState<GeneratedProblemDraft | null>(null);
 
   const openDraftDialog = () => {
     setDraftError(null);
@@ -351,13 +348,12 @@ const ProblemCreation = () => {
       const result = await requestAiProblem({
         brief: draftBrief,
         outputType: uiOutputType,
+        kind: isSystems ? "systems" : "standard",
+        // Systems always returns files + tests; standard honours the checkbox.
+        includeTestCases: isSystems ? true : draftWithTests,
+        testCaseCount: 5,
       });
-      setDraft({
-        title: result.title,
-        description: result.description,
-        category: result.category,
-        difficulty: result.difficulty,
-      });
+      setDraft(result);
     } catch (err) {
       const e = err as { response?: { status?: number; data?: { message?: string } } };
       setDraftError(
@@ -378,7 +374,22 @@ const ProblemCreation = () => {
     if (draft.category && categories.includes(draft.category)) {
       form.setValue("category", draft.category, { shouldDirty: true });
     }
-    toast.success("Draft applied — review and edit before saving");
+
+    if (isSystems && draft.systems) {
+      systemsRef.current?.applyDraft(draft.systems);
+      toast.success("Draft applied to the systems editor — review the build, files and tests before saving");
+    } else if (draft.testCases && draft.testCases.length > 0) {
+      const n = appendTestCases(
+        draft.testCases.map((t) => ({
+          input: t.input,
+          expectedOutput: t.expectedOutput,
+          isPublic: t.isPublic,
+        }))
+      );
+      toast.success(`Draft applied with ${n} test case${n === 1 ? "" : "s"} — review before saving`);
+    } else {
+      toast.success("Draft applied — review and edit before saving");
+    }
     setDraftOpen(false);
   };
 
@@ -559,14 +570,18 @@ const ProblemCreation = () => {
               <Button type="button" size="sm" variant={!isSystems ? "default" : "outline"} onClick={() => setIsSystems(false)}>Standard</Button>
               <Button type="button" size="sm" variant={isSystems ? "default" : "outline"} onClick={() => setIsSystems(true)}>Systems (C)</Button>
             </div>
-            {aiEnabled && !isSystems && (
+            {aiEnabled && (
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={openDraftDialog}
                 className="flex items-center gap-1 text-primary"
-                title="Describe the problem and let AI draft the title and description"
+                title={
+                  isSystems
+                    ? "Describe the problem and let AI draft the title, description, build, files and tests"
+                    : "Describe the problem and let AI draft the title, description and test cases"
+                }
               >
                 <Sparkles size={14} />
                 Draft with AI
@@ -1086,9 +1101,22 @@ const ProblemCreation = () => {
                     disabled={draftLoading}
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Uses the selected problem type ({uiOutputType}) to shape the input/output conventions.
+                    {isSystems
+                      ? "Drafts a C/systems problem: description, build command, files and tests."
+                      : `Uses the selected problem type (${uiOutputType}) to shape the input/output conventions.`}
                   </p>
                 </div>
+
+                {!isSystems && (
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <Checkbox
+                      checked={draftWithTests}
+                      onCheckedChange={(c) => setDraftWithTests(c === true)}
+                      disabled={draftLoading}
+                    />
+                    Also generate matching test cases
+                  </label>
+                )}
 
                 {draftError && <p className="text-sm text-destructive">{draftError}</p>}
 
@@ -1121,9 +1149,35 @@ const ProblemCreation = () => {
                         className="mt-1 min-h-[240px] font-mono text-xs"
                       />
                     </div>
+                    {!isSystems && draft.testCases && draft.testCases.length > 0 && (
+                      <div>
+                        <span className="text-xs font-medium text-muted-foreground">
+                          {draft.testCases.length} test case{draft.testCases.length === 1 ? "" : "s"} (added on apply — review in the form)
+                        </span>
+                        <div className="mt-1 space-y-1 max-h-40 overflow-y-auto">
+                          {draft.testCases.map((t, i) => (
+                            <div key={i} className="text-[11px] font-mono bg-background rounded px-2 py-1 border border-border/60">
+                              <span className={t.isPublic ? "text-success" : "text-muted-foreground"}>
+                                {t.isPublic ? "public" : "hidden"}
+                              </span>{" "}
+                              in: {(t.input || "∅").slice(0, 40)} → out: {(t.expectedOutput || "∅").slice(0, 40)}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {isSystems && draft.systems && (
+                      <div className="text-xs text-muted-foreground space-y-0.5">
+                        <div><span className="font-medium text-foreground">Build:</span> <code>{draft.systems.buildCommand || "—"}</code></div>
+                        <div><span className="font-medium text-foreground">Run:</span> <code>{draft.systems.entrypoint || "—"}</code></div>
+                        <div>{draft.systems.files.length} file{draft.systems.files.length === 1 ? "" : "s"} · {draft.systems.testCases.length} test{draft.systems.testCases.length === 1 ? "" : "s"} — populate the systems editor for review on apply.</div>
+                      </div>
+                    )}
+
                     {(form.getValues().title?.trim() || form.getValues().description?.trim()) && (
                       <p className="text-xs text-amber-600 dark:text-amber-500">
-                        Applying will replace the title and description already in the form.
+                        Applying will replace the title and description already in the form{isSystems ? ", and the systems build/files/tests" : ""}.
                       </p>
                     )}
                   </div>

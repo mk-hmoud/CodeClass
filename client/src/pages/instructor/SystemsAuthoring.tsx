@@ -22,7 +22,16 @@ export interface SystemsPayload {
     stdin: string; env: Record<string, string>; compare: "exact" | "unordered";
   }[];
 }
-export interface SystemsAuthoringHandle { getPayload: () => SystemsPayload | null; }
+export interface SystemsDraft {
+  buildCommand: string;
+  entrypoint: string;
+  files: FileRow[];
+  testCases: { stdin: string; env: string; expectedOutput: string; isPublic: boolean; compare: "exact" | "unordered" }[];
+}
+export interface SystemsAuthoringHandle {
+  getPayload: () => SystemsPayload | null;
+  applyDraft: (draft: SystemsDraft) => void;
+}
 
 const parseEnv = (text: string): Record<string, string> => {
   const out: Record<string, string> = {};
@@ -46,6 +55,24 @@ const SystemsAuthoring = forwardRef<SystemsAuthoringHandle>((_props, ref) => {
   ]);
 
   useImperativeHandle(ref, () => ({
+    applyDraft: (draft: SystemsDraft) => {
+      if (draft.buildCommand?.trim()) setBuildCommand(draft.buildCommand);
+      if (draft.entrypoint?.trim()) setEntrypoint(draft.entrypoint);
+      if (draft.files?.length) {
+        setFiles(draft.files.map((f) => ({ path: f.path, content: f.content, role: f.role })));
+      }
+      if (draft.testCases?.length) {
+        setTests(
+          draft.testCases.map((t) => ({
+            stdin: t.stdin ?? "",
+            env: t.env ?? "",
+            expectedOutput: t.expectedOutput ?? "",
+            isPublic: t.isPublic === true,
+            compare: t.compare === "unordered" ? "unordered" : "exact",
+          }))
+        );
+      }
+    },
     getPayload: () => {
       if (!buildCommand.trim()) { toast.error("Build command is required"); return null; }
       if (!entrypoint.trim()) { toast.error("Entry point is required"); return null; }

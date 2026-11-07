@@ -12,8 +12,9 @@
 # Judge third-party sources, cloned by build.sh (~250MB)
 /judge/dependencies
 
-# Client production build output
+# Compiled build output
 /client/dist
+/server/dist
 
 # Student rosters and credential lists. These carry names, student numbers and
 # generated passwords: never commit them. Rosters are produced from the

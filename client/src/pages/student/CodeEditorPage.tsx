@@ -425,7 +425,6 @@ const CodeEditorPage = ({ preview = false }: { preview?: boolean } = {}) => {
           gradesReleased: true,
           feedback: undefined,
           verdict: statusData,
-          plagiarismReports: [],
         }));
       }
     } catch (error) {

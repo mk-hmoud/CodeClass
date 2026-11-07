@@ -2,7 +2,6 @@ import { Router } from 'express';
 import { createAssignmentController, getAssignmentsController, getAssignmentByIdController, getAssignmentPreviewController, deleteAssignmentController, getRemainingAttemptsController, getUpcomingDeadlinesController, getMySubmissionController, releaseGradesController } from '../controllers/AssignmentController';
 import { authMiddleware, requireRole } from '../middleware/AuthMiddleware';
 import { getAssignmentAnalyticsController } from '../controllers/AnalyticsController';
-import { getAssignmentPlagiarismReportsController } from '../controllers/PlagiarismController';
 
 const router = Router();
 //router.use(requireRole(["instructor"]));
@@ -17,5 +16,4 @@ router.get('/:assignmentId/my-submission', authMiddleware, getMySubmissionContro
 router.post('/:assignmentId/release-grades', authMiddleware, releaseGradesController);
 router.get('/:assignmentId/analytics', authMiddleware, getAssignmentAnalyticsController);
 router.delete('/:assignmentId', deleteAssignmentController);
-router.get('/:assignmentId/plagiarism', authMiddleware, getAssignmentPlagiarismReportsController);
 export default router;

@@ -9,18 +9,6 @@ export interface SubmissionResult {
     errorMessage: string | null;
   }
   
-  export interface PlagiarismReport {
-    reportId: number;
-    submissionId: number;
-    studentName: string;
-    submission: string;
-    comparedSubmissionId: number;
-    comparedStudentName: string;
-    comparedSubmission: number;
-    similarity: number;
-    checkedAt: string;
-  }
-  
   /** What the server confirmed after a manual grade, for patching a list row. */
   export interface GradedSubmission {
     submissionId: number;
@@ -45,7 +33,6 @@ export interface SubmissionResult {
     finalScore?: number | null;
     gradesReleased?: boolean;
     verdict: JudgeVerdict;
-    plagiarismReports: PlagiarismReport[];
     studentName: string;
     feedback?: string;
   }

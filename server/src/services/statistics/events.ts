@@ -9,7 +9,6 @@ export interface Event {
 export type EventType =
   | 'SUBMISSION_CREATED'
   | 'SUBMISSION_COMPLETED'
-  | 'PLAGIARISM_DETECTED'
   | 'STATISTICS_CALCULATED'
   | 'GRADE_UPDATED'
   | 'STUDENT_ENROLLED';
@@ -41,19 +40,6 @@ export interface SubmissionCompletedEvent extends Event {
     averageRuntime?: number;
     status: string;
     testResults: TestResult[];
-  };
-}
-
-export interface PlagiarismDetectedEvent extends Event {
-  type: 'PLAGIARISM_DETECTED';
-  payload: {
-    submissionId: number;
-    assignmentId: number;
-    studentId?: number; 
-    comparedSubmissionId: number;
-    similarityScore: number; 
-    reportId?: number; 
-    classroomId?: number; 
   };
 }
 
@@ -148,16 +134,12 @@ export interface AssignmentStatistics {
   topSlowestTestCases: TestCaseStats[];
   commonErrorPatterns: ErrorPattern[];
   submissionTrend: SubmissionTrendEntry[];
-  plagiarismRate: number | null;
-  maxSimilarity: number | null;
-  avgSimilarity: number | null;
   runtimeErrorRate: number | null;
 }
 
 export type SystemEvent =
   | SubmissionCreatedEvent
   | SubmissionCompletedEvent
-  | PlagiarismDetectedEvent
   | StatisticsCalculatedEvent
   | GradeUpdatedEvent
   | StudentEnrolledEvent;

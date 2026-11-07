@@ -20,7 +20,6 @@ import OverviewTab from "@/components/instructor/assignment/view/OverviewTab";
 import ProblemTab from "@/components/instructor/assignment/view/ProblemTab";
 import SubmissionsTab from "@/components/instructor/assignment/view/SubmissionsTab";
 import ExportTab from "@/components/instructor/assignment/view/ExportTab";
-import PlagiarismTab from "@/components/instructor/assignment/view/PlagiarismTab";
 import { getAssignmentById, releaseGrades } from "@/services/AssignmentService";
 import { Assignment } from "@/types/Assignment";
 import { FullSubmission, GradedSubmission } from "@/types/Submission";
@@ -44,7 +43,6 @@ const TABS = [
   { id: "overview",    label: "Overview" },
   { id: "problem",     label: "Problem" },
   { id: "submissions", label: "Submissions" },
-  { id: "plagiarism",  label: "Plagiarism" },
   { id: "export",      label: "Export" },
 ];
 
@@ -57,8 +55,8 @@ const InstructorAssignment: React.FC = () => {
 
   // Patches the graded row in place from what the server confirmed, so the
   // list shows the new score and "Graded" badge without a page reload. Patched
-  // rather than refetched: a refetch here would discard the verdict and
-  // plagiarism data already loaded for every other row.
+  // rather than refetched: a refetch here would discard the verdict data
+  // already loaded for every other row.
   const handleGraded = (update: GradedSubmission) => {
     setSubmissions((prev) =>
       prev.map((sub) =>
@@ -283,13 +281,6 @@ const InstructorAssignment: React.FC = () => {
               assignmentTitle={assignment.title}
               assignmentDescription={assignment.description}
               gradingType={assignment.grading_method}
-            />
-          </TabsContent>
-
-          <TabsContent value="plagiarism">
-            <PlagiarismTab
-              assignmentId={assignmentId || ""}
-              plagiarism_detection={assignment.plagiarism_detection}
             />
           </TabsContent>
 

@@ -188,7 +188,6 @@ export interface Assignment {
   points?: number;
   grading_method: "Manual" | "Automatic" | "Hybrid";
   max_submissions?: number;
-  plagiarism_detection: boolean;
   assigned_at: Date;
   publish_date?: Date;
   due_date?: Date;
@@ -230,7 +229,6 @@ export interface AssignmentCreationData{
   difficulty_level?: "Easy" | "Medium" | "Hard";
   grading_method: "Manual" | "Automatic" | "Hybrid";
   max_submissions?: number;
-  plagiarism_detection: boolean;
   publish_date?: Date;
   due_date?: Date;
   grade_release_mode?: "immediate" | "on_deadline" | "manual";
@@ -331,14 +329,6 @@ export interface SubmissionResult {
   errorMessage: string | null;
 }
 
-export interface PlagiarismReport {
-  reportId: number;
-  submissionId: number;
-  comparedSubmission: number;
-  similarity: number;
-  checkedAt: string;
-}
-
 export interface FullSubmission {
   submissionId: number;
   studentId: number;
@@ -355,7 +345,6 @@ export interface FullSubmission {
   finalScore?: number | null;
   gradesReleased?: boolean;
   verdict: JudgeVerdict;
-  plagiarismReports: PlagiarismReport[];
   studentName?: string;
   feedback?: string;
 }
@@ -397,10 +386,7 @@ export interface ClassroomAnalyticsPayload {
   };
 
   quality: {
-    plagiarismRate: number;
-    averageSimilarity: number;
-    maxSimilarity: number;
-    runtimeErrorRate: number; 
+    runtimeErrorRate: number;
     languageUsage: Array<{
       languageId: number;
       count: number;
@@ -476,12 +462,6 @@ export interface AssignmentAnalyticsPayload {
     type: string;
     count: number;
   }>;
-
-  plagiarism: {
-    rate: number;
-    maxSimilarity: number;
-    averageSimilarity: number;
-  };
 
   runtimeErrors: {
     count: number;

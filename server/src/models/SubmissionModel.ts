@@ -1,6 +1,6 @@
 import pool from "../config/db";
 import logger from "../config/logger";
-import { FullSubmission, JudgeStatus, JudgeVerdict, PlagiarismReport, SubmissionRecord, SubmissionResult, TestCase, TestResult } from "../types";
+import { FullSubmission, JudgeStatus, JudgeVerdict, SubmissionRecord, SubmissionResult, TestCase, TestResult } from "../types";
 
 
 export interface CreateSubmissionArgs {
@@ -184,44 +184,6 @@ export const getSubmissionById = async (
   };
   
 
-export const getSubmissionsFingerprintsByAssignment = async (assignmentId: number, excludeSubmissionId?: number): Promise<any[]> => {
-  const functionName = "getSubmissionsFingerprintsByAssignment";
-  try {
-    logger.info(
-      { functionName, assignmentId, excludeSubmissionId },
-      `Fetching submissions with fingerprints for assignment ${assignmentId}`
-    );
-    
-    let query = `
-      SELECT s.submission_id, sf.fingerprint_hashes 
-      FROM submissions s
-      INNER JOIN submission_fingerprints sf ON s.submission_id = sf.submission_id
-      WHERE s.assignment_id = $1 AND s.status = 'completed'
-    `;
-    
-    const params = [assignmentId];
-    
-    if (excludeSubmissionId) {
-      query += ` AND s.submission_id != $2`;
-      params.push(excludeSubmissionId);
-    }
-    
-    const result = await pool.query(query, params);
-    logger.info(
-      { functionName, assignmentId, excludeSubmissionId, count: result.rows.length },
-      `Found ${result.rows.length} submissions with fingerprints`
-    );
-    
-    return result.rows;
-  } catch (error) {
-    logger.error(
-      { functionName, assignmentId, excludeSubmissionId, error },
-      `Error fetching submissions: ${error}`
-    );
-    throw error;
-  }
-};
-
 export async function getSubmissionStatus(
   submissionId: number
 ): Promise<string | null> {
@@ -379,13 +341,6 @@ export async function getSubmissionsByAssignment(
       [submissionIds]
     );
     
-    const { rows: plagRows } = await client.query(
-      `SELECT report_id, submission_id, compared_submission, similarity, checked_at
-      FROM plagiarism_reports
-      WHERE submission_id = ANY($1)`,
-      [submissionIds]
-    );
-    
     const verdictMap = new Map<number, JudgeVerdict>();
     
     const submissionResultsMap = new Map<number, any[]>();
@@ -468,19 +423,6 @@ export async function getSubmissionsByAssignment(
       verdictMap.set(sub.submission_id, verdict);
     }
 
-    const plagMap = new Map<number, PlagiarismReport[]>();
-    for (const p of plagRows) {
-      const arr = plagMap.get(p.submission_id) ?? [];
-      arr.push({
-        reportId: p.report_id,
-        submissionId: p.submission_id,
-        comparedSubmission: p.compared_submission,
-        similarity: Number(p.similarity),
-        checkedAt: p.checked_at.toISOString()
-      });
-      plagMap.set(p.submission_id, arr);
-    }
-    
     return subs.map(row => ({
       submissionId: row.submission_id,
       studentId: row.student_id,
@@ -496,7 +438,6 @@ export async function getSubmissionsByAssignment(
       manualScore: row.manual_score !== null ? Number(row.manual_score) : null,
       finalScore: row.final_score !== null ? Number(row.final_score) : null,
       verdict: verdictMap.get(row.submission_id) || { status: 'pending' },
-      plagiarismReports: plagMap.get(row.submission_id) || []
     }));
   } catch (err) {
     logger.error(

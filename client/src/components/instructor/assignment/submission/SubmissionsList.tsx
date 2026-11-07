@@ -76,7 +76,6 @@ const SubmissionsList: React.FC<SubmissionsListProps> = ({
           ) : filtered.map((sub) => {
             const meta = getStatusMeta(sub.gradingStatus);
             const score = getDisplayScore(sub);
-            const hasPlagiarism = sub.plagiarismReports?.some(r => r.similarity > 70);
             const initials = sub.studentName?.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() ?? "?";
 
             return (
@@ -117,13 +116,6 @@ const SubmissionsList: React.FC<SubmissionsListProps> = ({
                     {sub.gradingStatus === "pending" ? "Grade" : "View"}
                   </Button>
                 </div>
-
-                {hasPlagiarism && (
-                  <div className="flex items-center gap-2 px-3 py-2 bg-destructive/5 border border-destructive/20 rounded-lg text-xs text-destructive">
-                    <AlertTriangle size={12} />
-                    Potential plagiarism detected
-                  </div>
-                )}
               </div>
             );
           })}

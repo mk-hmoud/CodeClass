@@ -4,7 +4,6 @@ import dotenv from 'dotenv';
 import { 
   SubmissionCompletedEvent,
   SubmissionCreatedEvent,
-  PlagiarismDetectedEvent,
   AssignmentStatistics,
   ScoreDistributionBucket,
   AttemptsDistribution,
@@ -664,91 +663,6 @@ export class AssignmentStatisticsService {
   }
   
 
-  private async updatePlagiarismStatistics(assignmentId: number): Promise<void> {
-    const fn = 'updatePlagiarismStatistics';
-    logger.debug(
-      { function: fn, assignmentId },
-      'Starting plagiarism statistics update'
-    );
-  
-    try {
-      logger.debug(
-        { function: fn, assignmentId },
-        'Querying plagiarism data from database'
-      );
-  
-      const result = await pool.query(`
-        WITH submission_plagiarism AS (
-          SELECT 
-            s.submission_id,
-            CASE WHEN pr.similarity IS NOT NULL AND pr.similarity >= 75 THEN 1 ELSE 0 END as is_flagged,
-            pr.similarity
-          FROM submissions s
-          LEFT JOIN plagiarism_reports pr ON s.submission_id = pr.submission_id
-          WHERE s.assignment_id = $1
-        )
-        SELECT 
-          COUNT(*) as total_submissions,
-          SUM(is_flagged) as flagged_submissions,
-          AVG(CASE WHEN is_flagged = 1 THEN similarity ELSE NULL END) as avg_similarity,
-          MAX(CASE WHEN is_flagged = 1 THEN similarity ELSE NULL END) as max_similarity
-        FROM submission_plagiarism
-      `, [assignmentId]);
-  
-      logger.debug(
-        { function: fn, assignmentId },
-        'Processing plagiarism statistics'
-      );
-  
-      const row = result.rows[0];
-      const totalSubmissions = Number(row.total_submissions) || 0;
-      const flaggedSubmissions = Number(row.flagged_submissions) || 0;
-  
-      const plagiarismRate =
-        totalSubmissions > 0
-          ? (flaggedSubmissions / totalSubmissions) * 100
-          : null;
-  
-      const maxSimilarity = row.max_similarity;
-      const avgSimilarity = row.avg_similarity;
-  
-      const snapshotTime = new Date().toISOString();
-  
-      logger.debug(
-        {
-          
-          function: fn,
-          assignmentId,
-          plagiarismRate,
-          maxSimilarity,
-          avgSimilarity,
-          snapshotTime
-        },
-        'Updating plagiarism statistics in assignment_statistics'
-      );
-  
-      await pool.query(`
-        UPDATE assignment_statistics
-        SET 
-          plagiarism_rate = $1,
-          max_similarity = $2,
-          avg_similarity = $3
-        WHERE assignment_id = $4 AND snapshot_time::date = $5::date
-      `, [plagiarismRate, maxSimilarity, avgSimilarity, assignmentId, snapshotTime]);
-  
-      logger.debug(
-        { function: fn, assignmentId },
-        'Completed updating plagiarism statistics'
-      );
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      logger.error(
-        { function: fn, assignmentId, error, message: msg },
-        'Error updating plagiarism statistics'
-      );
-    }
-  }
-  
 
   public async getAssignmentStatistics(
     assignmentId: number
@@ -941,9 +855,6 @@ export class AssignmentStatisticsService {
         topSlowestTestCases,
         commonErrorPatterns,
         submissionTrend,
-        plagiarismRate: statsRow.plagiarism_rate,
-        maxSimilarity: statsRow.max_similarity,
-        avgSimilarity: statsRow.avg_similarity,
         runtimeErrorRate: statsRow.runtime_error_rate
       };
   
@@ -996,7 +907,6 @@ export class AssignmentStatisticsService {
     );
     systemEventEmitter.on('SUBMISSION_CREATED', this.handleSubmissionCreated.bind(this));
     systemEventEmitter.on('SUBMISSION_COMPLETED', this.handleSubmissionCompleted.bind(this));
-    systemEventEmitter.on('PLAGIARISM_DETECTED', this.handlePlagiarismDetected.bind(this));
     systemEventEmitter.on('GRADE_UPDATED', this.handleGradeUpdated.bind(this));
     logger.info(
       { function: fn },
@@ -1151,53 +1061,6 @@ export class AssignmentStatisticsService {
           message: msg
         },
         'Error handling SUBMISSION_COMPLETED event'
-      );
-    }
-  }
-  
-
-  private async handlePlagiarismDetected(
-    event: PlagiarismDetectedEvent
-  ): Promise<void> {
-    const fn = 'handlePlagiarismDetected';
-    const {
-      submissionId,
-      assignmentId,
-      studentId,
-      comparedSubmissionId,
-      similarityScore
-    } = event.payload;
-  
-    logger.debug(
-      {
-        function: fn,
-        submissionId,
-        assignmentId,
-        studentId,
-        comparedSubmissionId,
-        similarityScore
-      },
-      'Handling PLAGIARISM_DETECTED event'
-    );
-  
-    try {
-      await this.updatePlagiarismStatistics(assignmentId);
-  
-      logger.debug(
-        { function: fn, assignmentId, submissionId },
-        'Completed handling PLAGIARISM_DETECTED event'
-      );
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      logger.error(
-        {
-          function: fn,
-          assignmentId,
-          submissionId,
-          error,
-          message: msg
-        },
-        'Error handling PLAGIARISM_DETECTED event'
       );
     }
   }
@@ -1553,42 +1416,6 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
         );
 
 
-        // Plagiarism statistics
-        const plagiarismResult = await client.query(`
-          WITH submission_plagiarism AS (
-            SELECT
-              s.submission_id,
-              CASE WHEN pr.similarity IS NOT NULL AND pr.similarity >= 75 THEN 1 ELSE 0 END as is_flagged,
-              pr.similarity
-            FROM submissions s
-            LEFT JOIN plagiarism_reports pr ON s.submission_id = pr.submission_id
-            WHERE s.assignment_id = $1
-          )
-          SELECT
-            COUNT(*) as total_submissions,
-            SUM(is_flagged) as flagged_submissions,
-            AVG(CASE WHEN is_flagged = 1 THEN similarity ELSE NULL END) as avg_similarity,
-            MAX(CASE WHEN is_flagged = 1 THEN similarity ELSE NULL END) as max_similarity
-          FROM submission_plagiarism
-        `, [assignmentId]);
-
-        const plagiarismRate = plagiarismResult.rows[0].total_submissions > 0
-          ? (plagiarismResult.rows[0].flagged_submissions / plagiarismResult.rows[0].total_submissions) * 100
-          : null;
-
-        const maxSimilarity = plagiarismResult.rows[0].max_similarity;
-        const avgSimilarity = plagiarismResult.rows[0].avg_similarity;
-        logger.debug(
-          {
-            function: fn,
-            assignmentId,
-            plagiarismRate,
-            maxSimilarity,
-            avgSimilarity
-          },
-          'Computed plagiarism statistics'
-        );
-
         // Runtime error rate
         const runtimeErrorResult = await client.query(`
           SELECT
@@ -1616,9 +1443,8 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
             (assignment_id, snapshot_time, total_submissions, distinct_submitters,
             average_score, median_score, average_runtime_ms,
             public_test_pass_rate, private_test_pass_rate,
-            plagiarism_rate, max_similarity, avg_similarity,
             runtime_error_rate)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
           ON CONFLICT (assignment_id, snapshot_time)
           DO UPDATE SET
             total_submissions = $3,
@@ -1628,10 +1454,7 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
             average_runtime_ms = $7,
             public_test_pass_rate = $8,
             private_test_pass_rate = $9,
-            plagiarism_rate = $10,
-            max_similarity = $11,
-            avg_similarity = $12,
-            runtime_error_rate = $13
+            runtime_error_rate = $10
         `, [
           assignmentId,
           snapshotTime,
@@ -1642,9 +1465,6 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
           averageRuntimeMs,
           publicTestPassRate,
           privateTestPassRate,
-          plagiarismRate,
-          maxSimilarity,
-          avgSimilarity,
           runtimeErrorRate
         ]);
 
@@ -1678,9 +1498,6 @@ public async calculateAllStatistics(assignmentId: number): Promise<AssignmentSta
           topSlowestTestCases: await this.getTopSlowestTestCases(assignmentId),
           commonErrorPatterns: await this.getCommonErrorPatterns(assignmentId),
           submissionTrend: await this.getSubmissionTrend(assignmentId),
-          plagiarismRate,
-          maxSimilarity,
-          avgSimilarity,
           runtimeErrorRate
         };
 

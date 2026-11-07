@@ -141,7 +141,6 @@ const AssignmentAnalytics: React.FC = () => {
             <TabsTrigger value="overview" className="data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">Overview</TabsTrigger>
             <TabsTrigger value="submissions" className="data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">Submissions</TabsTrigger>
             <TabsTrigger value="performance" className="data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">Performance</TabsTrigger>
-            <TabsTrigger value="plagiarism" className="data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm">Integrity</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -635,74 +634,6 @@ const AssignmentAnalytics: React.FC = () => {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
-
-          {/* Plagiarism/Integrity Tab */}
-          <TabsContent value="plagiarism" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="bg-card border-border">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Plagiarism Rate
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {analytics.plagiarism.rate}%
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Submissions above threshold
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-card border-border">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Max Similarity
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {analytics.plagiarism.maxSimilarity}%
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Highest detected
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-card border-border">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Average Similarity
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {analytics.plagiarism.averageSimilarity}%
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Among flagged submissions
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            <Card className="bg-card border-border">
-              <CardHeader>
-                <CardTitle>Note on Academic Integrity</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Plagiarism detection is based on code similarity analysis
-                  across all submissions. Submissions with similarity scores
-                  above the threshold may require manual review. High similarity
-                  doesn't always indicate plagiarism; common solutions to simple
-                  problems may naturally appear similar.
-                </p>
-              </CardContent>
-            </Card>
           </TabsContent>
         </Tabs>
       </div>

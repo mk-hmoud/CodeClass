@@ -78,10 +78,7 @@ export interface ClassroomAnalyticsPayload {
     };
   
     quality: {
-      plagiarismRate: number;
-      averageSimilarity: number;
-      maxSimilarity: number;
-      runtimeErrorRate: number; 
+      runtimeErrorRate: number;
       languageUsage: Array<{
         languageId: number;
         count: number;

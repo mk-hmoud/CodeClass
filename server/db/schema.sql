@@ -142,7 +142,6 @@ CREATE TABLE assignments (
   points INT,
   grading_method grading_method_enum NOT NULL,
   max_submissions INT,
-  plagiarism_detection BOOLEAN NOT NULL DEFAULT FALSE,
   assigned_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
   publish_date TIMESTAMPTZ,
   due_date TIMESTAMPTZ,
@@ -339,28 +338,6 @@ CREATE TABLE submission_results (
   PRIMARY KEY (submission_id, test_case_id)
 );
 
-CREATE TABLE submission_fingerprints (
-  submission_id    INT   PRIMARY KEY
-    REFERENCES submissions(submission_id)
-    ON DELETE CASCADE,
-  fingerprint_hashes BIGINT[] NOT NULL,
-  indexed_at        TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE plagiarism_reports (
-  report_id            SERIAL PRIMARY KEY,
-  submission_id        INT    NOT NULL
-    REFERENCES submissions(submission_id)
-    ON DELETE CASCADE,
-  compared_submission  INT    NOT NULL
-    REFERENCES submissions(submission_id)
-    ON DELETE CASCADE,
-  similarity           NUMERIC(5,2) NOT NULL,
-  checked_at           TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(submission_id, compared_submission)
-);
-
-
 CREATE TABLE assignment_statistics (
   stat_id SERIAL PRIMARY KEY,
   assignment_id INT NOT NULL,
@@ -372,9 +349,6 @@ CREATE TABLE assignment_statistics (
   average_runtime_ms INT,
   public_test_pass_rate NUMERIC(5,2),
   private_test_pass_rate NUMERIC(5,2),
-  plagiarism_rate NUMERIC(5,2),
-  max_similarity NUMERIC(5,2),
-  avg_similarity NUMERIC(5,2),
   runtime_error_rate NUMERIC(5,2),
   FOREIGN KEY (assignment_id) REFERENCES assignments(assignment_id) ON DELETE CASCADE,
   UNIQUE (assignment_id, snapshot_time)
@@ -478,9 +452,6 @@ CREATE TABLE classroom_statistics (
   submissions_per_student NUMERIC(5,2),
   avg_assignment_score NUMERIC(5,2),
   median_assignment_score NUMERIC(5,2),
-  plagiarism_rate NUMERIC(5,2),
-  avg_similarity NUMERIC(5,2),
-  max_similarity NUMERIC(5,2),
   runtime_error_rate NUMERIC(5,2),
   assignment_completion_rate NUMERIC(5,2),
   dropoff_rate NUMERIC(5,2),

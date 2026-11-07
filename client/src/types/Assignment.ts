@@ -22,7 +22,6 @@ export interface Assignment {
   points?: number;
   grading_method: "Manual" | "Automatic" | "Hybrid";
   max_submissions?: number;
-  plagiarism_detection: boolean;
   assigned_at: Date;
   publishDate?: Date;
   dueDate?: Date;
@@ -63,7 +62,6 @@ export interface AssignmentCreationData {
   points?: number;
   grading_method: "Manual" | "Automatic" | "Hybrid";
   max_submissions?: number;
-  plagiarism_detection: boolean;
   publish_date?: Date | string;
   due_date?: Date | string;
   grade_release_mode?: "immediate" | "on_deadline" | "manual";
@@ -133,12 +131,6 @@ export interface AssignmentAnalyticsPayload {
     type: string;
     count: number;
   }>;
-
-  plagiarism: {
-    rate: number;
-    maxSimilarity: number;
-    averageSimilarity: number;
-  };
 
   runtimeErrors: {
     count: number;

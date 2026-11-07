@@ -6,7 +6,6 @@ import {
   EventType, 
   SubmissionCreatedEvent,
   SubmissionCompletedEvent,
-  PlagiarismDetectedEvent,
   StudentEnrolledEvent
 } from '../events';
 import { TestResult } from '../../../types';
@@ -43,12 +42,7 @@ export class ClassroomStatisticsService {
       logger.info(`Received STUDENT_ENROLLED event for student ${event.payload.studentId}`);
       this.handleStudentEnrolled(event);
     });
-  
-    systemEventEmitter.on('PLAGIARISM_DETECTED', (event: PlagiarismDetectedEvent) => {
-      logger.info(`Received PLAGIARISM_DETECTED event with similarity ${event.payload.similarityScore}`);
-      this.handlePlagiarismDetected(event);
-    });
-  
+
     logger.debug('Event handlers registered successfully');
   }
 
@@ -130,29 +124,6 @@ export class ClassroomStatisticsService {
       logger.error(`Error processing enrollment: ${error}\n${JSON.stringify(event.payload)}`);
     }
   }
-
-  private async handlePlagiarismDetected(event: PlagiarismDetectedEvent): Promise<void> {
-    const fn = 'handlePlagiarismDetected';
-    try {
-      logger.debug(`Processing plagiarism event: ${JSON.stringify(event.payload)}`);
-      
-      const { similarityScore, assignmentId, classroomId: eventClassroomId } = event.payload;
-      const classroomId = eventClassroomId || await this.getClassroomIdForAssignment(assignmentId);
-      
-      if (!classroomId) {
-        logger.warn(`Aborting processing - no classroom found for assignment ${assignmentId}`);
-        return;
-      }
-
-      logger.warn(`Updating plagiarism stats with similarity ${similarityScore}%`);
-      await this.updatePlagiarismStats(classroomId, similarityScore);
-      
-      logger.debug(`Plagiarism processing completed for classroom ${classroomId}`);
-    } catch (error) {
-      logger.error(`Error processing plagiarism: ${error}\n${JSON.stringify(event.payload)}`);
-    }
-  }
-
 
   private async getClassroomIdForAssignment(assignmentId: number): Promise<number | null> {
     try {
@@ -409,23 +380,7 @@ export class ClassroomStatisticsService {
       );
       const avgAssignmentScore = parseFloat(assignmentScoresResult.rows[0].avg_score) || 0;
       const medianAssignmentScore = parseFloat(assignmentScoresResult.rows[0].median_score) || 0;
-      
-      const plagiarismResult = await pool.query(
-        `SELECT 
-           COUNT(*) as plagiarism_count,
-           AVG(pr.similarity) as avg_similarity,
-           MAX(pr.similarity) as max_similarity
-         FROM plagiarism_reports pr
-         JOIN submissions s ON pr.submission_id = s.submission_id
-         JOIN assignments a ON s.assignment_id = a.assignment_id
-         WHERE a.classroom_id = $1`,
-        [classroomId]
-      );
-      const plagiarismCount = parseInt(plagiarismResult.rows[0].plagiarism_count, 10);
-      const avgSimilarity = parseFloat(plagiarismResult.rows[0].avg_similarity) || 0;
-      const maxSimilarity = parseFloat(plagiarismResult.rows[0].max_similarity) || 0;
-      const plagiarismRate = totalSubmissions > 0 ? (plagiarismCount / totalSubmissions) * 100 : 0;
-      
+
       const runtimeErrorResult = await pool.query(
         `SELECT COUNT(*) as error_count
          FROM submissions s
@@ -478,12 +433,9 @@ export class ClassroomStatisticsService {
              submissions_per_student = $6,
              avg_assignment_score = $7,
              median_assignment_score = $8,
-             plagiarism_rate = $9,
-             avg_similarity = $10,
-             max_similarity = $11,
-             runtime_error_rate = $12,
-             assignment_completion_rate = $13,
-             dropoff_rate = $14,
+             runtime_error_rate = $9,
+             assignment_completion_rate = $10,
+             dropoff_rate = $11,
              snapshot_time = CURRENT_TIMESTAMP
            WHERE stat_id = $1`,
           [
@@ -495,9 +447,6 @@ export class ClassroomStatisticsService {
             totalStudents > 0 ? totalSubmissions / totalStudents : 0,
             avgAssignmentScore,
             medianAssignmentScore,
-            plagiarismRate,
-            avgSimilarity,
-            maxSimilarity,
             runtimeErrorRate,
             assignmentCompletionRate,
             dropoffRate
@@ -514,13 +463,10 @@ export class ClassroomStatisticsService {
              submissions_per_student,
              avg_assignment_score,
              median_assignment_score,
-             plagiarism_rate,
-             avg_similarity,
-             max_similarity,
              runtime_error_rate,
              assignment_completion_rate,
              dropoff_rate
-           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
           [
             classroomId,
             totalStudents,
@@ -530,9 +476,6 @@ export class ClassroomStatisticsService {
             totalStudents > 0 ? totalSubmissions / totalStudents : 0,
             avgAssignmentScore,
             medianAssignmentScore,
-            plagiarismRate,
-            avgSimilarity,
-            maxSimilarity,
             runtimeErrorRate,
             assignmentCompletionRate,
             dropoffRate
@@ -568,57 +511,6 @@ export class ClassroomStatisticsService {
       }
     } catch (error) {
       logger.error(`Error incrementing runtime errors: ${error}`);
-    }
-  }
-
-  private async updatePlagiarismStats(classroomId: number, similarity: number): Promise<void> {
-    try {
-        const existingRecord = await pool.query(
-            `SELECT * FROM classroom_statistics 
-            WHERE classroom_id = $1 
-            AND snapshot_time::date = CURRENT_DATE`,
-            [classroomId]
-        );
-
-        if (existingRecord.rows.length > 0) {
-            const currentStats = existingRecord.rows[0];
-            const totalSubmissions = currentStats.total_submissions || 0;
-            const currentPlagiarismCount = Math.round((currentStats.plagiarism_rate || 0) * totalSubmissions / 100);
-            
-            const newPlagiarismCount = currentPlagiarismCount + 1;
-            const newPlagiarismRate = totalSubmissions > 0 
-                ? (newPlagiarismCount / totalSubmissions) * 100 
-                : 0;
-
-            const currentTotalSimilarity = (currentStats.avg_similarity || 0) * currentPlagiarismCount;
-            const newAvgSimilarity = newPlagiarismCount > 0
-                ? (currentTotalSimilarity + similarity) / newPlagiarismCount
-                : 0;
-
-            const newMaxSimilarity = Math.max(currentStats.max_similarity || 0, similarity);
-
-            await pool.query(
-                `UPDATE classroom_statistics SET
-                    plagiarism_rate = $1,
-                    avg_similarity = $2,
-                    max_similarity = $3
-                WHERE stat_id = $4`,
-                [newPlagiarismRate, newAvgSimilarity, newMaxSimilarity, currentStats.stat_id]
-            );
-        } else {
-            await this.updateClassroomStats(classroomId);
-            await pool.query(
-                `UPDATE classroom_statistics SET
-                    plagiarism_rate = $1,
-                    avg_similarity = $2,
-                    max_similarity = $3
-                WHERE classroom_id = $4
-                AND snapshot_time::date = CURRENT_DATE`,
-                [100, similarity, similarity, classroomId]
-            );
-        }
-    } catch (error) {
-      logger.error(`Error updating plagiarism stats: ${error}`);
     }
   }
 

@@ -108,13 +108,12 @@ export const createAssignment = async (
         points,
         grading_method,
         max_submissions,
-        plagiarism_detection,
         publish_date,
         due_date,
         library_id,
         group_id,
         grade_release_mode
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
       RETURNING assignment_id, title, description
     `;
     const {
@@ -127,7 +126,6 @@ export const createAssignment = async (
       assignment.points ?? null,
       assignment.grading_method,
       assignment.max_submissions ?? null,
-      assignment.plagiarism_detection,
       assignment.publish_date || null,
       assignment.due_date || null,
       assignment.libraryId ?? null,
@@ -307,7 +305,6 @@ export const getAssignmentById = async (
        a.points,
        a.grading_method,
        a.max_submissions,
-       a.plagiarism_detection,
        a.assigned_at,
        a.publish_date,
        a.due_date,
@@ -463,7 +460,6 @@ export const getAssignmentById = async (
       points: row.points ?? undefined,
       grading_method: row.grading_method as "Manual" | "Automatic" | "Hybrid",
       max_submissions: row.max_submissions?? undefined,
-      plagiarism_detection: row.plagiarism_detection,
       assigned_at: new Date(row.assigned_at),
       publish_date: row.publish_date ? new Date(row.publish_date) : undefined,
       due_date: row.due_date ? new Date(row.due_date) : undefined,
@@ -515,7 +511,6 @@ export const toStudentProjection = (a: Assignment): Assignment => {
   }
   delete (a as any).grading_method;
   delete (a as any).assigned_at;
-  delete (a as any).plagiarism_detection;
   return a;
 };
 
@@ -650,7 +645,6 @@ export async function getAssignmentsForClassroom(classroomId: number): Promise<A
       a.points,
       a.grading_method AS "gradingMethod",
       a.max_submissions AS "submissionAttempts",
-      a.plagiarism_detection AS "plagiarismDetection",
       to_char(a.assigned_at, 'YYYY-MM-DD"T"HH24:MI:SSZ') AS "assignedAt",
       to_char(a.publish_date, 'YYYY-MM-DD"T"HH24:MI:SSZ') AS "publishDate",
       to_char(a.due_date, 'YYYY-MM-DD"T"HH24:MI:SSZ') AS "dueDate",
@@ -734,7 +728,6 @@ export async function getAssignmentsForStudentClassroom(
         a.points,
         a.grading_method          AS "gradingMethod",
         a.max_submissions         AS "submissionAttempts",
-        a.plagiarism_detection    AS "plagiarismDetection",
         to_char(a.assigned_at,    'YYYY-MM-DD"T"HH24:MI:SSZ') AS "assignedAt",
         to_char(a.publish_date,   'YYYY-MM-DD"T"HH24:MI:SSZ') AS "publishDate",
         to_char(a.due_date,       'YYYY-MM-DD"T"HH24:MI:SSZ') AS "dueDate",
@@ -882,8 +875,7 @@ export const getAssignments = async (instructorId: number): Promise<Assignment[]
         ) AS metadata,
         json_build_object(
           'grading_method', ac.grading_method,
-          'max_submissions', ac.max_submissions,
-          'plagiarism_detection', ac.plagiarism_detection
+          'max_submissions', ac.max_submissions
         ) AS config,
         (
           SELECT json_agg(

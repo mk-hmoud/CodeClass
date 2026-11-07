@@ -11,9 +11,6 @@ import {
 import { chartPalette, chartTooltipStyle } from "@/lib/chartColors";
 
 interface QualityReliabilityData {
-  plagiarismRate: number | null;
-  averageSimilarity: number | null;
-  maxSimilarity: number | null;
   runtimeErrorRate: number | null;
   languageUsage: Array<{
     languageId: number;
@@ -33,9 +30,6 @@ const QualityReliabilityTab: React.FC<QualityReliabilityTabProps> = ({
   const COLORS = chartPalette();
 
   const safeData: QualityReliabilityData = {
-    plagiarismRate: data?.plagiarismRate ?? 0,
-    averageSimilarity: data?.averageSimilarity ?? 0,
-    maxSimilarity: data?.maxSimilarity ?? 0,
     runtimeErrorRate: data?.runtimeErrorRate ?? 0,
     languageUsage: data?.languageUsage ?? [],
   };
@@ -67,62 +61,6 @@ const QualityReliabilityTab: React.FC<QualityReliabilityTabProps> = ({
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">Quality & Reliability</h2>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="bg-card border-border">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">
-              Plagiarism Rate
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
-              {safeData.plagiarismRate !== null
-                ? safeData.plagiarismRate.toFixed(1) + "%"
-                : "N/A"}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              % of submissions flagged above the similarity threshold
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-card border-border">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">
-              Average Similarity
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
-              {safeData.averageSimilarity !== null
-                ? safeData.averageSimilarity.toFixed(1) + "%"
-                : "N/A"}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Mean similarity score among flagged submissions
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-card border-border">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">
-              Max Similarity
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
-              {safeData.maxSimilarity !== null
-                ? safeData.maxSimilarity.toFixed(1) + "%"
-                : "N/A"}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Highest similarity score detected
-            </p>
-          </CardContent>
-        </Card>
-      </div>
 
       <Card className="bg-card border-border">
         <CardHeader className="pb-2">

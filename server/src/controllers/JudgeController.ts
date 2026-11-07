@@ -9,7 +9,6 @@ import { getAssignmentTestCases, getProblemOutputTypeForAssignment } from '../mo
 import { getLibraryCodeForAssignment } from '../models/LibraryModel';
 import { createSubmission, getSubmissionById, getSubmissionStatus, saveSubmissionResults, updateSubmissionStatus, uncountAttemptForSubmission, AttemptLimitReachedError, storeSubmissionFiles } from '../models/SubmissionModel';
 import { assembleSystemsJob } from '../services/systems/runnerJob';
-import { runPlagiarismCheck } from './PlagiarismController';
 import { systemEventEmitter } from '../services/statistics/emitter'; 
 import { SubmissionCompletedEvent, SubmissionCreatedEvent } from '../services/statistics/events';
 import { canStudentAccessAssignment, getSubmissionAttemptCount, getAssignmentRuntime, resolveAssignmentProblemId, getAssignmentOwnerInstructorId } from '../models/AssignmentModel';
@@ -651,11 +650,11 @@ export const getSubmitStatusHandler = async (
 
     const currentStatus = await getSubmissionStatus(submissionId);
     if (currentStatus === "completed" || currentStatus === "error") {
-      // A previous poll already ran grading/plagiarism/statistics for this
-      // submission -- just return the verdict, don't repeat that work.
+      // A previous poll already ran grading/statistics for this submission --
+      // just return the verdict, don't repeat that work.
       logger.debug(
         { fn, submissionId, currentStatus },
-        "Submission already fully processed by an earlier poll; skipping grading/plagiarism/statistics side effects"
+        "Submission already fully processed by an earlier poll; skipping grading/statistics side effects"
       );
       res.status(200).json(verdict);
       return;
@@ -674,8 +673,6 @@ export const getSubmitStatusHandler = async (
       );
     });
     res.status(200).json(verdict);
-
-    runPlagiarismCheck(submissionId);
 
     const submission = await getSubmissionById(submissionId);
 

@@ -98,29 +98,6 @@ const SubmissionSettingsSection: React.FC<SubmissionSettingsSectionProps> = ({
             </FormItem>
           )}
         />
-
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="plagiarism">Enable Plagiarism Detection</Label>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Info size={16} className="text-info" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Automatically check submissions for plagiarism</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-          <Switch
-            id="plagiarism"
-            checked={form.watch("plagiarism_detection")}
-            onCheckedChange={(checked) => {
-              form.setValue("plagiarism_detection", checked);
-            }}
-          />
-        </div>
       </CardContent>
     </Card>
   );

@@ -19,9 +19,6 @@ export async function getClassroomAnalytics(classroomId: number): Promise<Classr
        submissions_per_student,
        avg_assignment_score,
        median_assignment_score,
-       plagiarism_rate,
-       avg_similarity,
-       max_similarity,
        runtime_error_rate,
        assignment_completion_rate,
        dropoff_rate,
@@ -42,9 +39,6 @@ export async function getClassroomAnalytics(classroomId: number): Promise<Classr
     submissions_per_student: 0,
     avg_assignment_score: 0,
     median_assignment_score: 0,
-    plagiarism_rate: 0,
-    avg_similarity: 0,
-    max_similarity: 0,
     runtime_error_rate: 0,
     assignment_completion_rate: 0,
     dropoff_rate: 0,
@@ -128,9 +122,6 @@ export async function getClassroomAnalytics(classroomId: number): Promise<Classr
       heatmap,
     },
     quality: {
-      plagiarismRate: parseFloat(stats.plagiarism_rate),
-      averageSimilarity: parseFloat(stats.avg_similarity),
-      maxSimilarity: parseFloat(stats.max_similarity),
       runtimeErrorRate: parseFloat(stats.runtime_error_rate),
       languageUsage,
     },
@@ -164,11 +155,8 @@ export async function getAssignmentAnalytics(assignmentId: number): Promise<Assi
         average_runtime_ms,
         public_test_pass_rate,
         private_test_pass_rate,
-        plagiarism_rate,
-        max_similarity,
-        avg_similarity,
         runtime_error_rate
-      FROM assignment_statistics 
+      FROM assignment_statistics
       WHERE assignment_id = $1 
       ORDER BY snapshot_time DESC 
       LIMIT 1`,
@@ -344,11 +332,6 @@ export async function getAssignmentAnalytics(assignmentId: number): Promise<Assi
       },
       mostMissedTests,
       commonErrorPatterns: runtimeErrorTypes,
-      plagiarism: {
-        rate: basicStats.plagiarism_rate || 0,
-        maxSimilarity: basicStats.max_similarity || 0,
-        averageSimilarity: basicStats.avg_similarity || 0
-      },
       runtimeErrors: {
         count: runtimeErrorCount,
         percentage: basicStats.runtime_error_rate || 0,
@@ -398,11 +381,6 @@ function getDefaultAnalyticsPayload(): AssignmentAnalyticsPayload {
     },
     mostMissedTests: [],
     commonErrorPatterns: [],
-    plagiarism: {
-      rate: 0,
-      maxSimilarity: 0,
-      averageSimilarity: 0
-    },
     runtimeErrors: {
       count: 0,
       percentage: 0,

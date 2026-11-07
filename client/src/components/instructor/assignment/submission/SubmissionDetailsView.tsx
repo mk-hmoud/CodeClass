@@ -346,9 +346,6 @@ const SubmissionDetailsView: React.FC<SubmissionDetailsViewProps> = ({
               <TabsTrigger value="test-results" className="data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm gap-1.5">
                 <FileText size={13} />Test Results
               </TabsTrigger>
-              <TabsTrigger value="plagiarism" className="data-[state=active]:bg-background data-[state=active]:shadow-sm text-sm gap-1.5">
-                <FileX size={13} />Plagiarism
-              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="code" className="mt-3">
@@ -395,31 +392,6 @@ const SubmissionDetailsView: React.FC<SubmissionDetailsViewProps> = ({
               )}
             </TabsContent>
 
-            <TabsContent value="plagiarism" className="mt-3">
-              {submission.plagiarismReports && submission.plagiarismReports.length > 0 ? (
-                <div className="space-y-3">
-                  {submission.plagiarismReports.map((report, idx) => {
-                    const sim = report.similarity ?? 0;
-                    const simMeta = sim >= 80
-                      ? { className: "bg-destructive/15 text-destructive border-destructive/30 border text-[11px]" }
-                      : sim >= 50
-                      ? { className: "bg-warning/15 text-warning border-warning/30 border text-[11px]" }
-                      : { className: "bg-success/15 text-success border-success/30 border text-[11px]" };
-                    return (
-                      <div key={idx} className="bg-card border border-border rounded-xl p-4 flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium">Compared with #{report.comparedSubmission}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">Checked {new Date(report.checkedAt).toLocaleString()}</p>
-                        </div>
-                        <Badge className={simMeta.className}>{sim}% match</Badge>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-10 text-sm text-muted-foreground">No plagiarism reports available.</div>
-              )}
-            </TabsContent>
           </Tabs>
         </div>
 

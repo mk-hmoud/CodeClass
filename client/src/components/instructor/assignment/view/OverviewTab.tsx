@@ -52,22 +52,6 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ assignment }) => {
               </div>
             </div>
 
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Plagiarism Detection</p>
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-md bg-warning/10 flex items-center justify-center shrink-0">
-                  <ShieldCheck size={13} className="text-warning" />
-                </div>
-                <Badge
-                  variant="outline"
-                  className={assignment.plagiarism_detection
-                    ? "text-[11px] border-warning/30 text-warning bg-warning/8"
-                    : "text-[11px] text-muted-foreground"}
-                >
-                  {assignment.plagiarism_detection ? "Enabled" : "Disabled"}
-                </Badge>
-              </div>
-            </div>
           </div>
 
           <div className="border-t border-border pt-5">

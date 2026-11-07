@@ -85,10 +85,6 @@ const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
                 </>
               )}
 
-              <div className="text-muted-foreground">Plagiarism Detection:</div>
-              <div>
-                {formData.plagiarism_detection ? "Enabled" : "Disabled"}
-              </div>
             </div>
           </div>
 

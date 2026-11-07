@@ -45,7 +45,6 @@ export const formSchema = z.object({
   grade_release_mode: z.enum(['immediate', 'on_deadline', 'manual']).default('immediate'),
   enable_max_submissions: z.boolean().default(false),
   max_submissions: z.coerce.number().min(1).optional(),
-  plagiarism_detection: z.boolean().default(false),
   publish_immediately: z.boolean().default(false),
   publish_date: z.date(),
   publish_time: z.string(),

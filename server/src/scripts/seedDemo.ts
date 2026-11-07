@@ -233,8 +233,8 @@ async function main() {
     }
 
     const assignmentRes = await client.query(
-      `INSERT INTO assignments (classroom_id, title, description, difficulty_level, points, grading_method, plagiarism_detection, publish_date, due_date)
-       VALUES ($1,$2,$3,'Easy',100,'Automatic',false, now(), now() + interval '14 days')
+      `INSERT INTO assignments (classroom_id, title, description, difficulty_level, points, grading_method, publish_date, due_date)
+       VALUES ($1,$2,$3,'Easy',100,'Automatic', now(), now() + interval '14 days')
        RETURNING assignment_id`,
       [classroomId, 'Two Sum', 'Solve the classic Two Sum problem.']
     );
@@ -299,8 +299,8 @@ async function main() {
     );
 
     const imageAssignmentRes = await client.query(
-      `INSERT INTO assignments (classroom_id, title, description, difficulty_level, points, grading_method, plagiarism_detection, publish_date, due_date, library_id)
-       VALUES ($1,$2,$3,'Medium',50,'Manual',false, now(), now() + interval '14 days', $4)
+      `INSERT INTO assignments (classroom_id, title, description, difficulty_level, points, grading_method, publish_date, due_date, library_id)
+       VALUES ($1,$2,$3,'Medium',50,'Manual', now(), now() + interval '14 days', $4)
        RETURNING assignment_id`,
       [classroomId, 'Draw a Solid Square', 'Draw a solid square using the provided image library.', libraryId]
     );

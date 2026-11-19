@@ -12,8 +12,17 @@ import {
   toggleClassroomStatus
 } from '../models/ClassroomModel';
 import { getInstructorByUserId, getInstructorIdByClassroom, Instructor } from '../models/InstructorModel';
-import { getStudentByUserId, Student } from '../models/StudentModel'; 
+import { getStudentByUserId, Student } from '../models/StudentModel';
 import { Classroom } from "../types";
+import bcrypt from 'bcrypt';
+import { generateStudentPassword } from '../utils/password';
+import { bulkCreateStudents, bulkEnrollToClassroom } from '../models/AdminModel';
+import { getClassroomInstructorId } from '../models/GroupModel';
+
+// Student logins are always <student_number>@<domain>; instructors never set an
+// arbitrary email, so account creation here can only ever mint student accounts
+// in this one namespace.
+const STUDENT_EMAIL_DOMAIN = 'eul.edu.tr';
 
 
 export const createClassroomController = async (req: Request, res: Response): Promise<void> => {
@@ -262,6 +271,97 @@ export const joinClassroomController = async (req: Request, res: Response): Prom
       res.status(500).json({ success: false, message: 'Failed to join classroom' });
     }
     return;
+  }
+};
+
+/**
+ * Instructor-driven student onboarding, scoped to the instructor's own
+ * classroom. For each roster row it creates the <student_number>@domain account
+ * if it does not exist (student role, generated one-time password) and enrolls
+ * the student -- new or pre-existing -- into this classroom. Returns the
+ * one-time credentials for the accounts it created, for the instructor to hand
+ * out. Removes the admin from routine onboarding without letting instructors
+ * mint non-student accounts or set arbitrary emails.
+ */
+export const importClassroomStudentsController = async (req: Request, res: Response): Promise<void> => {
+  const fn = 'importClassroomStudentsController';
+  try {
+    if (!req.user || req.user.role !== 'instructor' || !req.user.role_id) {
+      res.status(403).json({ success: false, message: 'Forbidden: instructor role required' });
+      return;
+    }
+    const classroomId = Number(req.params.classroomId);
+    const ownerId = await getClassroomInstructorId(classroomId);
+    if (ownerId === null || ownerId !== req.user.role_id) {
+      res.status(403).json({ success: false, message: 'Forbidden: not the owner of this classroom' });
+      return;
+    }
+
+    const rows = Array.isArray(req.body.students) ? req.body.students : [];
+    const seen = new Set<string>();
+    const candidates = rows
+      .filter((s: any) => s?.first_name && s?.last_name && s?.student_number)
+      .map((s: any) => ({
+        email: `${String(s.student_number).trim()}@${STUDENT_EMAIL_DOMAIN}`,
+        firstName: String(s.first_name).trim(),
+        lastName: String(s.last_name).trim(),
+        studentNumber: String(s.student_number).trim(),
+        // One-time password, returned once below and never recoverable (only the
+        // hash is stored). Reused per student; an existing student keeps theirs.
+        password: generateStudentPassword(),
+      }))
+      // Drop rows duplicated within the same upload.
+      .filter((c: { email: string }) => (seen.has(c.email) ? false : (seen.add(c.email), true)));
+
+    if (candidates.length === 0) {
+      res.status(400).json({ success: false, message: 'No valid students to import. Each row needs first_name, last_name and student_number.' });
+      return;
+    }
+
+    const hashes = await Promise.all(candidates.map((c: { password: string }) => bcrypt.hash(c.password, 10)));
+    const createResult = await bulkCreateStudents(
+      candidates.map((c: any, i: number) => ({
+        email: c.email,
+        passwordHash: hashes[i],
+        firstName: c.firstName,
+        lastName: c.lastName,
+      }))
+    );
+
+    // Enroll every student in the upload -- the ones just created and the ones
+    // that already existed -- into this classroom (idempotent).
+    const enrollResult = await bulkEnrollToClassroom(classroomId, candidates.map((c: { email: string }) => c.email));
+
+    const createdSet = new Set(createResult.imported);
+    const credentials = candidates
+      .filter((c: { email: string }) => createdSet.has(c.email))
+      .map((c: any) => ({
+        first_name: c.firstName,
+        last_name: c.lastName,
+        student_number: c.studentNumber,
+        email: c.email,
+        password: c.password,
+      }));
+
+    logger.info(
+      { fn, classroomId, instructorId: req.user.role_id, created: credentials.length, enrolled: enrollResult.enrolled },
+      `Instructor ${req.user.role_id} imported students into classroom ${classroomId}`
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `Created ${credentials.length} new account(s); enrolled ${enrollResult.enrolled} into the class.`,
+      data: {
+        credentials, // new accounts only, with one-time passwords
+        createdCount: credentials.length,
+        alreadyExisted: createResult.skipped.length,
+        newlyEnrolled: enrollResult.enrolled,
+        total: candidates.length,
+      },
+    });
+  } catch (error) {
+    logger.error({ fn, error }, `Error importing classroom students: ${error}`);
+    res.status(500).json({ success: false, message: 'Failed to import students.' });
   }
 };
 

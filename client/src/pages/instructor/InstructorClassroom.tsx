@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -46,26 +46,26 @@ const InstructorClassroom = () => {
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
+  const loadClassroom = useCallback(async () => {
     if (!classroomId) return;
-    (async () => {
-      setLoading(true);
-      try {
-        const data = await getClassroomById(parseInt(classroomId, 10));
-        setClassroom(data);
-        if (data.students) {
-          setStudents(data.students.map(s => ({
-            id: s.email, name: s.name, email: s.email,
-            status: "active", lastActive: s.enrollment_date, completionRate: 75,
-          })));
-        }
-      } catch {
-        toast.error("Failed to load classroom");
-      } finally {
-        setLoading(false);
+    setLoading(true);
+    try {
+      const data = await getClassroomById(parseInt(classroomId, 10));
+      setClassroom(data);
+      if (data.students) {
+        setStudents(data.students.map(s => ({
+          id: s.email, name: s.name, email: s.email,
+          status: "active", lastActive: s.enrollment_date, completionRate: 75,
+        })));
       }
-    })();
+    } catch {
+      toast.error("Failed to load classroom");
+    } finally {
+      setLoading(false);
+    }
   }, [classroomId]);
+
+  useEffect(() => { loadClassroom(); }, [loadClassroom]);
 
   useEffect(() => {
     if (!loading && !classroom) navigate("/instructor/dashboard");
@@ -210,7 +210,7 @@ const InstructorClassroom = () => {
           </TabsContent>
 
           <TabsContent value="students" className="mt-0">
-            <StudentsTab students={students} />
+            <StudentsTab students={students} classroomId={parseInt(classroomId!, 10)} onImported={loadClassroom} />
           </TabsContent>
 
           <TabsContent value="groups" className="mt-0">

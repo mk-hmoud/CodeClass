@@ -55,6 +55,33 @@ export const joinClassroom = (code: string) => {
     return apiClient.post('/classrooms/join', { code });
 };
 
+export interface ImportedCredential {
+  first_name: string;
+  last_name: string;
+  student_number: string;
+  email: string;
+  password: string;
+}
+
+export interface ImportStudentsResult {
+  credentials: ImportedCredential[];
+  createdCount: number;
+  alreadyExisted: number;
+  newlyEnrolled: number;
+  total: number;
+}
+
+/** Instructor-driven onboarding: create any missing <student_number> accounts and
+ *  enrol everyone in the roster into this classroom. Returns one-time credentials
+ *  for the accounts that were created. */
+export const importClassroomStudents = async (
+  classroomId: number,
+  students: { first_name: string; last_name: string; student_number: string }[]
+): Promise<ImportStudentsResult> => {
+  const response = await apiClient.post(`/classrooms/${classroomId}/students/import`, { students });
+  return response.data.data as ImportStudentsResult;
+};
+
 
 export const deleteClassroom = (classroomId: number) => {
     return apiClient.delete(`/classrooms/${classroomId}`);

@@ -10,6 +10,7 @@ import { PASSWORD_REQS, passwordMeetsAllRules } from "@/lib/passwordRules";
 import {
   changeOwnPassword,
   isAuthenticated,
+  logout,
   MUST_CHANGE_PASSWORD_KEY,
   PASSWORD_CHANGE_REQUIRED_EVENT,
 } from "@/services/AuthService";
@@ -44,6 +45,15 @@ const ForcePasswordChangeGate: React.FC = () => {
       window.removeEventListener("storage", sync);
     };
   }, []);
+
+  // Escape hatch: if you landed here on an account that isn't yours (e.g. you
+  // signed into a student you just created), you need a way out other than
+  // changing their password. Log out and hard-redirect to the sign-in page so
+  // the whole app re-mounts with a clean, unauthenticated state.
+  const handleLogout = () => {
+    logout();
+    window.location.assign("/login");
+  };
 
   const met = (regex: RegExp) => regex.test(newPassword);
   const allMet = passwordMeetsAllRules(newPassword);
@@ -156,6 +166,18 @@ const ForcePasswordChangeGate: React.FC = () => {
           <Button type="submit" className="w-full" disabled={saving}>
             {saving ? "Saving…" : "Set password and continue"}
           </Button>
+
+          <p className="text-center text-xs text-muted-foreground">
+            Not your account?{" "}
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={saving}
+              className="font-medium text-foreground underline underline-offset-2 hover:text-primary disabled:opacity-50"
+            >
+              Log out
+            </button>
+          </p>
         </form>
       </DialogContent>
     </Dialog>

@@ -82,6 +82,16 @@ export const importClassroomStudents = async (
   return response.data.data as ImportStudentsResult;
 };
 
+/** Re-issue a one-time password for a student in this classroom. Returns the new
+ *  password once (only the hash is stored server-side). */
+export const resetClassroomStudentPassword = async (
+  classroomId: number,
+  email: string
+): Promise<{ email: string; password: string }> => {
+  const response = await apiClient.post(`/classrooms/${classroomId}/students/reset-password`, { email });
+  return response.data.data as { email: string; password: string };
+};
+
 
 export const deleteClassroom = (classroomId: number) => {
     return apiClient.delete(`/classrooms/${classroomId}`);

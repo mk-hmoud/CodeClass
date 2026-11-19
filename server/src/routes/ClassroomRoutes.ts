@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createClassroomController, getClassroomByIdController, getClassroomsController, assignAssignmentController, deleteClassroomController, joinClassroomController, toggleClassroomStatusController, importClassroomStudentsController} from '../controllers/ClassroomController';
+import { createClassroomController, getClassroomByIdController, getClassroomsController, assignAssignmentController, deleteClassroomController, joinClassroomController, toggleClassroomStatusController, importClassroomStudentsController, resetClassroomStudentPasswordController} from '../controllers/ClassroomController';
 import { getClassroomAnalyticsController } from '../controllers/AnalyticsController';
 import { authMiddleware, requireRole } from '../middleware/AuthMiddleware';
 import { join } from 'path';
@@ -8,6 +8,7 @@ const router = Router();
 
 router.post('/join', authMiddleware, joinClassroomController)
 router.post('/:classroomId/students/import', authMiddleware, requireRole(['instructor']), importClassroomStudentsController);
+router.post('/:classroomId/students/reset-password', authMiddleware, requireRole(['instructor']), resetClassroomStudentPasswordController);
 router.post('/', authMiddleware, createClassroomController);
 router.get('/classrooms', authMiddleware, getClassroomsController);
 router.get('/:classroomId', authMiddleware, getClassroomByIdController);

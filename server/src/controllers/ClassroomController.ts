@@ -16,8 +16,9 @@ import { getStudentByUserId, Student } from '../models/StudentModel';
 import { Classroom } from "../types";
 import bcrypt from 'bcrypt';
 import { generateStudentPassword } from '../utils/password';
-import { bulkCreateStudents, bulkEnrollToClassroom } from '../models/AdminModel';
+import { bulkCreateStudents, bulkEnrollToClassroom, resetStudentPasswords } from '../models/AdminModel';
 import { getClassroomInstructorId } from '../models/GroupModel';
+import { isStudentEnrolledInClassroom } from '../models/ClassroomModel';
 
 // Student logins are always <student_number>@<domain>; instructors never set an
 // arbitrary email, so account creation here can only ever mint student accounts
@@ -362,6 +363,53 @@ export const importClassroomStudentsController = async (req: Request, res: Respo
   } catch (error) {
     logger.error({ fn, error }, `Error importing classroom students: ${error}`);
     res.status(500).json({ success: false, message: 'Failed to import students.' });
+  }
+};
+
+/**
+ * Re-issue a one-time password for a student in the instructor's own classroom.
+ * Ownership-checked, and the student must actually be enrolled here, so an
+ * instructor can only reset passwords for their own students. Returns the new
+ * password once (only the hash is stored).
+ */
+export const resetClassroomStudentPasswordController = async (req: Request, res: Response): Promise<void> => {
+  const fn = 'resetClassroomStudentPasswordController';
+  try {
+    if (!req.user || req.user.role !== 'instructor' || !req.user.role_id) {
+      res.status(403).json({ success: false, message: 'Forbidden: instructor role required' });
+      return;
+    }
+    const classroomId = Number(req.params.classroomId);
+    const ownerId = await getClassroomInstructorId(classroomId);
+    if (ownerId === null || ownerId !== req.user.role_id) {
+      res.status(403).json({ success: false, message: 'Forbidden: not the owner of this classroom' });
+      return;
+    }
+
+    const email = typeof req.body.email === 'string' ? req.body.email.trim() : '';
+    if (!email) {
+      res.status(400).json({ success: false, message: 'A student email is required.' });
+      return;
+    }
+
+    if (!(await isStudentEnrolledInClassroom(classroomId, email))) {
+      res.status(404).json({ success: false, message: 'That student is not enrolled in this classroom.' });
+      return;
+    }
+
+    const password = generateStudentPassword();
+    const passwordHash = await bcrypt.hash(password, 10);
+    const result = await resetStudentPasswords([{ email, passwordHash }]);
+    if (result.updated.length === 0) {
+      res.status(404).json({ success: false, message: 'No student account found for that email.' });
+      return;
+    }
+
+    logger.info({ fn, classroomId, instructorId: req.user.role_id, email }, `Instructor reset password for ${email}`);
+    res.status(200).json({ success: true, message: 'Password re-issued.', data: { email, password } });
+  } catch (error) {
+    logger.error({ fn, error }, `Error resetting student password: ${error}`);
+    res.status(500).json({ success: false, message: 'Failed to reset the password.' });
   }
 };
 

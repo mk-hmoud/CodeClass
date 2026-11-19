@@ -412,3 +412,22 @@ export const toggleClassroomStatus = async (classroomId: number): Promise<'activ
 
   return rows[0].new_status;
 };
+
+/**
+ * Whether the account with this email is a student enrolled in this classroom.
+ * Scopes instructor actions (e.g. password re-issue) to their own students.
+ */
+export const isStudentEnrolledInClassroom = async (
+  classroomId: number,
+  email: string
+): Promise<boolean> => {
+  const { rowCount } = await pool.query(
+    `SELECT 1
+       FROM classroom_enrollments ce
+       JOIN students s ON s.student_id = ce.student_id
+       JOIN users u    ON u.user_id    = s.user_id
+      WHERE ce.classroom_id = $1 AND u.email = $2`,
+    [classroomId, email]
+  );
+  return (rowCount ?? 0) > 0;
+};

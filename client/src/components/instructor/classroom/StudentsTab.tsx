@@ -10,11 +10,18 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Mail, Search, Users, Upload, Download, UserPlus } from "lucide-react";
+import { Mail, Search, Users, Upload, Download, UserPlus, KeyRound, Copy } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { parseRosterCsv, credentialsCsv, downloadCsv, RosterRow } from "@/lib/roster";
-import { importClassroomStudents, ImportStudentsResult } from "@/services/ClassroomService";
+import { importClassroomStudents, resetClassroomStudentPassword, ImportStudentsResult } from "@/services/ClassroomService";
+
+const copyToClipboard = (text: string, label = "Copied") => {
+  navigator.clipboard?.writeText(text).then(
+    () => toast.success(label),
+    () => toast.error("Couldn't copy")
+  );
+};
 
 interface Student {
   id: string;
@@ -45,16 +52,23 @@ const StudentsTab: React.FC<Props> = ({ students, classroomId, onImported, forma
 
   // ── Import students ─────────────────────────────────────────────────────
   const [importOpen, setImportOpen] = useState(false);
+  const [mode, setMode] = useState<"csv" | "single">("csv");
   const [rows, setRows] = useState<RosterRow[] | null>(null);
+  const [single, setSingle] = useState({ first_name: "", last_name: "", student_number: "" });
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<ImportStudentsResult | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const openImport = () => {
+    setMode("csv");
     setRows(null);
+    setSingle({ first_name: "", last_name: "", student_number: "" });
     setResult(null);
     setImportOpen(true);
   };
+
+  const singleValid =
+    single.first_name.trim() !== "" && single.last_name.trim() !== "" && single.student_number.trim() !== "";
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -74,19 +88,21 @@ const StudentsTab: React.FC<Props> = ({ students, classroomId, onImported, forma
   };
 
   const runImport = async () => {
-    if (!rows || !classroomId) return;
+    if (!classroomId) return;
+    const payload =
+      mode === "csv"
+        ? (rows ?? []).map((r) => ({ first_name: r.first_name, last_name: r.last_name, student_number: r.student_number }))
+        : [{ first_name: single.first_name.trim(), last_name: single.last_name.trim(), student_number: single.student_number.trim() }];
+    if (payload.length === 0) return;
     setImporting(true);
     try {
-      const res = await importClassroomStudents(
-        classroomId,
-        rows.map((r) => ({ first_name: r.first_name, last_name: r.last_name, student_number: r.student_number }))
-      );
+      const res = await importClassroomStudents(classroomId, payload);
       setResult(res);
       toast.success(`Created ${res.createdCount} account${res.createdCount === 1 ? "" : "s"}, enrolled ${res.newlyEnrolled}`);
       onImported?.();
     } catch (err) {
       const e = err as { response?: { data?: { message?: string } } };
-      toast.error(e.response?.data?.message || "Failed to import students");
+      toast.error(e.response?.data?.message || "Failed to add students");
     } finally {
       setImporting(false);
     }
@@ -95,6 +111,31 @@ const StudentsTab: React.FC<Props> = ({ students, classroomId, onImported, forma
   const downloadCredentials = () => {
     if (!result?.credentials.length) return;
     downloadCsv(`credentials-classroom-${classroomId}.csv`, credentialsCsv(result.credentials));
+  };
+
+  // ── Reset a student's password ──────────────────────────────────────────
+  const [resetTarget, setResetTarget] = useState<Student | null>(null);
+  const [resetting, setResetting] = useState(false);
+  const [newPassword, setNewPassword] = useState<string | null>(null);
+
+  const openReset = (s: Student) => {
+    setResetTarget(s);
+    setNewPassword(null);
+  };
+
+  const runReset = async () => {
+    if (!resetTarget || !classroomId) return;
+    setResetting(true);
+    try {
+      const res = await resetClassroomStudentPassword(classroomId, resetTarget.email);
+      setNewPassword(res.password);
+      toast.success("New password issued");
+    } catch (err) {
+      const e = err as { response?: { data?: { message?: string } } };
+      toast.error(e.response?.data?.message || "Failed to reset the password");
+    } finally {
+      setResetting(false);
+    }
   };
 
   const filtered = students.filter(
@@ -159,15 +200,24 @@ const StudentsTab: React.FC<Props> = ({ students, classroomId, onImported, forma
                     <p className="text-sm font-medium truncate">{s.name}</p>
                     <p className="text-xs text-muted-foreground truncate">{s.email}</p>
                   </div>
-                  <a
-                    href={`mailto:${s.email}`}
-                    className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                    title="Send email"
-                  >
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
-                      <Mail size={13} />
-                    </Button>
-                  </a>
+                  <div className="ml-2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <a href={`mailto:${s.email}`} title="Send email">
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+                        <Mail size={13} />
+                      </Button>
+                    </a>
+                    {classroomId != null && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                        title="Reset password"
+                        onClick={() => openReset(s)}
+                      >
+                        <KeyRound size={13} />
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
                 <span className="text-xs text-muted-foreground">{formatDate(s.lastActive)}</span>
@@ -206,9 +256,8 @@ const StudentsTab: React.FC<Props> = ({ students, classroomId, onImported, forma
           <DialogHeader>
             <DialogTitle>Add students</DialogTitle>
             <DialogDescription>
-              Upload your roster CSV. Any student who doesn't have an account yet is created
-              automatically, and everyone in the file is enrolled in this class. You'll get a
-              credentials file for the new accounts to hand out.
+              New students are created automatically and everyone is enrolled in this class. You'll
+              get the one-time login for any account that was created.
             </DialogDescription>
           </DialogHeader>
 
@@ -216,25 +265,63 @@ const StudentsTab: React.FC<Props> = ({ students, classroomId, onImported, forma
 
           {!result && (
             <div className="space-y-4 py-1">
-              <div className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
-                <div className="text-sm">
-                  {rows ? (
-                    <span><span className="font-semibold">{rows.length}</span> student{rows.length === 1 ? "" : "s"} ready to import</span>
-                  ) : (
-                    <span className="text-muted-foreground">No file selected</span>
-                  )}
-                </div>
-                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => fileRef.current?.click()}>
-                  <Upload size={14} />
-                  {rows ? "Choose another" : "Choose CSV"}
-                </Button>
+              {/* Mode toggle */}
+              <div className="inline-flex rounded-lg border border-border p-0.5 bg-muted/40 w-full">
+                {([["csv", "Upload CSV"], ["single", "Add one"]] as const).map(([m, label]) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setMode(m)}
+                    className={`flex-1 text-sm rounded-md py-1.5 transition-colors ${
+                      mode === m ? "bg-background shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">Expected columns</Label>
-                <pre className="mt-1 text-xs bg-muted/60 rounded-md px-3 py-2 overflow-x-auto">{`first_name,last_name,student_number
+
+              {mode === "csv" ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
+                    <div className="text-sm">
+                      {rows ? (
+                        <span><span className="font-semibold">{rows.length}</span> student{rows.length === 1 ? "" : "s"} ready</span>
+                      ) : (
+                        <span className="text-muted-foreground">No file selected</span>
+                      )}
+                    </div>
+                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => fileRef.current?.click()}>
+                      <Upload size={14} />
+                      {rows ? "Choose another" : "Choose CSV"}
+                    </Button>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Expected columns</Label>
+                    <pre className="mt-1 text-xs bg-muted/60 rounded-md px-3 py-2 overflow-x-auto">{`first_name,last_name,student_number
 Ada,Lovelace,23175026
 Alan,Turing,23175027`}</pre>
-              </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="sf-first" className="text-xs">First name</Label>
+                      <Input id="sf-first" value={single.first_name} onChange={(e) => setSingle({ ...single, first_name: e.target.value })} className="mt-1" placeholder="Ada" />
+                    </div>
+                    <div>
+                      <Label htmlFor="sf-last" className="text-xs">Last name</Label>
+                      <Input id="sf-last" value={single.last_name} onChange={(e) => setSingle({ ...single, last_name: e.target.value })} className="mt-1" placeholder="Lovelace" />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="sf-num" className="text-xs">Student number</Label>
+                    <Input id="sf-num" value={single.student_number} onChange={(e) => setSingle({ ...single, student_number: e.target.value })} className="mt-1 font-mono" placeholder="23175026" />
+                    <p className="text-xs text-muted-foreground mt-1">Their login will be <span className="font-mono">{(single.student_number.trim() || "<number>")}@eul.edu.tr</span>.</p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -247,7 +334,20 @@ Alan,Turing,23175027`}</pre>
                   <div className="text-muted-foreground">{result.alreadyExisted} already had accounts (enrolled, unchanged)</div>
                 )}
               </div>
-              {result.credentials.length > 0 ? (
+
+              {result.credentials.length === 1 ? (
+                <div className="rounded-lg border border-border p-3">
+                  <p className="text-sm font-medium">{result.credentials[0].first_name} {result.credentials[0].last_name}</p>
+                  <p className="text-xs text-muted-foreground">{result.credentials[0].email}</p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <code className="flex-1 text-sm bg-muted/60 rounded px-2 py-1 font-mono">{result.credentials[0].password}</code>
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => copyToClipboard(result.credentials[0].password, "Password copied")} title="Copy password">
+                      <Copy size={14} />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-amber-700 dark:text-amber-500 mt-2">Shown only once — copy it now.</p>
+                </div>
+              ) : result.credentials.length > 1 ? (
                 <div className="rounded-lg bg-amber-500/8 border border-amber-500/25 p-3 text-xs text-amber-700 dark:text-amber-500">
                   Download the credentials now — the generated passwords are shown only once and can't be recovered later.
                 </div>
@@ -261,13 +361,20 @@ Alan,Turing,23175027`}</pre>
             {!result ? (
               <>
                 <Button variant="outline" onClick={() => setImportOpen(false)} disabled={importing}>Cancel</Button>
-                <Button onClick={runImport} disabled={!rows || importing}>
-                  {importing ? "Importing…" : rows ? `Import ${rows.length}` : "Import"}
+                <Button
+                  onClick={runImport}
+                  disabled={importing || (mode === "csv" ? !rows : !singleValid)}
+                >
+                  {importing
+                    ? "Adding…"
+                    : mode === "csv"
+                    ? rows ? `Add ${rows.length}` : "Add"
+                    : "Add student"}
                 </Button>
               </>
             ) : (
               <>
-                {result.credentials.length > 0 && (
+                {result.credentials.length > 1 && (
                   <Button variant="outline" className="gap-1.5" onClick={downloadCredentials}>
                     <Download size={14} />
                     Download credentials
@@ -275,6 +382,51 @@ Alan,Turing,23175027`}</pre>
                 )}
                 <Button onClick={() => setImportOpen(false)}>Done</Button>
               </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset password dialog */}
+      <Dialog open={!!resetTarget} onOpenChange={(o) => !o && !resetting && setResetTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reset password</DialogTitle>
+            <DialogDescription>
+              {newPassword
+                ? "A new one-time password was issued. Copy it now — it's shown only once."
+                : <>Issue a new password for <span className="font-medium text-foreground">{resetTarget?.name}</span>? Their current password will stop working immediately.</>}
+            </DialogDescription>
+          </DialogHeader>
+
+          {resetTarget && (
+            <div className="py-1">
+              <div className="rounded-lg border border-border p-3">
+                <p className="text-sm font-medium">{resetTarget.name}</p>
+                <p className="text-xs text-muted-foreground">{resetTarget.email}</p>
+                {newPassword && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <code className="flex-1 text-sm bg-muted/60 rounded px-2 py-1 font-mono">{newPassword}</code>
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => copyToClipboard(newPassword, "Password copied")} title="Copy password">
+                      <Copy size={14} />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            {!newPassword ? (
+              <>
+                <Button variant="outline" onClick={() => setResetTarget(null)} disabled={resetting}>Cancel</Button>
+                <Button onClick={runReset} disabled={resetting} className="gap-1.5">
+                  <KeyRound size={14} />
+                  {resetting ? "Resetting…" : "Reset password"}
+                </Button>
+              </>
+            ) : (
+              <Button onClick={() => setResetTarget(null)}>Done</Button>
             )}
           </DialogFooter>
         </DialogContent>

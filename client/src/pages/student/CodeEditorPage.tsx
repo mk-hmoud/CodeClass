@@ -26,6 +26,7 @@ import { FullSubmission } from "@/types/Submission";
 import { runCode, getRunStatus, submit, getSubmitStatus, runSystems, previewGrade } from "@/services/JudgeService";
 import { getRemainingAttempts, getAssignmentById, getAssignmentPreview, getMySubmission } from "@/services/AssignmentService";
 import { getCodeDraft, removeCodeDraft, saveCodeDraft } from "@/utils/CodeDraftManager";
+import StudentIdentityBadge from "@/components/student/StudentIdentityBadge";
 import { LANGUAGE_LABELS, normalizeAssignment } from "@/lib/assignmentUtils";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useIsCompactLayout } from "@/hooks/use-media-query";
@@ -843,6 +844,7 @@ const CodeEditorPage = ({ preview = false }: { preview?: boolean } = {}) => {
                 <TooltipContent>Save draft</TooltipContent>
               </Tooltip>
             )}
+            {!preview && <StudentIdentityBadge />}
           </div>
         </header>
 

@@ -40,6 +40,7 @@ import {
   submitSession,
 } from "@/services/QuizService";
 import { useIsCompactLayout } from "@/hooks/use-media-query";
+import StudentIdentityBadge from "@/components/student/StudentIdentityBadge";
 
 const POLL_INTERVAL = 1000;
 
@@ -403,7 +404,9 @@ const QuizTakingPage: React.FC = () => {
           {secondsLeft !== null ? formatTime(secondsLeft) : "--:--"}
         </div>
 
-        <AlertDialog>
+        <div className="flex items-center gap-3">
+          <StudentIdentityBadge />
+          <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button className="gap-2" disabled={session.status !== "in_progress"}>
               <Send size={16} />
@@ -426,6 +429,7 @@ const QuizTakingPage: React.FC = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+        </div>
       </div>
 
       {/* Main content */}
